@@ -62,16 +62,98 @@ export async function POST(request: NextRequest) {
     }
 
     await ensureSeed();
-    const [user] = await db.select().from(profiles).where(eq(profiles.id, id(userId)));
-    if (!user) return NextResponse.json({ error: "This workspace session is unavailable." }, { status: 401 });
-    const requireRole = (allowed: string[]) => { if (!allowed.includes(user.role)) throw new Error("Your current role cannot perform this action. Switch to an executive or organizer in Settings."); };
+    const isPublicAction = body.action === "login" || body.action === "resetPinWithGoogle";
+    let foundUser: typeof profiles.$inferSelect | undefined;
+    if (userId) {
+      try {
+        const [found] = await db.select().from(profiles).where(eq(profiles.id, id(userId)));
+        foundUser = found;
+      } catch {
+        foundUser = undefined;
+      }
+    }
+    if (!isPublicAction && !foundUser) {
+      return NextResponse.json({ error: "Please log in to the workspace with your 4-digit PIN." }, { status: 401 });
+    }
+    const user = foundUser!;
+    const requireRole = (allowed: string[]) => {
+      if (!user || !allowed.includes(user.role)) throw new Error("Your current role cannot perform this action.");
+    };
     const log = async (type: string, title: string, description: string, targetId?: string, amount?: number) => {
-      await db.insert(activities).values({ type, title, description, actorId: user.id, targetId, amount });
+      if (user) {
+        await db.insert(activities).values({ type, title, description, actorId: user.id, targetId, amount });
+      }
     };
     let message = "Saved successfully.";
     let receiptId: string | undefined;
-    let nextUser = user.id;
+    let nextUser = foundUser ? foundUser.id : "";
     switch (body.action) {
+      case "login": {
+        const memberId = id(body.memberId);
+        const pinInput = String(body.pin || "").trim();
+        const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
+        if (!target) throw new Error("Member profile not found.");
+        const expectedPin = target.pin || "1234";
+        if (pinInput !== expectedPin) {
+          throw new Error("Incorrect 4-digit PIN. Please try again or use Google recovery.");
+        }
+        nextUser = target.id;
+        message = `Welcome back, ${target.fullName}!`;
+        break;
+      }
+      case "logout": {
+        nextUser = "";
+        message = "You have logged out of the workspace.";
+        break;
+      }
+      case "changePin": {
+        if (!user) throw new Error("Please log in to change your PIN.");
+        const oldPin = String(body.oldPin || "").trim();
+        const newPin = String(body.newPin || "").trim();
+        if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
+        const expected = user.pin || "1234";
+        if (!user.needsPinChange && expected !== oldPin) {
+          throw new Error("Current PIN is incorrect.");
+        }
+        await db.update(profiles).set({ pin: newPin, needsPinChange: false }).where(eq(profiles.id, user.id));
+        message = "Your 4-digit PIN has been updated successfully.";
+        break;
+      }
+      case "linkGoogle": {
+        if (!user) throw new Error("Please log in to link your Google account.");
+        const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(googleEmail)) {
+          throw new Error("Please enter a valid Google email address.");
+        }
+        await db.update(profiles).set({ googleEmail }).where(eq(profiles.id, user.id));
+        message = `Security recovery linked to ${googleEmail}.`;
+        break;
+      }
+      case "resetPinWithGoogle": {
+        const memberId = id(body.memberId);
+        const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
+        const newPin = String(body.newPin || "").trim();
+        if (!/^\d{4,6}$/.test(newPin)) throw new Error("New PIN must be 4 to 6 numbers.");
+        const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
+        if (!target) throw new Error("Member not found.");
+        if (!target.googleEmail || target.googleEmail.toLowerCase() !== googleEmail) {
+          throw new Error(`Google account does not match the linked recovery email for ${target.fullName}. Contact unit secretary Arunabha Ghosh.`);
+        }
+        await db.update(profiles).set({ pin: newPin, needsPinChange: false }).where(eq(profiles.id, target.id));
+        nextUser = target.id;
+        message = `Identity verified via ${googleEmail}. New PIN set and logged in!`;
+        break;
+      }
+      case "adminResetPin": {
+        requireRole(["admin"]);
+        const targetId = id(body.memberId);
+        const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
+        if (!target) throw new Error("Member not found.");
+        await db.update(profiles).set({ pin: "1234", needsPinChange: true }).where(eq(profiles.id, targetId));
+        message = `PIN for ${target.fullName} has been reset to default (1234).`;
+        await log("member", "PIN reset", `Unit admin reset login PIN for ${target.fullName}.`, targetId);
+        break;
+      }
       case "collectDues": {
         requireRole(["admin", "organizer", "volunteer"]);
         const memberId = id(body.memberId);
@@ -214,7 +296,17 @@ export async function POST(request: NextRequest) {
       default: throw new Error("Unknown workspace action.");
     }
     const response = NextResponse.json({ data: await getWorkspace(nextUser), message, receiptId });
-    response.cookies.set("bss_demo_user", nextUser, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 86400 * 7, secure: process.env.NODE_ENV === "production" && request.nextUrl.protocol === "https:" });
+    if (nextUser) {
+      response.cookies.set("bss_demo_user", nextUser, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 86400 * 30,
+        secure: process.env.NODE_ENV === "production" && request.nextUrl.protocol === "https:",
+      });
+    } else {
+      response.cookies.delete("bss_demo_user");
+    }
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";

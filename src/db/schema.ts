@@ -10,6 +10,9 @@ export const profiles = pgTable("profiles", {
   monthlyPledge: numeric("monthly_pledge", { precision: 12, scale: 2, mode: "number" }).notNull().default(20),
   avatarColor: text("avatar_color").notNull().default("peach"),
   unpaidMonths: integer("unpaid_months").notNull().default(0),
+  pin: text("pin").notNull().default("1234"),
+  googleEmail: text("google_email"),
+  needsPinChange: boolean("needs_pin_change").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check("minimum_pledge", sql`${t.monthlyPledge} >= 20`),

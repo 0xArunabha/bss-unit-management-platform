@@ -1,13 +1,13 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IndianRupee, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, UserPlus, Users, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IndianRupee, KeyRound, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, UserPlus, Users, Wallet } from "lucide-react";
 import { useState } from "react";
-import { type WorkspaceData, type DuesRecord, type Donation, money, months } from "@/lib/types";
+import { type WorkspaceData, type DuesRecord, type Donation, type PerformAction, money, months } from "@/lib/types";
 import { Badge, Button, EmptyState, ExportButton, PageHeading, SearchInput, Select, downloadCsv } from "@/components/ui";
 import type { OpenModal } from "@/components/overview";
 
-type Props = { data: WorkspaceData; open: OpenModal };
+type Props = { data: WorkspaceData; open: OpenModal; perform?: PerformAction };
 const roleName: Record<string, string> = { admin: "Executive", organizer: "Organizer", volunteer: "Volunteer", member: "Member" };
 
 function getDonorBadge(d: Donation): { label: string; tone: string } {
@@ -24,11 +24,11 @@ function getDonorBadge(d: Donation): { label: string; tone: string } {
   return { label: "CITIZEN", tone: "sage" };
 }
 
-export function MembersView({ data, open }: Props) {
+export function MembersView({ data, open, perform }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(0);
-  const current = data.profiles.find((p) => p.id === data.currentUserId)!;
+  const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0];
   const isExecutive = current.role === "admin";
   const canCollect = current.role !== "member";
 
@@ -147,12 +147,28 @@ export function MembersView({ data, open }: Props) {
                       {new Date(p.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
                     </td>
                     <td>
-                      {canCollect && (
-                        <button className="table-action" onClick={() => open("dues", { memberId: p.id })}>
-                          Collect dues
-                          <ArrowUpRight size={13} />
-                        </button>
-                      )}
+                      <div className="table-actions-cluster">
+                        {canCollect && (
+                          <button className="table-action" onClick={() => open("dues", { memberId: p.id })}>
+                            Collect dues
+                            <ArrowUpRight size={13} />
+                          </button>
+                        )}
+                        {isExecutive && (
+                          <button
+                            className="table-action table-action-muted"
+                            title="Reset member PIN to default (1234)"
+                            onClick={async () => {
+                              if (confirm(`Reset 4-digit PIN for ${p.fullName} to default 1234?`)) {
+                                if (perform) await perform("adminResetPin", { memberId: p.id });
+                              }
+                            }}
+                          >
+                            <KeyRound size={12} />
+                            Reset PIN
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

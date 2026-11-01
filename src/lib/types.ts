@@ -1,6 +1,19 @@
-export type Role = "admin" | "organizer" | "volunteer" | "member";
+export type Role = "admin" | "organizer" | "volunteer" | "member" | "guest";
 export type View = "overview" | "members" | "dues" | "donations" | "events" | "procurement" | "circulars" | "resources" | "settings";
-export type Profile = { id: string; fullName: string; phone: string | null; role: Role; status: string; monthlyPledge: number; avatarColor: string; unpaidMonths: number; createdAt: string };
+export type Profile = {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  role: Role;
+  status: string;
+  monthlyPledge: number;
+  avatarColor: string;
+  unpaidMonths: number;
+  createdAt: string;
+  hasGoogleLinked?: boolean;
+  googleEmail?: string | null;
+  needsPinChange?: boolean;
+};
 export type DuesRecord = { id: string; memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string | null; paidAt: string };
 export type UnitEvent = { id: string; title: string; description: string; location: string; startsAt: string; category: string; volunteers: number; image: string; createdAt: string };
 export type Procurement = { id: string; eventId: string; itemName: string; quantity: string; estimatedCost: number; actualCost: number | null; status: "needed" | "purchased" | "verified"; purchasedBy: string | null; purchasedAt: string | null; verifiedBy: string | null; verifiedAt: string | null; createdBy: string | null; createdAt: string };

@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FlaskConical, HeartHandshake, Info, Leaf, MapPin, Megaphone, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FlaskConical, HeartHandshake, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, money } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
@@ -704,14 +704,83 @@ export function SettingsView({
   installApp: () => void;
   busy: boolean;
 }) {
-  const current = data.profiles.find((p) => p.id === data.currentUserId)!;
+  const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0];
   const [sound, setSound] = useState(false);
   const [duesReminder, setDuesReminder] = useState(true);
+
+  // PIN Change State
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinMsg, setPinMsg] = useState<{ text: string; error?: boolean } | null>(null);
+
+  // Google Recovery Link State
+  const [googleEmail, setGoogleEmail] = useState(current.googleEmail || "");
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleMsg, setGoogleMsg] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     setSound(localStorage.getItem("bss-sound") === "true");
     setDuesReminder(localStorage.getItem("bss-dues-reminder") !== "false");
   }, []);
+
+  const handleUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPin.length < 4 || newPin.length > 6 || !/^\d+$/.test(newPin)) {
+      setPinMsg({ text: "New PIN must be 4 to 6 numbers.", error: true });
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinMsg({ text: "New PIN and confirmation do not match.", error: true });
+      return;
+    }
+    setPinBusy(true);
+    setPinMsg(null);
+    try {
+      const res = await perform("changePin", { oldPin, newPin });
+      if (res) {
+        setPinMsg({ text: "PIN updated successfully!" });
+        setOldPin("");
+        setNewPin("");
+        setConfirmPin("");
+      } else {
+        setPinMsg({ text: "Failed to update PIN. Verify your current PIN.", error: true });
+      }
+    } catch (err) {
+      setPinMsg({ text: err instanceof Error ? err.message : "Error updating PIN", error: true });
+    } finally {
+      setPinBusy(false);
+    }
+  };
+
+  const handleLinkGoogle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleEmail || !googleEmail.includes("@")) {
+      setGoogleMsg({ text: "Please enter a valid Gmail address.", error: true });
+      return;
+    }
+    setGoogleBusy(true);
+    setGoogleMsg(null);
+    try {
+      const res = await perform("linkGoogle", { googleEmail });
+      if (res) {
+        setGoogleMsg({ text: `Linked to ${googleEmail} for PIN recovery!` });
+      } else {
+        setGoogleMsg({ text: "Failed to link Google account.", error: true });
+      }
+    } catch (err) {
+      setGoogleMsg({ text: err instanceof Error ? err.message : "Error linking Google account", error: true });
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (confirm("Log out of the unit workspace on this device?")) {
+      await perform("logout", {});
+    }
+  };
 
   return (
     <div className="view-enter">
@@ -723,7 +792,7 @@ export function SettingsView({
 
       <div className="settings-grid">
         <section className="panel settings-panel">
-          <h2><Users size={18} />Your profile & designated role</h2>
+          <h2><Users size={18} />Your member account & designated role</h2>
           <div className="settings-profile">
             <Avatar person={current} size="large" />
             <div>
@@ -735,31 +804,94 @@ export function SettingsView({
             <Badge tone="green">{current.status === "active" ? "Active" : "Dues pending"}</Badge>
           </div>
 
-          <label className="form-field">
-            <span>Preview the workspace as</span>
-            <Select
-              value={current.id}
-              onChange={(v) => {
-                if (!busy) void perform("switchUser", { userId: v });
-              }}
-              label="Preview member role"
-            >
-              {data.profiles.filter((p, i) => i < 12 || p.id === current.id).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName} — {p.role === "admin" ? "Unit Executive" : p.role}
-                </option>
-              ))}
-            </Select>
-            <small>
-              Role-Based Access Control (RBAC): Admins audit treasury and enroll members; organizers and volunteers log purchases, conduct peer verification, and collect dues; general members view their personal dues and outreach resources.
-            </small>
-          </label>
+          <div className="settings-auth-block">
+            <h3><KeyRound size={17} /> Security PIN</h3>
+            <form onSubmit={handleUpdatePin} className="settings-pin-form">
+              <div className="settings-pin-inputs">
+                <label className="form-field">
+                  <span>Current PIN</span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="••••"
+                    value={oldPin}
+                    onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                </label>
+                <label className="form-field">
+                  <span>New 4-Digit PIN</span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="••••"
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                </label>
+                <label className="form-field">
+                  <span>Confirm New PIN</span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="••••"
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
+                    required
+                  />
+                </label>
+              </div>
+              {pinMsg && (
+                <div className={pinMsg.error ? "login-error-msg" : "login-success-msg"}>
+                  <span>{pinMsg.text}</span>
+                </div>
+              )}
+              <Button variant="secondary" type="submit" disabled={pinBusy}>
+                {pinBusy ? "Updating…" : "Update Security PIN"}
+              </Button>
+            </form>
 
-          <div className="demo-explainer">
-            <Info size={16} />
-            <p>
-              This is a unified unit management platform for {identity.fullName}. Role switching previews permissions in this demonstrator.
+            <div className="settings-divider" />
+
+            <h3><ShieldCheck size={17} /> Google Account PIN Recovery</h3>
+            <p className="settings-help-text">
+              Link your personal Gmail address so you can reset your PIN anytime without administrative assistance.
             </p>
+            <form onSubmit={handleLinkGoogle} className="settings-google-form">
+              <div className="settings-google-row">
+                <input
+                  type="email"
+                  placeholder="yourname@gmail.com"
+                  value={googleEmail}
+                  onChange={(e) => setGoogleEmail(e.target.value)}
+                  required
+                />
+                <Button variant="primary" type="submit" disabled={googleBusy}>
+                  {googleBusy ? "Linking…" : current.hasGoogleLinked ? "Update Recovery Email" : "Link Google Account"}
+                </Button>
+              </div>
+              {googleMsg && (
+                <div className={googleMsg.error ? "login-error-msg" : "login-success-msg"}>
+                  <span>{googleMsg.text}</span>
+                </div>
+              )}
+            </form>
+
+            <div className="settings-divider" />
+
+            <div className="settings-logout-block">
+              <div>
+                <strong>Sign Out of Workspace</strong>
+                <p>Locks the workspace on this device. You will need your 4-digit PIN to re-enter.</p>
+              </div>
+              <Button variant="secondary" icon={LogOut} onClick={handleLogout}>
+                Log Out
+              </Button>
+            </div>
           </div>
         </section>
 

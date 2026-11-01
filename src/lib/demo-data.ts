@@ -186,12 +186,21 @@ export function resetInMemoryState() {
   return inMemoryState;
 }
 
+const demoPins = new Map<string, string>();
+const demoGoogle = new Map<string, string>();
+
 export function getDemoWorkspace(userId?: string): WorkspaceData {
   const state = getInMemoryState();
-  const people = state.profiles;
-  const currentUserId = people.some((p) => p.id === userId) ? (userId as string) : DEMO_ADMIN_ID;
+  const people = state.profiles.map((p) => ({
+    ...p,
+    hasGoogleLinked: Boolean(demoGoogle.get(p.id) || p.googleEmail),
+    googleEmail: p.id === userId ? (demoGoogle.get(p.id) || p.googleEmail || null) : (demoGoogle.get(p.id) || p.googleEmail) ? "Linked" : null,
+    needsPinChange: Boolean(p.needsPinChange),
+  }));
+  const currentUserId = people.some((p) => p.id === userId) ? (userId as string) : "";
   return JSON.parse(JSON.stringify({
     ...state,
+    profiles: people,
     currentUserId,
     openingBalance: DEMO_OPENING_BALANCE,
   })) as WorkspaceData;
@@ -205,6 +214,70 @@ export async function executeDemoAction(action: string, body: any, currentUserId
   let nextUser = user.id;
 
   switch (action) {
+    case "login": {
+      const selected = state.profiles.find((p) => p.id === body.memberId);
+      if (!selected) throw new Error("Member profile not found.");
+      const currentPin = demoPins.get(selected.id) || "1234";
+      const pinInput = String(body.pin || "").trim();
+      if (pinInput !== currentPin) {
+        throw new Error("Incorrect 4-digit PIN. Please try again.");
+      }
+      nextUser = selected.id;
+      message = `Welcome back, ${selected.fullName}!`;
+      break;
+    }
+    case "logout": {
+      nextUser = "";
+      message = "You have logged out of the unit workspace.";
+      break;
+    }
+    case "changePin": {
+      const oldPin = String(body.oldPin || "").trim();
+      const newPin = String(body.newPin || "").trim();
+      if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
+      const currentPin = demoPins.get(user.id) || "1234";
+      if (!user.needsPinChange && currentPin !== oldPin) {
+        throw new Error("Current PIN does not match.");
+      }
+      demoPins.set(user.id, newPin);
+      user.needsPinChange = false;
+      message = "PIN updated successfully.";
+      break;
+    }
+    case "linkGoogle": {
+      const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(googleEmail)) throw new Error("Please enter a valid Google email address.");
+      demoGoogle.set(user.id, googleEmail);
+      user.googleEmail = googleEmail;
+      user.hasGoogleLinked = true;
+      message = `Google account linked: ${googleEmail}`;
+      break;
+    }
+    case "resetPinWithGoogle": {
+      const target = state.profiles.find((p) => p.id === body.memberId);
+      if (!target) throw new Error("Member not found.");
+      const linked = demoGoogle.get(target.id) || target.googleEmail;
+      const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
+      const newPin = String(body.newPin || "").trim();
+      if (!/^\d{4,6}$/.test(newPin)) throw new Error("New PIN must be 4 to 6 numbers.");
+      if (!linked || linked.toLowerCase() !== googleEmail) {
+        throw new Error(`Google account does not match the recovery email for ${target.fullName}. Contact unit secretary Arunabha Ghosh.`);
+      }
+      demoPins.set(target.id, newPin);
+      target.needsPinChange = false;
+      nextUser = target.id;
+      message = `Identity verified via ${googleEmail}. New PIN set and logged in!`;
+      break;
+    }
+    case "adminResetPin": {
+      if (user.role !== "admin") throw new Error("Only unit executives can reset PINs.");
+      const target = state.profiles.find((p) => p.id === body.memberId);
+      if (!target) throw new Error("Member not found.");
+      demoPins.set(target.id, "1234");
+      target.needsPinChange = true;
+      message = `PIN for ${target.fullName} has been reset to default (1234).`;
+      break;
+    }
     case "switchUser": {
       const selected = state.profiles.find((p) => p.id === body.userId);
       if (selected) {

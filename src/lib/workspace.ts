@@ -2,7 +2,7 @@ import { db, isDatabaseConfigured } from "@/db";
 import { profiles, dues, events, procurements, donations, circulars, activities } from "@/db/schema";
 import { ensureSeed, ADMIN_ID, OPENING_BALANCE } from "@/db/seed";
 import { asc, desc } from "drizzle-orm";
-import type { WorkspaceData } from "@/lib/types";
+import type { WorkspaceData, Profile } from "@/lib/types";
 import { getDemoWorkspace } from "@/lib/demo-data";
 
 export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
@@ -31,11 +31,20 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       if (paymentSet.has(`${person.id}-${date.getFullYear()}-${date.getMonth() + 1}`)) break;
       unpaidMonths++;
     }
-    return { ...person, unpaidMonths, status: unpaidMonths >= 6 ? "inactive" : "active" };
+    const sanitized: Record<string, unknown> = {
+      ...person,
+      unpaidMonths,
+      status: unpaidMonths >= 6 ? "inactive" : "active",
+      hasGoogleLinked: Boolean(person.googleEmail),
+      googleEmail: person.id === userId ? person.googleEmail : person.googleEmail ? "Linked" : null,
+      needsPinChange: Boolean(person.needsPinChange),
+    };
+    delete sanitized.pin;
+    return sanitized as unknown as Profile;
   });
   return JSON.parse(JSON.stringify({
     profiles: roster, dues: payments, events: unitEvents, procurements: items, donations: contributions,
-    circulars: notices, activities: feed, currentUserId: people.some((p) => p.id === userId) ? userId : ADMIN_ID,
+    circulars: notices, activities: feed, currentUserId: people.some((p) => p.id === userId) ? userId : "",
     openingBalance: OPENING_BALANCE,
   })) as WorkspaceData;
 }

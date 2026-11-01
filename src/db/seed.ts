@@ -34,8 +34,16 @@ async function seed() {
         monthly_pledge NUMERIC(12, 2) NOT NULL DEFAULT 20,
         avatar_color TEXT NOT NULL DEFAULT 'peach',
         unpaid_months INTEGER NOT NULL DEFAULT 0,
+        pin TEXT NOT NULL DEFAULT '1234',
+        google_email TEXT,
+        needs_pin_change BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pin TEXT DEFAULT '1234';
+      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS google_email TEXT;
+      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS needs_pin_change BOOLEAN DEFAULT FALSE;
+      UPDATE profiles SET pin = '1234' WHERE pin IS NULL;
 
       CREATE TABLE IF NOT EXISTS membership_dues (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -160,6 +168,9 @@ async function seed() {
       monthlyPledge: m.monthlyPledge,
       avatarColor: m.avatarColor,
       unpaidMonths: m.paid ? 0 : 1,
+      pin: "1234",
+      googleEmail: null,
+      needsPinChange: false,
       createdAt: new Date(year - 1, idx % 12, 10),
     }));
     await tx.insert(profiles).values(people);
