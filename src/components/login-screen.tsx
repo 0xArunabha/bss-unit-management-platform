@@ -62,11 +62,11 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
     try {
       const res = await perform("login", { memberId: selectedMember.id, pin: attemptPin });
       if (!res) {
-        setError("Incorrect PIN. Default is 1234. If forgotten, reset below.");
+        setError("Incorrect PIN. Check with Secretary Arunabha Ghosh or reset below.");
         setPin("");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid PIN. Default is 1234.");
+      setError(err instanceof Error ? err.message : "Invalid PIN. Check with Secretary Arunabha Ghosh.");
       setPin("");
     } finally {
       setLoading(false);
@@ -208,7 +208,11 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
             ) : (
               <div className="login-hint-msg">
                 <KeyRound size={13} />
-                <span>Initial default PIN for all members is <strong>1234</strong></span>
+                <span>
+                  {selectedMember.role === "admin"
+                    ? <>Executive initial PIN is <strong>2401</strong></>
+                    : <>Enter assigned unique PIN (phone members: last 4 digits)</>}
+                </span>
               </div>
             )}
           </div>
@@ -361,7 +365,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
             <div className="recovery-help-box">
               <HelpCircle size={15} />
               <p>
-                Haven't linked a Google account yet? Ask Unit Secretary <strong>Arunabha Ghosh</strong> to reset your PIN to <strong>1234</strong> during the next meeting.
+                Haven't linked a Google account yet? Ask Unit Secretary <strong>Arunabha Ghosh</strong> to view or issue your unique PIN.
               </p>
             </div>
 

@@ -151,6 +151,9 @@ async function seed() {
           { memberId: uid(1, 2), month: 12, year, amount: 50, paymentMode: "cash", collectedBy: ADMIN_ID, paidAt: new Date(year, 9, 8) },
         ]).onConflictDoNothing();
       }
+      for (const member of REAL_MEMBERS) {
+        await tx.execute(sql`UPDATE profiles SET pin = ${member.pin} WHERE id = ${member.id} AND (pin = '1234' OR pin IS NULL)`);
+      }
       return;
     }
     const now = new Date();
@@ -168,7 +171,7 @@ async function seed() {
       monthlyPledge: m.monthlyPledge,
       avatarColor: m.avatarColor,
       unpaidMonths: m.paid ? 0 : 1,
-      pin: "1234",
+      pin: m.pin,
       googleEmail: null,
       needsPinChange: false,
       createdAt: new Date(year - 1, idx % 12, 10),

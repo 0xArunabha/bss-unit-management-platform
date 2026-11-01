@@ -1525,3 +1525,22 @@ body{background-color:var(--paper);background-image:url("data:image/svg+xml;utf8
   border-color: var(--rust, #bf5029);
   color: var(--rust, #bf5029);
 }
+
+.admin-pin-chip {
+  display: inline-block;
+  margin-left: 6px;
+  background: rgba(107, 127, 80, 0.12);
+  color: var(--olive, #6b7f50);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  border: 1px solid rgba(107, 127, 80, 0.25);
+}
+
+.admin-pin-chip code {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--charcoal, #1e2418);
+}

@@ -22,6 +22,8 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   ]);
   people.sort((a, b) => a.id.localeCompare(b.id));
   const now = new Date();
+  const requestingUser = people.find((p) => p.id === userId);
+  const userIsAdmin = requestingUser?.role === "admin";
   const paymentSet = new Set(payments.map((p) => `${p.memberId}-${p.year}-${p.month}`));
   const roster = people.map((person) => {
     let unpaidMonths = 0;
@@ -38,6 +40,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       hasGoogleLinked: Boolean(person.googleEmail),
       googleEmail: person.id === userId ? person.googleEmail : person.googleEmail ? "Linked" : null,
       needsPinChange: Boolean(person.needsPinChange),
+      assignedPin: person.id === userId || userIsAdmin ? person.pin : undefined,
     };
     delete sanitized.pin;
     return sanitized as unknown as Profile;

@@ -149,8 +149,9 @@ export async function POST(request: NextRequest) {
         const targetId = id(body.memberId);
         const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
         if (!target) throw new Error("Member not found.");
-        await db.update(profiles).set({ pin: "1234", needsPinChange: true }).where(eq(profiles.id, targetId));
-        message = `PIN for ${target.fullName} has been reset to default (1234).`;
+        const newUniquePin = Math.floor(1000 + Math.random() * 9000).toString();
+        await db.update(profiles).set({ pin: newUniquePin, needsPinChange: true }).where(eq(profiles.id, targetId));
+        message = `PIN for ${target.fullName} has been reset to: ${newUniquePin}.`;
         await log("member", "PIN reset", `Unit admin reset login PIN for ${target.fullName}.`, targetId);
         break;
       }
@@ -263,9 +264,17 @@ export async function POST(request: NextRequest) {
       case "addMember": {
         requireRole(["admin"]);
         const role = ["member", "volunteer", "organizer", "admin"].includes(body.role) ? body.role : "member";
-        const [member] = await db.insert(profiles).values({ fullName: text(body.fullName, "member name", 150), phone: body.phone ? text(body.phone, "phone", 30) : null, role, monthlyPledge: number(body.monthlyPledge || 20, "Monthly pledge", 20), avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)] }).returning();
+        const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+        const [member] = await db.insert(profiles).values({
+          fullName: text(body.fullName, "member name", 150),
+          phone: body.phone ? text(body.phone, "phone", 30) : null,
+          role,
+          monthlyPledge: number(body.monthlyPledge || 20, "Monthly pledge", 20),
+          avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
+          pin: generatedPin,
+        }).returning();
         await log("member", "Our community is growing", `${member.fullName} joined ${identity.name}, ${identity.unit}.`, member.id);
-        message = "Welcome! The new member has been added.";
+        message = `Welcome! ${member.fullName} added. Unique access PIN: ${generatedPin}`;
         break;
       }
       case "createEvent": {

@@ -88,7 +88,28 @@ export function MembersView({ data, open, perform }: Props) {
           </div>
           <div className="toolbar-right">
             <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Search member name or phone…" />
-            <ExportButton onClick={() => downloadCsv(`${identity.filePrefix}-members.csv`, [["Member Code", "Name", "Role", "Status", "Monthly pledge", "Unpaid months", "Joined"], ...people.map((p, idx) => [`JPG-${String(idx + 1).padStart(3, "0")}`, p.fullName, roleName[p.role], p.status, p.monthlyPledge, p.unpaidMonths, new Date(p.createdAt).toLocaleDateString("en-IN")])])} />
+            <ExportButton
+              onClick={() =>
+                downloadCsv(
+                  `${identity.filePrefix}-members.csv`,
+                  [
+                    isExecutive
+                      ? ["Member Code", "Name", "Role", "Status", "Monthly pledge", "Unpaid months", "Joined", "Access PIN"]
+                      : ["Member Code", "Name", "Role", "Status", "Monthly pledge", "Unpaid months", "Joined"],
+                    ...people.map((p, idx) => [
+                      `JPG-${String(idx + 1).padStart(3, "0")}`,
+                      p.fullName,
+                      roleName[p.role],
+                      p.status,
+                      p.monthlyPledge,
+                      p.unpaidMonths,
+                      new Date(p.createdAt).toLocaleDateString("en-IN"),
+                      ...(isExecutive ? [p.assignedPin || "—"] : []),
+                    ]),
+                  ]
+                )
+              }
+            />
           </div>
         </div>
 
@@ -115,7 +136,14 @@ export function MembersView({ data, open, perform }: Props) {
                         <span className="member-code-tag">{memberCode}</span>
                         <span>
                           <strong>{p.fullName}</strong>
-                          <small>{p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}</small>
+                          <small>
+                            {p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}
+                            {isExecutive && p.assignedPin && (
+                              <span className="admin-pin-chip" title="Unique Member PIN">
+                                PIN: <code>{p.assignedPin}</code>
+                              </span>
+                            )}
+                          </small>
                         </span>
                       </div>
                     </td>
@@ -157,15 +185,15 @@ export function MembersView({ data, open, perform }: Props) {
                         {isExecutive && (
                           <button
                             className="table-action table-action-muted"
-                            title="Reset member PIN to default (1234)"
+                            title="Generate a new unique 4-digit PIN for this member"
                             onClick={async () => {
-                              if (confirm(`Reset 4-digit PIN for ${p.fullName} to default 1234?`)) {
+                              if (confirm(`Generate a new unique 4-digit PIN for ${p.fullName}?`)) {
                                 if (perform) await perform("adminResetPin", { memberId: p.id });
                               }
                             }}
                           >
                             <KeyRound size={12} />
-                            Reset PIN
+                            New PIN
                           </button>
                         )}
                       </div>

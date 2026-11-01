@@ -13,6 +13,7 @@ export type Profile = {
   hasGoogleLinked?: boolean;
   googleEmail?: string | null;
   needsPinChange?: boolean;
+  assignedPin?: string;
 };
 export type DuesRecord = { id: string; memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string | null; paidAt: string };
 export type UnitEvent = { id: string; title: string; description: string; location: string; startsAt: string; category: string; volunteers: number; image: string; createdAt: string };
