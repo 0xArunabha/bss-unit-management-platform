@@ -16,8 +16,15 @@ export function getPool(): Pool {
     );
   }
   if (!globalForDb.__arenaNextJsPostgresqlPool) {
+    const isSslNeeded =
+      databaseUrl.includes("sslmode=require") ||
+      databaseUrl.includes("neon.tech") ||
+      databaseUrl.includes("supabase.co") ||
+      process.env.NODE_ENV === "production";
+
     globalForDb.__arenaNextJsPostgresqlPool = new Pool({
       connectionString: databaseUrl,
+      ssl: isSslNeeded ? { rejectUnauthorized: false } : undefined,
     });
   }
   return globalForDb.__arenaNextJsPostgresqlPool;
