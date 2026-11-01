@@ -5,6 +5,7 @@ import { identity } from "@/lib/identity";
 import { Avatar, Badge, Button, Modal } from "@/components/ui";
 import { Lock, ShieldCheck, KeyRound, ChevronRight, HelpCircle, Eye, EyeOff, UserCheck, Sparkles, AlertCircle } from "lucide-react";
 import type { WorkspaceData, Profile, PerformAction } from "@/lib/types";
+import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 
 interface LoginScreenProps {
   data: WorkspaceData;
@@ -30,6 +31,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
   const selectedMember = data.profiles.find((p) => p.id === selectedId) || data.profiles[0];
 
   const handleKeyPress = (num: string) => {
+    hapticTap(8);
     if (pin.length < 6) {
       const next = pin + num;
       setPin(next);
@@ -42,11 +44,13 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
   };
 
   const handleDelete = () => {
+    hapticTap(12);
     setPin((prev) => prev.slice(0, -1));
     setError("");
   };
 
   const handleClear = () => {
+    hapticTap(15);
     setPin("");
     setError("");
   };
@@ -55,6 +59,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
     const attemptPin = pinToTry || pin;
     if (!attemptPin) {
       setError("Please enter your 4-digit PIN.");
+      hapticWarning();
       return;
     }
     setLoading(true);
@@ -63,10 +68,14 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
       const res = await perform("login", { memberId: selectedMember.id, pin: attemptPin });
       if (!res) {
         setError("Incorrect PIN. Check with Secretary Arunabha Ghosh or reset below.");
+        hapticWarning();
         setPin("");
+      } else {
+        hapticSuccess();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid PIN. Check with Secretary Arunabha Ghosh.");
+      hapticWarning();
       setPin("");
     } finally {
       setLoading(false);

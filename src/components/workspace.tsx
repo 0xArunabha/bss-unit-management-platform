@@ -11,6 +11,7 @@ import { MembersView, DuesView, DonationsView } from "@/components/people-views"
 import { CircularsView, EventsView, ProcurementView, ResourcesView, SettingsView } from "@/components/field-views";
 import { WorkspaceModals, type ModalState } from "@/components/workspace-modals";
 import { LoginScreen } from "@/components/login-screen";
+import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 const labels: Record<View, string> = { overview: "Overview", members: "Members", dues: "Membership dues", donations: "Donations", events: "Events & campaigns", procurement: "Procurement", circulars: "Circulars & notices", resources: "Science resources", settings: "Unit settings" };
@@ -100,11 +101,20 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
   }, [notify]);
 
   const navigate = useCallback((target: View, eventId?: string) => {
-    setView(target); setSidebarOpen(false); setPopover(null); setSearchOpen(false);
-    if (target === "procurement") setEventFilter(eventId || "all");
-    const url = target === "overview" ? "/" : `/?view=${target}${eventId ? `&event=${eventId}` : ""}`;
-    window.history.pushState(null, "", url);
-    window.scrollTo({ top: 0, behavior: "instant" });
+    hapticTap(8);
+    const update = () => {
+      setView(target); setSidebarOpen(false); setPopover(null); setSearchOpen(false);
+      if (target === "procurement") setEventFilter(eventId || "all");
+      const url = target === "overview" ? "/" : `/?view=${target}${eventId ? `&event=${eventId}` : ""}`;
+      window.history.pushState(null, "", url);
+      window.scrollTo({ top: 0, behavior: "instant" });
+    };
+
+    if (typeof document !== "undefined" && "startViewTransition" in document) {
+      (document as unknown as { startViewTransition: (fn: () => void) => void }).startViewTransition(update);
+    } else {
+      update();
+    }
   }, []);
   useEffect(() => {
     const readLocation = () => { const params = new URLSearchParams(window.location.search); const target = params.get("view"); setView(target && target in labels ? target as View : "overview"); setEventFilter(params.get("event") || "all"); };
@@ -186,8 +196,10 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to save this record.");
       setData(result.data); lastActivity.current = result.data.activities[0]?.id; setUnread(true); notify(result.message);
+      hapticSuccess();
       return result as ActionResult;
     } catch (error) {
+      hapticWarning();
       // 2. If network dropped mid-request, gracefully fallback to IndexedDB queue
       const isNetworkIssue = !navigator.onLine || (error instanceof TypeError && error.message.toLowerCase().includes("fetch"));
       if (isNetworkIssue) {

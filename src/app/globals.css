@@ -1544,3 +1544,122 @@ body{background-color:var(--paper);background-image:url("data:image/svg+xml;utf8
   letter-spacing: 0.05em;
   color: var(--charcoal, #1e2418);
 }
+
+/* ==========================================================================
+   MOBILE SMOOTHNESS, VIEW TRANSITIONS & FLUID TOUCH PHYSICS
+   ========================================================================== */
+
+/* 1. Native View Transitions API for SPA Views */
+::view-transition-old(root) {
+  animation: vtFadeOut 0.16s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+::view-transition-new(root) {
+  animation: vtFadeIn 0.22s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes vtFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+}
+
+@keyframes vtFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* 2. Zero-Latency Touch Manipulation & Elimination of 300ms Delay */
+button,
+a,
+input,
+select,
+textarea,
+.bottom-nav-item,
+.dues-cell,
+.keypad-btn,
+.table-action,
+.card {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 3. Spring-Damped Active Feedback */
+.bottom-nav-item,
+.button,
+.keypad-btn,
+.table-action,
+.login-guest-btn,
+.login-link-btn {
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.12s ease, opacity 0.12s ease;
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.92) !important;
+}
+
+.button:active,
+.keypad-btn:active {
+  transform: scale(0.95) !important;
+}
+
+.table-action:active {
+  transform: scale(0.94) !important;
+}
+
+/* 4. Overscroll Containment (Shields Against Accidental Mobile Pull-To-Refresh) */
+.modal-sheet,
+.modal-scroll,
+.table-scroll,
+.matrix-table-wrap,
+.login-card,
+.sidebar {
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: contain;
+}
+
+/* 5. Smooth Inertia Scrolling */
+.table-scroll,
+.matrix-table-wrap,
+.tabs,
+.search-suggestions,
+.modal-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 6. Smooth Spring Easing on Mobile Bottom Sheets */
+@media (max-width: 640px) {
+  .modal-sheet {
+    animation: sheetSpringSlide 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  }
+}
+
+@keyframes sheetSpringSlide {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
