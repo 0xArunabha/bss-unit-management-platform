@@ -1,7 +1,9 @@
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-export const isDatabaseConfigured = Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+export const isDatabaseConfigured = Boolean(
+  process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.STORAGE_URL
+);
 
 const globalForDb = globalThis as typeof globalThis & {
   __arenaNextJsPostgresqlPool?: Pool;
@@ -9,10 +11,11 @@ const globalForDb = globalThis as typeof globalThis & {
 };
 
 export function getPool(): Pool {
-  const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const databaseUrl =
+    process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.STORAGE_URL;
   if (!databaseUrl) {
     throw new Error(
-      "DATABASE_URL or POSTGRES_URL is required to perform persistent database operations. Please set DATABASE_URL (or connect Vercel Postgres) in your environment variables."
+      "DATABASE_URL, POSTGRES_URL, or STORAGE_URL is required to perform persistent database operations."
     );
   }
   if (!globalForDb.__arenaNextJsPostgresqlPool) {
