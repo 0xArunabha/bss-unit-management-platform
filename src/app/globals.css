@@ -1718,3 +1718,81 @@ textarea,
     opacity: 1;
   }
 }
+
+/* =========================================================
+   MOBILE 60FPS HARDWARE PERFORMANCE ACCELERATION
+   ========================================================= */
+
+/* 1. Eliminate heavy SVG feTurbulence rasterization on mobile and touch devices */
+@media (max-width: 1024px), (pointer: coarse) {
+  body {
+    background-image: none !important;
+    background-color: var(--paper, #f8f9f6) !important;
+  }
+}
+
+/* 2. Eliminate expensive GPU backdrop-filter composition passes during mobile scroll */
+@media (max-width: 768px), (pointer: coarse) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  .topbar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #ffffff !important;
+  }
+  .mobile-bottom-nav {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #ffffff !important;
+  }
+  .sidebar-overlay {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(30, 40, 25, 0.6) !important;
+  }
+  .modal-backdrop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(30, 40, 25, 0.65) !important;
+  }
+  .table-scroll,
+  .matrix-table-wrap,
+  .tabs,
+  .search-suggestions,
+  .modal-scroll {
+    scroll-behavior: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 3. Content Visibility: Defer layout and paint calculations for off-screen cards */
+.event-card,
+.procurement-card,
+.circular-card,
+.resource-card,
+.stat-card,
+.activity-row,
+.data-table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 140px;
+}
+
+/* 4. Promote animated surfaces to isolated GPU compositor layers */
+.sidebar {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.mobile-bottom-nav {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.modal,
+.modal-sheet {
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}

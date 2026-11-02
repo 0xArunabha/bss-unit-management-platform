@@ -110,7 +110,9 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
       window.scrollTo({ top: 0, behavior: "instant" });
     };
 
-    if (typeof document !== "undefined" && "startViewTransition" in document) {
+    // On mobile screens or touch devices, bypass View Transitions snapshot freezing for 0ms instant tab response
+    const isMobile = typeof window !== "undefined" && (window.innerWidth <= 768 || window.matchMedia("(pointer: coarse)").matches);
+    if (!isMobile && typeof document !== "undefined" && "startViewTransition" in document) {
       (document as unknown as { startViewTransition: (fn: () => void) => void }).startViewTransition(update);
     } else {
       update();
@@ -158,18 +160,21 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
         const response = await fetch("/api/workspace", { cache: "no-store" }); if (!response.ok) return;
         const updated: WorkspaceData = await response.json();
         if (!cancelled) {
-          setData(updated);
-          if (lastActivity.current && updated.activities[0]?.id !== lastActivity.current) {
-            setUnread(true);
-            if (localStorage.getItem("bss-sound") === "true") {
-              try { const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); gain.gain.value = .035; oscillator.frequency.value = 660; oscillator.start(); oscillator.stop(context.currentTime + .12); oscillator.onended = () => void context.close(); } catch { /* Browser may require a user gesture. */ }
+          // Avoid triggering expensive component tree re-renders if no activities or profiles changed
+          if (lastActivity.current !== updated.activities[0]?.id || updated.profiles.length !== data.profiles.length) {
+            setData(updated);
+            if (lastActivity.current && updated.activities[0]?.id !== lastActivity.current) {
+              setUnread(true);
+              if (localStorage.getItem("bss-sound") === "true") {
+                try { const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); gain.gain.value = .035; oscillator.frequency.value = 660; oscillator.start(); oscillator.stop(context.currentTime + .12); oscillator.onended = () => void context.close(); } catch { /* Browser may require a user gesture. */ }
+              }
             }
+            lastActivity.current = updated.activities[0]?.id;
           }
-          lastActivity.current = updated.activities[0]?.id;
         }
       } catch { /* The offline indicator reflects network availability; saved data remains visible. */ }
     };
-    const interval = window.setInterval(() => void refresh(), 20000);
+    const interval = window.setInterval(() => void refresh(), 45000);
     window.addEventListener("focus", refresh);
     return () => { cancelled = true; clearInterval(interval); window.removeEventListener("focus", refresh); };
   }, []);
