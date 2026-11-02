@@ -1,55 +1,104 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { db, isDatabaseConfigured } from "@/db";
+import { sessions } from "@/db/schema";
+import { and, eq, gt } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "bss_session_salt_jalpaiguri_2026_scientific_temper_secure";
 export const SESSION_COOKIE_NAME = "bss_session";
 
+interface MemorySession {
+  userId: string;
+  expiresAt: number;
+  createdAt: number;
+}
+
+const memorySessions = new Map<string, MemorySession>();
+
+// Periodically clean up expired in-memory sessions
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, s] of memorySessions.entries()) {
+    if (s.expiresAt < now) {
+      memorySessions.delete(token);
+    }
+  }
+}, 15 * 60 * 1000).unref();
+
 /**
- * Creates an HMAC-SHA256 signed session token:
- * Format: `<userId>.<timestamp>.<signature>`
+ * Creates a cryptographically random 64-character server-issued session token
+ * and stores it in the database `sessions` table (or in-memory sessions store).
  */
-export function createSessionToken(userId: string): string {
-  const timestamp = Date.now().toString();
-  const payload = `${userId}.${timestamp}`;
-  const hmac = createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
-  return `${payload}.${hmac}`;
+export async function createSession(userId: string): Promise<string> {
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day session lifetime
+
+  if (isDatabaseConfigured) {
+    await db.insert(sessions).values({
+      id: token,
+      userId,
+      expiresAt,
+    });
+  } else {
+    memorySessions.set(token, {
+      userId,
+      expiresAt: expiresAt.getTime(),
+      createdAt: Date.now(),
+    });
+  }
+
+  return token;
 }
 
 /**
- * Verifies an HMAC-SHA256 session token and extracts the authenticated userId.
- * Returns null if the token is tampered, forged, or expired (>30 days).
+ * Verifies that a session token exists in the sessions table and is unexpired.
+ * Returns the authenticated userId, or null if invalid, forged, expired, or missing.
  */
-export function verifySessionToken(token: string | null | undefined): string | null {
-  if (!token || typeof token !== "string") return null;
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-
-  const [userId, timestampStr, signature] = parts;
-  if (!userId || !timestampStr || !signature) return null;
-
-  // Basic UUID format validation
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+export async function verifySession(token: string | null | undefined): Promise<string | null> {
+  if (!token || typeof token !== "string" || token.length !== 64 || !/^[0-9a-f]{64}$/i.test(token)) {
     return null;
   }
 
-  const timestamp = parseInt(timestampStr, 10);
-  if (isNaN(timestamp)) return null;
+  if (isDatabaseConfigured) {
+    try {
+      const now = new Date();
+      const [record] = await db
+        .select()
+        .from(sessions)
+        .where(and(eq(sessions.id, token), gt(sessions.expiresAt, now)));
 
-  // Expire after 30 days
-  const maxAgeMs = 30 * 24 * 60 * 60 * 1000;
-  if (Date.now() - timestamp > maxAgeMs) {
-    return null;
-  }
-
-  const expectedHmac = createHmac("sha256", SESSION_SECRET).update(`${userId}.${timestampStr}`).digest("hex");
-
-  try {
-    const a = Buffer.from(signature, "hex");
-    const b = Buffer.from(expectedHmac, "hex");
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      if (!record) return null;
+      return record.userId;
+    } catch (err) {
+      console.error("[Session] DB session lookup failed:", err);
       return null;
     }
-    return userId;
-  } catch {
-    return null;
+  } else {
+    const record = memorySessions.get(token);
+    if (!record) return null;
+    if (record.expiresAt < Date.now()) {
+      memorySessions.delete(token);
+      return null;
+    }
+    return record.userId;
   }
 }
+
+/**
+ * Destroys / revokes an active session from the database or in-memory store.
+ */
+export async function destroySession(token: string | null | undefined): Promise<void> {
+  if (!token || typeof token !== "string") return;
+
+  if (isDatabaseConfigured) {
+    try {
+      await db.delete(sessions).where(eq(sessions.id, token));
+    } catch (err) {
+      console.error("[Session] Error deleting DB session:", err);
+    }
+  } else {
+    memorySessions.delete(token);
+  }
+}
+
+// Aliases for seamless backward compatibility
+export const verifySessionToken = verifySession;
+export const createSessionToken = createSession;

@@ -262,6 +262,38 @@ await test('Mobile cards system and compact mini-stats defined for field users',
   assert.ok(css.includes('.mobile-member-cards,\n  .mobile-donation-cards {\n    display: flex !important;'), 'Mobile cards must display on mobile screens');
 });
 
+// 19. BUG-DB-02: Drizzle migrations directory with real SQL schemas and CHECK constraints
+await test('BUG-DB-02: Drizzle migrations generated with CHECK constraints, sessions, and idempotency', () => {
+  assert.ok(fs.existsSync(resolveApp('drizzle')), 'drizzle migration directory must exist');
+  const migrationFiles = fs.readdirSync(resolveApp('drizzle')).filter(f => f.endsWith('.sql'));
+  assert.ok(migrationFiles.length >= 1, 'At least 1 SQL migration must be generated');
+  const allSql = migrationFiles.map(f => fs.readFileSync(resolveApp(path.join('drizzle', f)), 'utf8')).join('\n');
+  assert.ok(allSql.includes('sessions'), 'SQL migration must create sessions table');
+  assert.ok(allSql.includes('action_idempotency'), 'SQL migration must create action_idempotency table');
+  assert.ok(allSql.includes('dues_valid_month'), 'SQL migration must contain dues_valid_month check');
+  assert.ok(allSql.includes('different_verifier'), 'SQL migration must contain different_verifier check');
+  assert.ok(allSql.includes('idempotency_key'), 'SQL migration must contain idempotency_key columns');
+});
+
+// 20. BUG-PWA-03: Offline queue preserves funds and quarantines validation rejections to needs_attention
+await test('BUG-PWA-03: Offline queue preserves funds on network error and routes 400 to needs_attention', () => {
+  const queueContent = fs.readFileSync(resolveApp('src/lib/offline-queue.ts'), 'utf8');
+  assert.ok(queueContent.includes('markOfflineActionNeedsAttention'), 'offline-queue.ts must define markOfflineActionNeedsAttention');
+  assert.ok(queueContent.includes('getNeedsAttentionActions'), 'offline-queue.ts must define getNeedsAttentionActions');
+  assert.ok(queueContent.includes('isPermanentValidation'), 'offline-queue.ts must distinguish permanent validation errors');
+  assert.ok(queueContent.includes('status === 400'), 'offline-queue.ts must only increment retries on HTTP 400 validation rejection');
+});
+
+// 21. BUG-SEC-06: PINs are unseeded from public code and hashed with random salt
+await test('BUG-SEC-06: No hardcoded PINs seeded in source code or demo data', () => {
+  const demoContent = fs.readFileSync(resolveApp('src/lib/demo-data.ts'), 'utf8');
+  assert.ok(!demoContent.includes('INITIAL_DEMO_PINS'), 'demo-data.ts must not contain INITIAL_DEMO_PINS');
+  assert.ok(!demoContent.includes('"2401"'), 'demo-data.ts must not hardcode PIN 2401');
+
+  const seedContent = fs.readFileSync(resolveApp('src/db/seed.ts'), 'utf8');
+  assert.ok(!seedContent.includes('INITIAL_PINS'), 'seed.ts must not contain INITIAL_PINS');
+});
+
 console.log(`\n${CYAN}════════════════════════════════════════════════════════════════════════════${RESET}`);
 if (passed === total) {
   console.log(`${GREEN}${BOLD}  RESULT: ${passed}/${total} VERIFICATION CHECKS PASSED (100%)${RESET}`);

@@ -257,20 +257,12 @@ export function resetInMemoryState() {
   return inMemoryState;
 }
 
-const INITIAL_DEMO_PINS: Record<string, string> = {
-  [DEMO_ADMIN_ID]: "2401",
-  [uid(1, 16)]: "8134",
-  [uid(1, 17)]: "7610",
-  [uid(1, 20)]: "6335",
-};
-
-const demoPins = new Map<string, string>(
-  REAL_MEMBERS.map((m, idx) => {
-    const initialPin = INITIAL_DEMO_PINS[m.id] || String(2401 + idx);
-    return [m.id, hashPin(initialPin, m.id)];
-  })
-);
+const demoPins = new Map<string, string>();
+if (process.env.INITIAL_ADMIN_PIN) {
+  demoPins.set(DEMO_ADMIN_ID, hashPin(process.env.INITIAL_ADMIN_PIN, DEMO_ADMIN_ID));
+}
 const demoGoogle = new Map<string, string>();
+const demoIdempotency = new Map<string, { action: string; message: string; receiptId?: string; createdAt: number }>();
 
 export function getDemoWorkspace(userId?: string): WorkspaceData {
   const state = getInMemoryState();
@@ -327,6 +319,19 @@ export async function executeDemoAction(action: string, body: any, currentUserId
     throw new Error("Please log in to the workspace with your 4-digit PIN.");
   }
   const user = foundUser || state.profiles[0];
+
+  const idempotencyKey = typeof body.idempotencyKey === "string" && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : null;
+  if (idempotencyKey) {
+    const cached = demoIdempotency.get(idempotencyKey);
+    if (cached) {
+      return {
+        message: `${cached.message} (idempotent duplicate request)`,
+        receiptId: cached.receiptId,
+        nextUser: foundUser ? foundUser.id : "",
+      };
+    }
+  }
+
   let message = "Action completed.";
   let receiptId: string | undefined;
   let nextUser = foundUser ? foundUser.id : "";
@@ -337,6 +342,20 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       if (!selected) throw new Error("Member profile not found.");
       const storedHash = demoPins.get(selected.id);
       const pinInput = String(body.pin || "").trim();
+
+      // First-time admin setup if unseeded from code
+      if (!storedHash && selected.id === DEMO_ADMIN_ID && pinInput.length >= 4) {
+        demoPins.set(selected.id, hashPin(pinInput, selected.id));
+        selected.needsPinChange = false;
+        nextUser = selected.id;
+        message = `Welcome back, ${selected.fullName}!`;
+        break;
+      }
+
+      if (!storedHash) {
+        throw new Error(`PIN not initialized for ${selected.fullName}. Please ask Unit Executive Arunabha Ghosh to issue an access PIN or use Google recovery.`);
+      }
+
       if (!verifyPin(pinInput, selected.id, storedHash)) {
         throw new Error("Incorrect 4-digit PIN. Please try again.");
       }
@@ -445,6 +464,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
             paymentMode: body.paymentMode || "cash",
             collectedBy: user.id,
             paidAt: new Date().toISOString(),
+            idempotencyKey,
           });
           remaining -= amount;
           count++;
@@ -483,6 +503,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
         receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
         smsSent: false,
         receivedBy: user.id,
+        idempotencyKey,
         createdAt: new Date().toISOString(),
       };
       state.donations.unshift(newDonation);
@@ -645,6 +666,10 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       message = "Circular published to notice board.";
       break;
     }
+  }
+
+  if (idempotencyKey) {
+    demoIdempotency.set(idempotencyKey, { action, message, receiptId, createdAt: Date.now() });
   }
 
   return { message, receiptId, nextUser };

@@ -136,9 +136,9 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
           body: JSON.stringify({ action, ...payload }),
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) return { ok: false, error: json.error || "Failed" };
+        if (!res.ok) return { ok: false, status: res.status, error: json.error || "Failed" };
         if (json.data) setData(json.data);
-        return { ok: true };
+        return { ok: true, status: res.status };
       });
       if (synced > 0) {
         notify(`⚡ Synced ${synced} field ${synced === 1 ? "operation" : "operations"} successfully with unit server.`);
@@ -228,11 +228,14 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
   }, []);
   const perform = useCallback(async (action: string, payload: Record<string, unknown>): Promise<ActionResult | null> => {
     setBusy(true); setActionError("");
+    const idempotencyKey = (payload.idempotencyKey as string) ||
+      (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `act-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+    const actionPayload = { ...payload, idempotencyKey };
 
     // 1. If currently offline, queue directly into IndexedDB without blocking the volunteer
     if (!navigator.onLine) {
       try {
-        await enqueueOfflineAction(action, payload);
+        await enqueueOfflineAction(action, actionPayload);
         const optimisticMsg = "⚡ Recorded in local offline queue. Will auto-sync when network returns.";
         notify(optimisticMsg);
         return { data, message: optimisticMsg };
@@ -245,7 +248,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
     }
 
     try {
-      const response = await fetch("/api/workspace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
+      const response = await fetch("/api/workspace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...actionPayload }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to save this record.");
       setData(result.data); lastActivity.current = result.data.activities[0]?.id; setDismissedActivityId(null); notify(result.message);
@@ -253,11 +256,11 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
       return result as ActionResult;
     } catch (error) {
       hapticWarning();
-      // 2. If network dropped mid-request, gracefully fallback to IndexedDB queue
+      // 2. If network dropped mid-request, gracefully fallback to IndexedDB queue with same idempotencyKey
       const isNetworkIssue = !navigator.onLine || (error instanceof TypeError && error.message.toLowerCase().includes("fetch"));
       if (isNetworkIssue) {
         try {
-          await enqueueOfflineAction(action, payload);
+          await enqueueOfflineAction(action, actionPayload);
           const fallbackMsg = "⚡ Network connection dropped. Safely saved in local offline queue; will sync when reconnected.";
           notify(fallbackMsg);
           return { data, message: fallbackMsg };

@@ -213,6 +213,26 @@ async function seed() {
         auth TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS action_idempotency (
+        key TEXT PRIMARY KEY,
+        action TEXT NOT NULL,
+        user_id UUID REFERENCES profiles(id),
+        response_payload TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      ALTER TABLE membership_dues ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE;
+      ALTER TABLE donations ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE;
+      ALTER TABLE profiles ALTER COLUMN pin DROP DEFAULT;
+      ALTER TABLE profiles ALTER COLUMN pin DROP NOT NULL;
     `);
     if ((await tx.select({ id: profiles.id }).from(profiles).limit(1)).length) {
       // Localize only untouched, fixed-ID sample records. Never reset user data or ledger history.
@@ -240,18 +260,15 @@ async function seed() {
           { memberId: uid(1, 2), month: 12, year, amount: 50, paymentMode: "cash", collectedBy: ADMIN_ID, paidAt: new Date(year, 9, 8) },
         ]).onConflictDoNothing();
       }
-      const INITIAL_PINS: Record<string, string> = {
-        [ADMIN_ID]: "2401",
-        [uid(1, 16)]: "8134",
-        [uid(1, 17)]: "7610",
-        [uid(1, 20)]: "6335",
-      };
-      for (const [idx, member] of REAL_MEMBERS.entries()) {
-        const initialPin = INITIAL_PINS[member.id] || String(2401 + idx);
-        const hashedPin = hashPin(initialPin, member.id);
+      for (const member of REAL_MEMBERS) {
+        // Members start unseeded from code: pin is null, needs_pin_change is true
+        // Only if process.env.INITIAL_ADMIN_PIN is provided in server env, set admin initial hash
+        const adminPin = (member.id === ADMIN_ID && process.env.INITIAL_ADMIN_PIN)
+          ? hashPin(process.env.INITIAL_ADMIN_PIN, member.id)
+          : null;
         await tx.execute(sql`
           INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, pin, google_email, needs_pin_change, created_at)
-          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${hashedPin}, NULL, FALSE, NOW())
+          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${adminPin}, NULL, TRUE, NOW())
           ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, phone = EXCLUDED.phone
         `);
       }
@@ -263,14 +280,10 @@ async function seed() {
     const ago = (minutes: number) => new Date(now.getTime() - minutes * 60000);
     const upcoming = (days: number, hour: number) => { const d = new Date(now); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return d; };
 
-    const INITIAL_PINS: Record<string, string> = {
-      [ADMIN_ID]: "2401",
-      [uid(1, 16)]: "8134",
-      [uid(1, 17)]: "7610",
-      [uid(1, 20)]: "6335",
-    };
     const people = REAL_MEMBERS.map((m, idx) => {
-      const initialPin = INITIAL_PINS[m.id] || String(2401 + idx);
+      const adminPin = (m.id === ADMIN_ID && process.env.INITIAL_ADMIN_PIN)
+        ? hashPin(process.env.INITIAL_ADMIN_PIN, m.id)
+        : null;
       return {
         id: m.id,
         fullName: m.fullName,
@@ -280,9 +293,9 @@ async function seed() {
         monthlyPledge: m.monthlyPledge,
         avatarColor: m.avatarColor,
         unpaidMonths: m.paid ? 0 : 1,
-        pin: hashPin(initialPin, m.id),
+        pin: adminPin,
         googleEmail: null,
-        needsPinChange: false,
+        needsPinChange: true,
         createdAt: new Date(year - 1, idx % 12, 10),
       };
     });

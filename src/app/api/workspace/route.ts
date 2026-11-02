@@ -1,13 +1,13 @@
 import { identity } from "@/lib/identity";
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDatabaseConfigured } from "@/db";
-import { profiles, dues, events, procurements, donations, circulars, activities } from "@/db/schema";
+import { profiles, dues, events, procurements, donations, circulars, activities, actionIdempotency } from "@/db/schema";
 import { ADMIN_ID, ensureSeed } from "@/db/seed";
 import { getWorkspace } from "@/lib/workspace";
 import { sendPush } from "@/lib/push";
 import { sendDonationSms } from "@/lib/sms";
 import { executeDemoAction } from "@/lib/demo-data";
-import { SESSION_COOKIE_NAME, createSessionToken, verifySessionToken } from "@/lib/session";
+import { SESSION_COOKIE_NAME, createSession, verifySession, verifySessionToken, destroySession } from "@/lib/session";
 import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rate-limit";
 import { hashPin, verifyPin } from "@/lib/pin-security";
 import { and, eq } from "drizzle-orm";
@@ -40,7 +40,7 @@ const mode = (value: unknown) => {
 
 export async function GET(request: NextRequest) {
   const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
-  const userId = verifySessionToken(rawCookie);
+  const userId = await verifySessionToken(rawCookie);
   return NextResponse.json(await getWorkspace(userId || undefined));
 }
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
-    const userId = verifySessionToken(rawCookie);
+    const userId = await verifySessionToken(rawCookie);
     const isPublicAction = body.action === "login" || body.action === "resetPinWithGoogle";
 
     if (body.action === "login") {
@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
         receiptId: demoResult.receiptId,
       });
       if (nextUser) {
-        response.cookies.set(SESSION_COOKIE_NAME, createSessionToken(nextUser), {
+        const sessionToken = await createSession(nextUser);
+        response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
           httpOnly: true,
           sameSite: "lax",
           path: "/",
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
           secure: process.env.NODE_ENV === "production" && request.nextUrl.protocol === "https:",
         });
       } else {
+        if (rawCookie) await destroySession(rawCookie);
         response.cookies.delete(SESSION_COOKIE_NAME);
       }
       response.cookies.delete("bss_demo_user");
@@ -109,6 +111,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Please log in to the workspace with your 4-digit PIN." }, { status: 401 });
     }
     const user = foundUser!;
+
+    // Idempotency check: prevent duplicate actions/double-booking on retries
+    const idempotencyKey = typeof body.idempotencyKey === "string" && body.idempotencyKey.trim() ? body.idempotencyKey.trim() : null;
+    if (idempotencyKey && user) {
+      const [existingRecord] = await db.select().from(actionIdempotency).where(eq(actionIdempotency.key, idempotencyKey));
+      if (existingRecord) {
+        const cached = existingRecord.responsePayload ? JSON.parse(existingRecord.responsePayload) : null;
+        return NextResponse.json({
+          data: await getWorkspace(user.id),
+          message: cached?.message || "Action already processed (idempotent duplicate request).",
+          receiptId: cached?.receiptId,
+        });
+      }
+    }
+
     const requireRole = (allowed: string[]) => {
       if (!user || !allowed.includes(user.role)) throw new Error("Your current role cannot perform this action.");
     };
@@ -126,6 +143,21 @@ export async function POST(request: NextRequest) {
         const pinInput = String(body.pin || "").trim();
         const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
         if (!target) throw new Error("Member profile not found.");
+
+        // First-time admin bootstrap without hardcoded code seed
+        if (!target.pin && target.id === ADMIN_ID && pinInput.length >= 4) {
+          const hashedPin = hashPin(pinInput, target.id);
+          await db.update(profiles).set({ pin: hashedPin, needsPinChange: false }).where(eq(profiles.id, target.id));
+          if (rateLimitKey) resetLoginRateLimit(rateLimitKey);
+          nextUser = target.id;
+          message = `Welcome back, ${target.fullName}! Admin access PIN configured.`;
+          break;
+        }
+
+        if (!target.pin) {
+          throw new Error(`PIN not initialized for ${target.fullName}. Please ask Unit Executive Arunabha Ghosh to issue an access PIN or use Google account recovery.`);
+        }
+
         const isValid = verifyPin(pinInput, memberId, target.pin);
         if (!isValid) {
           throw new Error("Incorrect 4-digit PIN. Please try again or use Google recovery.");
@@ -137,6 +169,7 @@ export async function POST(request: NextRequest) {
       }
       case "logout": {
         nextUser = "";
+        if (rawCookie) await destroySession(rawCookie);
         message = "You have logged out of the workspace.";
         break;
       }
@@ -145,7 +178,7 @@ export async function POST(request: NextRequest) {
         const oldPin = String(body.oldPin || "").trim();
         const newPin = String(body.newPin || "").trim();
         if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
-        if (!user.needsPinChange && !verifyPin(oldPin, user.id, user.pin)) {
+        if (!user.needsPinChange && (!user.pin || !verifyPin(oldPin, user.id, user.pin))) {
           throw new Error("Current PIN is incorrect.");
         }
         const hashedPin = hashPin(newPin, user.id);
@@ -206,6 +239,13 @@ export async function POST(request: NextRequest) {
         await db.transaction(async (tx) => {
           await tx.execute((await import("drizzle-orm")).sql`select pg_advisory_xact_lock(hashtext(${memberId}))`);
           const existing = await tx.select().from(dues).where(eq(dues.memberId, memberId));
+
+          // Check if this action was already processed by unique idempotencyKey
+          if (idempotencyKey && existing.some((d) => d.idempotencyKey === idempotencyKey)) {
+            message = `₹${total.toLocaleString("en-IN")} already recorded (idempotent duplicate request).`;
+            return;
+          }
+
           const occupied = new Set(existing.map((d) => `${d.year}-${d.month}`));
 
           // Check if this starting month is already paid (prevent double booking)
@@ -223,13 +263,13 @@ export async function POST(request: NextRequest) {
 
           let remaining = total;
           let guard = 0;
-          const allocations: { memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string }[] = [];
+          const allocations: { memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string; idempotencyKey?: string | null }[] = [];
           while (remaining > 0 && guard < 1200) {
             guard++;
             if (!occupied.has(`${y}-${m}`)) {
               let amount = Math.min(monthly, remaining);
               if (remaining - amount > 0 && remaining - amount < 20) amount = remaining;
-              allocations.push({ memberId, month: m, year: y, amount, paymentMode, collectedBy: user.id });
+              allocations.push({ memberId, month: m, year: y, amount, paymentMode, collectedBy: user.id, idempotencyKey });
               remaining = Math.round((remaining - amount) * 100) / 100;
             }
             m = m === 12 ? 1 : m + 1;
@@ -264,7 +304,7 @@ export async function POST(request: NextRequest) {
         const amount = number(body.amount, "Donation", 0.01);
         const phone = typeof body.donorPhone === "string" ? body.donorPhone.trim() : "";
         if (phone && !/^\+?[\d\s-]{10,16}$/.test(phone)) throw new Error("Please enter a valid phone number, or leave it blank.");
-        const [donation] = await db.insert(donations).values({ donorName, amount, donorPhone: phone || null, eventId: body.eventId ? id(body.eventId) : null, paymentMode: mode(body.paymentMode), transactionRef: body.transactionRef ? text(body.transactionRef, "reference", 100) : null, receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`, receivedBy: user.id }).returning();
+        const [donation] = await db.insert(donations).values({ donorName, amount, donorPhone: phone || null, eventId: body.eventId ? id(body.eventId) : null, paymentMode: mode(body.paymentMode), transactionRef: body.transactionRef ? text(body.transactionRef, "reference", 100) : null, receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`, receivedBy: user.id, idempotencyKey }).returning();
         receiptId = donation.id;
         await log("donation", "A new contribution to the movement", `${donorName} made a donation. A digital receipt is ready.`, donation.id, amount);
         message = "Donation recorded. Your shareable receipt is ready.";
@@ -340,6 +380,7 @@ export async function POST(request: NextRequest) {
           monthlyPledge: number(body.monthlyPledge || 20, "Monthly pledge", 20),
           avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
           pin: hashPin(generatedPin, randomUUID()),
+          needsPinChange: true,
         }).returning();
         await log("member", "Our community is growing", `${member.fullName} joined ${identity.name}, ${identity.unit}.`, member.id);
         message = `Welcome! ${member.fullName} added. Unique access PIN: ${generatedPin}`;
@@ -373,9 +414,21 @@ export async function POST(request: NextRequest) {
       }
       default: throw new Error("Unknown workspace action.");
     }
+
+    // Persist idempotency record if client provided an action idempotency key
+    if (idempotencyKey && user) {
+      await db.insert(actionIdempotency).values({
+        key: idempotencyKey,
+        action: body.action,
+        userId: user.id,
+        responsePayload: JSON.stringify({ message, receiptId }),
+      }).onConflictDoNothing();
+    }
+
     const response = NextResponse.json({ data: await getWorkspace(nextUser), message, receiptId });
     if (nextUser) {
-      response.cookies.set(SESSION_COOKIE_NAME, createSessionToken(nextUser), {
+      const sessionToken = await createSession(nextUser);
+      response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
@@ -383,6 +436,7 @@ export async function POST(request: NextRequest) {
         secure: process.env.NODE_ENV === "production" && request.nextUrl.protocol === "https:",
       });
     } else {
+      if (rawCookie) await destroySession(rawCookie);
       response.cookies.delete(SESSION_COOKIE_NAME);
     }
     response.cookies.delete("bss_demo_user");

@@ -10,9 +10,9 @@ export const profiles = pgTable("profiles", {
   monthlyPledge: numeric("monthly_pledge", { precision: 12, scale: 2, mode: "number" }).notNull().default(20),
   avatarColor: text("avatar_color").notNull().default("peach"),
   unpaidMonths: integer("unpaid_months").notNull().default(0),
-  pin: text("pin").notNull().default("1234"),
+  pin: text("pin"),
   googleEmail: text("google_email"),
-  needsPinChange: boolean("needs_pin_change").notNull().default(false),
+  needsPinChange: boolean("needs_pin_change").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check("minimum_pledge", sql`${t.monthlyPledge} >= 20`),
@@ -29,6 +29,7 @@ export const dues = pgTable("membership_dues", {
   paymentMode: text("payment_mode").notNull().default("cash"),
   collectedBy: uuid("collected_by").references(() => profiles.id),
   paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+  idempotencyKey: text("idempotency_key").unique(),
 }, (t) => [
   uniqueIndex("member_month_year").on(t.memberId, t.month, t.year),
   check("minimum_dues", sql`${t.amount} >= 20`),
@@ -81,6 +82,7 @@ export const donations = pgTable("donations", {
   receiptNo: text("receipt_no").notNull().unique(),
   smsSent: boolean("sms_sent").notNull().default(false),
   receivedBy: uuid("received_by").references(() => profiles.id),
+  idempotencyKey: text("idempotency_key").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [check("positive_donation", sql`${t.amount} > 0`)]);
 
@@ -111,5 +113,20 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   endpoint: text("endpoint").notNull().unique(),
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(), // 64-character random cryptographic token
+  userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const actionIdempotency = pgTable("action_idempotency", {
+  key: text("key").primaryKey(), // unique action mutation key from client
+  action: text("action").notNull(),
+  userId: uuid("user_id").references(() => profiles.id),
+  responsePayload: text("response_payload"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

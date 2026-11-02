@@ -5,6 +5,9 @@ export interface QueuedAction {
   label: string;
   timestamp: string;
   retryCount?: number;
+  status?: "pending" | "needs_attention";
+  lastError?: string;
+  idempotencyKey?: string;
 }
 
 const DB_NAME = "bss_offline_db";
@@ -47,12 +50,18 @@ export async function enqueueOfflineAction(
 ): Promise<QueuedAction> {
   const db = await getDb();
   const readableLabel = label || generateActionLabel(action, payload);
+  const idempotencyKey = (payload.idempotencyKey as string) ||
+    (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `offline-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+  payload.idempotencyKey = idempotencyKey;
+
   const queued: QueuedAction = {
     action,
     payload,
     label: readableLabel,
     timestamp: new Date().toISOString(),
     retryCount: 0,
+    status: "pending",
+    idempotencyKey,
   };
 
   return new Promise((resolve, reject) => {
@@ -89,6 +98,14 @@ export async function getPendingOfflineActions(): Promise<QueuedAction[]> {
 }
 
 /**
+ * Retrieve actions that failed validation and need volunteer attention.
+ */
+export async function getNeedsAttentionActions(): Promise<QueuedAction[]> {
+  const all = await getPendingOfflineActions();
+  return all.filter((a) => a.status === "needs_attention");
+}
+
+/**
  * Remove an action by ID once it has synced successfully.
  */
 export async function removeOfflineAction(id: number): Promise<void> {
@@ -103,6 +120,66 @@ export async function removeOfflineAction(id: number): Promise<void> {
       resolve();
     };
     request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Move a permanently rejected action to the 'needs_attention' list without deleting its data.
+ */
+export async function markOfflineActionNeedsAttention(id: number, errorMsg: string): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const record = getReq.result as QueuedAction | undefined;
+      if (record) {
+        record.status = "needs_attention";
+        record.lastError = errorMsg;
+        const putReq = store.put(record);
+        putReq.onsuccess = () => {
+          notifyQueueSubscribers();
+          resolve();
+        };
+        putReq.onerror = () => reject(putReq.error);
+      } else {
+        resolve();
+      }
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+
+/**
+ * Update the status of an offline action without deleting it.
+ */
+export async function updateOfflineActionStatus(
+  id: number,
+  status: "pending" | "needs_attention",
+  lastError?: string
+): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const record = getReq.result as QueuedAction | undefined;
+      if (record) {
+        record.status = status;
+        if (lastError !== undefined) record.lastError = lastError;
+        const putReq = store.put(record);
+        putReq.onsuccess = () => {
+          notifyQueueSubscribers();
+          resolve();
+        };
+        putReq.onerror = () => reject(putReq.error);
+      } else {
+        resolve();
+      }
+    };
+    getReq.onerror = () => reject(getReq.error);
   });
 }
 
@@ -125,9 +202,13 @@ export async function clearOfflineQueue(): Promise<void> {
 }
 
 /**
- * Update the retry count for an offline action.
+ * Update the retry count for an offline action on permanent validation error.
  */
-export async function updateOfflineActionRetry(id: number, retryCount: number): Promise<void> {
+export async function updateOfflineActionRetry(
+  id: number,
+  retryCount: number,
+  lastError?: string
+): Promise<void> {
   const db = await getDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -137,8 +218,12 @@ export async function updateOfflineActionRetry(id: number, retryCount: number): 
       const record = getReq.result as QueuedAction | undefined;
       if (record) {
         record.retryCount = retryCount;
+        if (lastError !== undefined) record.lastError = lastError;
         const putReq = store.put(record);
-        putReq.onsuccess = () => resolve();
+        putReq.onsuccess = () => {
+          notifyQueueSubscribers();
+          resolve();
+        };
         putReq.onerror = () => reject(putReq.error);
       } else {
         resolve();
@@ -150,19 +235,27 @@ export async function updateOfflineActionRetry(id: number, retryCount: number): 
 
 /**
  * Flush and replay all queued actions sequentially to the backend.
+ * Only permanently rejected validation (HTTP 400) failures count against retries;
+ * network errors, expired logins (401), and server errors stay queued safely.
  */
 export async function syncOfflineQueue(
-  sendToServer: (action: string, payload: Record<string, unknown>) => Promise<{ ok: boolean; error?: string }>
+  sendToServer: (
+    action: string,
+    payload: Record<string, unknown>
+  ) => Promise<{ ok: boolean; status?: number; error?: string }>
 ): Promise<{ synced: number; failed: number; errors: string[] }> {
   const queue = await getPendingOfflineActions();
-  if (!queue.length) return { synced: 0, failed: 0, errors: [] };
+  // Filter for active pending items; do not endlessly retry items parked in needs_attention
+  const activeQueue = queue.filter((item) => item.status !== "needs_attention");
+  if (!activeQueue.length) return { synced: 0, failed: 0, errors: [] };
 
   const MAX_RETRIES = 3;
+  const MAX_PERMANENT_RETRIES = MAX_RETRIES;
   let synced = 0;
   let failed = 0;
   const errors: string[] = [];
 
-  for (const item of queue) {
+  for (const item of activeQueue) {
     try {
       const res = await sendToServer(item.action, item.payload);
       if (res.ok) {
@@ -172,33 +265,48 @@ export async function syncOfflineQueue(
         synced++;
       } else {
         failed++;
-        const retries = (item.retryCount || 0) + 1;
-        if (item.id != null) {
-          if (retries >= MAX_RETRIES) {
-            await removeOfflineAction(item.id);
-            errors.push(`${item.label}: rejected permanently after ${retries} attempts (${res.error || "Sync rejected"})`);
+        // Check if the failure is a permanent validation rejection (HTTP 400)
+        const isPermanentValidation = res.status === 400;
+
+        if (isPermanentValidation) {
+          const retries = (item.retryCount || 0) + 1;
+          if (retries >= MAX_PERMANENT_RETRIES) {
+            // NEVER delete money entries! Move to 'needs_attention' list instead.
+            if (item.id != null) {
+              await markOfflineActionNeedsAttention(
+                item.id,
+                res.error || "Validation error: Rejected permanently by server"
+              );
+            }
+            errors.push(`${item.label}: moved to 'Needs Attention' (${res.error || "Validation error"})`);
           } else {
-            await updateOfflineActionRetry(item.id, retries);
-            errors.push(`${item.label}: attempt ${retries}/${MAX_RETRIES} failed (${res.error || "Sync rejected"})`);
+            if (item.id != null) {
+              await updateOfflineActionRetry(item.id, retries, res.error);
+            }
+            errors.push(`${item.label}: validation attempt ${retries}/${MAX_PERMANENT_RETRIES} failed (${res.error || "Validation error"})`);
           }
         } else {
-          errors.push(`${item.label}: ${res.error || "Sync rejected"}`);
+          // Transient failure: 401 (expired login), 5xx server error, or temporary gateway issue.
+          // DO NOT increment permanent retry count! DO NOT delete! Keep queued!
+          if (item.id != null) {
+            await updateOfflineActionStatus(
+              item.id,
+              "pending",
+              res.error || `Server status ${res.status || "sync delay"}`
+            );
+          }
+          errors.push(`${item.label}: sync paused (${res.error || "Login or server reconnection required"})`);
         }
       }
     } catch (err) {
+      // Plain network failure, DNS error, or offline drop:
+      // DO NOT increment permanent retries! NEVER drop or delete!
       failed++;
-      const retries = (item.retryCount || 0) + 1;
+      const msg = err instanceof Error ? err.message : String(err);
       if (item.id != null) {
-        if (retries >= MAX_RETRIES) {
-          await removeOfflineAction(item.id);
-          errors.push(`${item.label}: permanently dropped after ${retries} attempts (${err instanceof Error ? err.message : String(err)})`);
-        } else {
-          await updateOfflineActionRetry(item.id, retries);
-          errors.push(`${item.label}: attempt ${retries}/${MAX_RETRIES} network error (${err instanceof Error ? err.message : String(err)})`);
-        }
-      } else {
-        errors.push(`${item.label}: ${err instanceof Error ? err.message : String(err)}`);
+        await updateOfflineActionStatus(item.id, "pending", `Offline network error: ${msg}`);
       }
+      errors.push(`${item.label}: network unreachable (${msg})`);
     }
   }
 

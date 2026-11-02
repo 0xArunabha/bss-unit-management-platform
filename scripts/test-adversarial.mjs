@@ -255,6 +255,67 @@ await test('PENTEST-7: Receipt displays official acknowledgment and Arunabha Gho
   assert.ok(html.includes('Arunabha Ghosh'), 'Signer must be Arunabha Ghosh');
 });
 
+// 8. Server-issued 64-char token vs forged token rejection
+await test('PENTEST-8: Random session store rejects arbitrary/forged tokens', async () => {
+  const forgedRandomToken = 'a'.repeat(64);
+  const res = await fetch(`${BASE_URL}/api/workspace`, {
+    headers: {
+      Cookie: `bss_session=${forgedRandomToken}`,
+    },
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.currentUserId, '', 'Arbitrary 64-char token must not authenticate without server session');
+});
+
+// 9. Action idempotency key prevents duplicate donations
+await test('PENTEST-9: Explicit idempotencyKey prevents double-booking donations', async () => {
+  const loginRes = await fetch(`${BASE_URL}/api/workspace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'login',
+      memberId: '10000000-0000-4000-8000-000000000001',
+      pin: '2401',
+    }),
+  });
+  const cookie = loginRes.headers.get('set-cookie');
+  const idemKey = `test-idem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // First POST
+  const res1 = await fetch(`${BASE_URL}/api/workspace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({
+      action: 'addDonation',
+      idempotencyKey: idemKey,
+      donorName: 'Idempotent Patron',
+      amount: 2500,
+      paymentMode: 'upi',
+    }),
+  });
+  assert.equal(res1.status, 200);
+  const data1 = await res1.json();
+  const receipt1 = data1.receiptId;
+
+  // Duplicate POST with exact same idempotencyKey
+  const res2 = await fetch(`${BASE_URL}/api/workspace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({
+      action: 'addDonation',
+      idempotencyKey: idemKey,
+      donorName: 'Idempotent Patron',
+      amount: 2500,
+      paymentMode: 'upi',
+    }),
+  });
+  assert.equal(res2.status, 200);
+  const data2 = await res2.json();
+  assert.ok(data2.message.includes('idempotent duplicate request'), 'Retry with same key must return idempotent duplicate message');
+  assert.equal(data2.receiptId, receipt1, 'Retry must return the original receipt ID');
+});
+
 console.log(`\n${CYAN}════════════════════════════════════════════════════════════════════════════${RESET}`);
 if (passed === total) {
   console.log(`${GREEN}${BOLD}  RESULT: ALL ${passed}/${total} PENTEST VERIFICATION TESTS PASSED!${RESET}`);
