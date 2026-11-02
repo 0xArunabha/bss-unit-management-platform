@@ -124,7 +124,7 @@ export function MembersView({ data, open, perform }: Props) {
                       roleNameDisplay[p.role] || p.role,
                       p.status,
                       p.monthlyPledge,
-                      p.unpaidMonths,
+                      p.unpaidMonths || 0,
                       new Date(p.createdAt).toLocaleDateString("en-IN"),
                     ]),
                   ]
@@ -546,7 +546,7 @@ export function DuesView({ data, open }: Props) {
     const matchesSearch = p.fullName.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     if (filter === "pending") return !lookup.has(`${p.id}-${now.getMonth() + 1}`);
-    if (filter === "inactive") return p.status === "inactive" || p.unpaidMonths >= 6;
+    if (filter === "inactive") return p.status === "inactive" || (p.unpaidMonths || 0) >= 6;
     if (filter === "advance") {
       return data.dues.some((d) => d.memberId === p.id && (d.year > now.getFullYear() || (d.year === now.getFullYear() && d.month > now.getMonth() + 1)));
     }
