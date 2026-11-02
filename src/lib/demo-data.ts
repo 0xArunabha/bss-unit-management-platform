@@ -31,7 +31,7 @@ export interface RealMemberSpec {
 export const REAL_MEMBERS: RealMemberSpec[] = [
   { id: DEMO_ADMIN_ID, fullName: "Arunabha Ghosh", phone: "9832012345", role: "admin", monthlyPledge: 100, avatarColor: "peach", paid: true, pin: "2401" },
   { id: uid(1, 2), fullName: "Utsav Sen", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "sage", paid: true, pin: "2402" },
-  { id: uid(1, 3), fullName: "Pritam Sarkar", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "blue", paid: true, pin: "2403" },
+  { id: uid(1, 3), fullName: "Pritam Sarkar", phone: null, role: "admin", monthlyPledge: 50, avatarColor: "blue", paid: true, pin: "2403" },
   { id: uid(1, 4), fullName: "Hari Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true, pin: "2404" },
   { id: uid(1, 5), fullName: "Soham Das", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true, pin: "2405" },
   { id: uid(1, 6), fullName: "Samarpan Chakraborty", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "peach", paid: true, pin: "2406" },
@@ -41,18 +41,26 @@ export const REAL_MEMBERS: RealMemberSpec[] = [
   { id: uid(1, 10), fullName: "Debarghya Das", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "lavender", paid: true, pin: "2410" },
   { id: uid(1, 11), fullName: "Dwija", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: true, pin: "2411" },
   { id: uid(1, 12), fullName: "Anirban Kar", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "sage", paid: true, pin: "2412" },
-  { id: uid(1, 13), fullName: "Dipta Paul", phone: null, role: "member", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2413" },
-  { id: uid(1, 14), fullName: "Supriyo Roy", phone: null, role: "member", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2414" },
-  { id: uid(1, 15), fullName: "Supriyo Sarkar", phone: null, role: "member", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "2415" },
+  { id: uid(1, 13), fullName: "Dipta Paul", phone: null, role: "organizer", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2413" },
+  { id: uid(1, 14), fullName: "Supriyo Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2414" },
+  { id: uid(1, 15), fullName: "Supriyo Sarkar", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "2415" },
   { id: uid(1, 16), fullName: "Member (+91 93826 18134)", phone: "+91 93826 18134", role: "member", monthlyPledge: 20, avatarColor: "peach", paid: false, pin: "8134" },
-  { id: uid(1, 17), fullName: "Ananya Kar", phone: "+91 98327 37610", role: "member", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "7610" },
-  { id: uid(1, 18), fullName: "Joydev Adhikary", phone: null, role: "member", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2418" },
-  { id: uid(1, 19), fullName: "Anowar Hossain", phone: null, role: "member", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2419" },
+  { id: uid(1, 17), fullName: "Ananya Kar", phone: "+91 98327 37610", role: "organizer", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "7610" },
+  { id: uid(1, 18), fullName: "Joydev Adhikary", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2418" },
+  { id: uid(1, 19), fullName: "Anowar Hossain", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2419" },
   { id: uid(1, 20), fullName: "Member (+91 95316 26335)", phone: "+91 95316 26335", role: "member", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "6335" },
-  { id: uid(1, 21), fullName: "Pritam Ghosh", phone: null, role: "member", monthlyPledge: 20, avatarColor: "peach", paid: false, pin: "2421" },
-  { id: uid(1, 22), fullName: "Hrithik Sen", phone: null, role: "member", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "2422" },
-  { id: uid(1, 23), fullName: "Kaustubhi Singha", phone: null, role: "member", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2423" },
-  { id: uid(1, 24), fullName: "Shree Roy (শ্রী রায়)", phone: null, role: "member", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2424" },
+  { id: uid(1, 21), fullName: "Pritam Ghosh", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: false, pin: "2421" },
+  { id: uid(1, 22), fullName: "Hrithik Sen", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "2422" },
+  { id: uid(1, 23), fullName: "Kaustubhi Singha", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2423" },
+  { id: uid(1, 24), fullName: "Shree Roy (শ্রী রায়)", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2424" },
+  { id: uid(1, 25), fullName: "Swarndeep Sen", phone: null, role: "admin", monthlyPledge: 100, avatarColor: "peach", paid: true, pin: "2425" },
+  { id: uid(1, 26), fullName: "Avash Rajak", phone: null, role: "admin", monthlyPledge: 50, avatarColor: "sage", paid: true, pin: "2426" },
+  { id: uid(1, 27), fullName: "Arindam Bhattacharya", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "blue", paid: true, pin: "2427" },
+  { id: uid(1, 28), fullName: "Sreelekha Sarkar", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true, pin: "2428" },
+  { id: uid(1, 29), fullName: "Nilanjan Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true, pin: "2429" },
+  { id: uid(1, 30), fullName: "Debasmita Bhandari", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: true, pin: "2430" },
+  { id: uid(1, 31), fullName: "Supriyo Mondal", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: true, pin: "2431" },
+  { id: uid(1, 32), fullName: "Arnish Hossain", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: true, pin: "2432" },
 ];
 
 function createInitialState(): {
@@ -148,8 +156,70 @@ function createInitialState(): {
     { id: uid(4, 6), donorName: "Local community collection", donorPhone: null, amount: 1000, eventId: uid(2, 1), paymentMode: "cash", transactionRef: null, receiptNo: `${identity.receiptPrefix}-${year}-006`, smsSent: false, receivedBy: uid(1, 9), createdAt: ago(7200) },
   ];
 
+  const teamsCircularTitle = "Proposal for Constituting Operational Teams & Working Committees";
+  const teamsCircularContent = `In accordance with the consensus of members present at the unit meeting held on March 22nd at the Light of Science club room, a formal proposal has been introduced to constitute operational teams for the smooth governance and execution of club activities. This proposal will be adopted as an official resolution based on the feedback and collective opinion of all members.
+
+Any suggestions or recommendations regarding this proposal should be communicated privately to Swarndeep Sen. Everyone's active feedback and input are earnestly invited.
+
+1. Office Team
+• Arunabha Ghosh (In-charge)
+• Hrithik Sen
+• Pritam Ghosh
+• Nilanjan Roy
+
+2. Experiment Team
+• Avash Rajak (In-charge)
+• Sreelekha Sarkar
+• Samarpan Chakraborty
+• Joydev Adhikary
+• Anirban Kar
+• Arnish Hossain
+
+3. Membership Team
+• Ananya Kar (In-charge)
+• Debasmita Bhandari
+• Shree Roy
+• Avash Rajak
+
+4. Digital Team
+• Arunabha Ghosh (In-charge)
+• Soham Das
+• Shree Roy
+• Avash Rajak
+
+5. Culture Team & Magazine
+• Dipta Paul (In-charge)
+• Hari Roy
+• Kaustubhi Singha
+• Kaushiki Ray
+• Debasmita Bhandari
+
+6. Sky Observation Team
+• Anirban Kar (In-charge)
+• Arunabha Ghosh
+• Supriyo Mondal
+• Sreelekha Sarkar
+
+7. Research Team
+• Arindam Bhattacharya (In-charge)
+• Debarghya Biswas
+• Samarpan Chakraborty
+• Nilanjan Roy
+• Sreelekha Sarkar
+• Avash Rajak
+• Anirban Kar
+
+Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (Joint Secretary)
+
+───────────────────────────────
+মূল বাংলা প্রস্তাব (Original Bengali Reference):
+গত ২২শে মার্চ লাইট অফ সাইন্সের ক্লাব ঘরে অনুষ্ঠিত হওয়া মিটিংয়ে উপস্থিত সদস্যদের মত অনুসারে ক্লাবের কাজ সুষ্ঠুভাবে পরিচালনা করার কতগুলি টিম তৈরি করার প্রস্তাব এসেছে। ক্লাবের সকল সদস্যদের মতামতের ভিত্তিতে এই প্রস্তাব সিদ্ধান্ত হিসেবে গৃহীত হবে।
+
+এই প্রস্তাব বিষয়ক যেকোন সাজেশন স্বর্ণদ্বীপ সেনের কাছে ব্যক্তিগত ভাবে পাঠাবেন। সকলের মতামত কাম্য।`;
+
   const circularsList: Circular[] = [
-    { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: true, authorId: DEMO_ADMIN_ID, createdAt: ago(180) },
+    { id: uid(5, 4), title: teamsCircularTitle, content: teamsCircularContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: ago(30) },
+    { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: false, authorId: DEMO_ADMIN_ID, createdAt: ago(180) },
     { id: uid(5, 2), title: "February unit meeting: agenda & updates", content: "The next unit meeting will cover:\n\n1. Review of recent outreach activities\n2. Membership dues and treasury report\n3. Procurement and volunteer coordination\n4. Upcoming environmental campaign\n\nMembers can pay dues by cash, UPI, or bank transfer during the meeting. Advance contributions are welcome, with a minimum of ₹20 per month.", category: "Meeting agenda", pinned: false, authorId: uid(1, 6), createdAt: ago(1560) },
     { id: uid(5, 3), title: "New in the archive: demonstration handbook", content: "The volunteer resource archive now includes a practical guide for science demonstrations. It covers planning, participant safety, explaining evidence, and encouraging questions.\n\nVisit Science resources to explore the handbook, environmental outreach notes, and the conference poster archive.", category: "Resource update", pinned: false, authorId: uid(1, 3), createdAt: ago(3200) },
   ];

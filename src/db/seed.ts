@@ -19,6 +19,67 @@ const originalCircularContent = "Our National Science Day outreach is coming up.
 const unitCircularTitle = `Science for every ${identity.city} neighbourhood`;
 const unitCircularContent = originalCircularContent.replace("Our National Science Day outreach", `${identity.name}’s ${identity.city} outreach`);
 
+const teamsCircularTitle = "Proposal for Constituting Operational Teams & Working Committees";
+const teamsCircularContent = `In accordance with the consensus of members present at the unit meeting held on March 22nd at the Light of Science club room, a formal proposal has been introduced to constitute operational teams for the smooth governance and execution of club activities. This proposal will be adopted as an official resolution based on the feedback and collective opinion of all members.
+
+Any suggestions or recommendations regarding this proposal should be communicated privately to Swarndeep Sen. Everyone's active feedback and input are earnestly invited.
+
+1. Office Team
+• Arunabha Ghosh (In-charge)
+• Hrithik Sen
+• Pritam Ghosh
+• Nilanjan Roy
+
+2. Experiment Team
+• Avash Rajak (In-charge)
+• Sreelekha Sarkar
+• Samarpan Chakraborty
+• Joydev Adhikary
+• Anirban Kar
+• Arnish Hossain
+
+3. Membership Team
+• Ananya Kar (In-charge)
+• Debasmita Bhandari
+• Shree Roy
+• Avash Rajak
+
+4. Digital Team
+• Arunabha Ghosh (In-charge)
+• Soham Das
+• Shree Roy
+• Avash Rajak
+
+5. Culture Team & Magazine
+• Dipta Paul (In-charge)
+• Hari Roy
+• Kaustubhi Singha
+• Kaushiki Ray
+• Debasmita Bhandari
+
+6. Sky Observation Team
+• Anirban Kar (In-charge)
+• Arunabha Ghosh
+• Supriyo Mondal
+• Sreelekha Sarkar
+
+7. Research Team
+• Arindam Bhattacharya (In-charge)
+• Debarghya Biswas
+• Samarpan Chakraborty
+• Nilanjan Roy
+• Sreelekha Sarkar
+• Avash Rajak
+• Anirban Kar
+
+Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (Joint Secretary)
+
+───────────────────────────────
+মূল বাংলা প্রস্তাব (Original Bengali Reference):
+গত ২২শে মার্চ লাইট অফ সাইন্সের ক্লাব ঘরে অনুষ্ঠিত হওয়া মিটিংয়ে উপস্থিত সদস্যদের মত অনুসারে ক্লাবের কাজ সুষ্ঠুভাবে পরিচালনা করার কতগুলি টিম তৈরি করার প্রস্তাব এসেছে। ক্লাবের সকল সদস্যদের মতামতের ভিত্তিতে এই প্রস্তাব সিদ্ধান্ত হিসেবে গৃহীত হবে।
+
+এই প্রস্তাব বিষয়ক যেকোন সাজেশন স্বর্ণদ্বীপ সেনের কাছে ব্যক্তিগত ভাবে পাঠাবেন। সকলের মতামত কাম্য।`;
+
 async function seed() {
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(7428101)`);
@@ -142,6 +203,11 @@ async function seed() {
         await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, index)), sql`${donations.receiptNo} like 'BSS-%'`));
       }
       await tx.update(circulars).set({ title: unitCircularTitle, content: unitCircularContent }).where(and(eq(circulars.id, uid(5, 1)), eq(circulars.title, "Let’s take science to every neighbourhood"), eq(circulars.content, originalCircularContent)));
+      await tx.execute(sql`
+        INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
+        VALUES (${uid(5, 4)}, ${teamsCircularTitle}, ${teamsCircularContent}, 'Unit circular', true, ${uid(1, 3)}, NOW())
+        ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, pinned = EXCLUDED.pinned
+      `);
       const year = new Date().getFullYear();
       if ((await tx.select().from(dues).where(and(eq(dues.memberId, uid(1, 1)), eq(dues.month, 11), eq(dues.year, year)))).length === 0) {
         await tx.insert(dues).values([
@@ -152,8 +218,11 @@ async function seed() {
         ]).onConflictDoNothing();
       }
       for (const member of REAL_MEMBERS) {
-        await tx.execute(sql`UPDATE profiles SET pin = ${member.pin} WHERE id = ${member.id} AND (pin = '1234' OR pin IS NULL)`);
-        await tx.execute(sql`UPDATE profiles SET full_name = ${member.fullName} WHERE id = ${member.id} AND full_name LIKE 'Member (%'`);
+        await tx.execute(sql`
+          INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, pin, google_email, needs_pin_change, created_at)
+          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${member.pin}, NULL, FALSE, NOW())
+          ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, pin = EXCLUDED.pin
+        `);
       }
       return;
     }
@@ -236,7 +305,8 @@ async function seed() {
     ]);
 
     await tx.insert(circulars).values([
-      { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: true, authorId: ADMIN_ID, createdAt: ago(180) },
+      { id: uid(5, 4), title: teamsCircularTitle, content: teamsCircularContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: ago(30) },
+      { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: false, authorId: ADMIN_ID, createdAt: ago(180) },
       { id: uid(5, 2), title: "February unit meeting: agenda & updates", content: "The next unit meeting will cover:\n\n1. Review of recent outreach activities\n2. Membership dues and treasury report\n3. Procurement and volunteer coordination\n4. Upcoming environmental campaign\n\nMembers can pay dues by cash, UPI, or bank transfer during the meeting. Advance contributions are welcome, with a minimum of ₹20 per month.", category: "Meeting agenda", authorId: uid(1, 6), createdAt: ago(1560) },
       { id: uid(5, 3), title: "New in the archive: demonstration handbook", content: "The volunteer resource archive now includes a practical guide for science demonstrations. It covers planning, participant safety, explaining evidence, and encouraging questions.\n\nVisit Science resources to explore the handbook, environmental outreach notes, and the conference poster archive.", category: "Resource update", authorId: uid(1, 3), createdAt: ago(3200) },
     ]);
