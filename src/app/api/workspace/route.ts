@@ -39,9 +39,14 @@ const mode = (value: unknown) => {
 };
 
 export async function GET(request: NextRequest) {
-  const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
-  const userId = await verifySessionToken(rawCookie);
-  return NextResponse.json(await getWorkspace(userId || undefined));
+  try {
+    const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
+    const userId = await verifySessionToken(rawCookie);
+    return NextResponse.json(await getWorkspace(userId || undefined));
+  } catch (error) {
+    console.error("[Workspace GET Error]", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Server Error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
