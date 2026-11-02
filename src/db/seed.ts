@@ -221,7 +221,7 @@ async function seed() {
         await tx.execute(sql`
           INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, pin, google_email, needs_pin_change, created_at)
           VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${member.pin}, NULL, FALSE, NOW())
-          ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, pin = EXCLUDED.pin
+          ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, pin = EXCLUDED.pin, phone = EXCLUDED.phone
         `);
       }
       return;

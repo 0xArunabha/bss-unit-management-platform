@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type WorkspaceData, type View, type ActionResult } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
@@ -12,23 +12,20 @@ import { CircularsView, EventsView, ProcurementView, ResourcesView, SettingsView
 import { WorkspaceModals, type ModalState } from "@/components/workspace-modals";
 import { LoginScreen } from "@/components/login-screen";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
+import { I18nProvider, useI18n } from "@/lib/i18n";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
-const labels: Record<View, string> = { overview: "Overview", members: "Members", dues: "Membership dues", donations: "Donations", events: "Events & campaigns", procurement: "Procurement", circulars: "Circulars & notices", resources: "Science resources", settings: "Unit settings" };
-const navItems: { view: View; label: string; icon: LucideIcon }[] = [
-  { view: "overview", label: "Overview", icon: LayoutDashboard },
-  { view: "members", label: "Members", icon: Users },
-  { view: "dues", label: "Membership dues", icon: Wallet },
-  { view: "donations", label: "Donations", icon: HeartHandshake },
-  { view: "events", label: "Events & campaigns", icon: CalendarDays },
-  { view: "procurement", label: "Procurement", icon: ClipboardList },
-];
-const knowledgeItems: { view: View; label: string; icon: LucideIcon }[] = [
-  { view: "circulars", label: "Circulars & notices", icon: Megaphone },
-  { view: "resources", label: "Science resources", icon: BookOpen },
-];
 
 export default function Workspace({ initialData }: { initialData: WorkspaceData }) {
+  return (
+    <I18nProvider>
+      <WorkspaceInner initialData={initialData} />
+    </I18nProvider>
+  );
+}
+
+function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
+  const { locale, setLocale, t } = useI18n();
   const identityRef = identity;
   const [data, setData] = useState(initialData);
   const [view, setView] = useState<View>("overview");
@@ -49,6 +46,32 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
   const lastActivity = useRef(initialData.activities[0]?.id);
   const [guestMode, setGuestMode] = useState(false);
   const isAuthorized = Boolean(data.currentUserId);
+
+  const labels: Record<View, string> = {
+    overview: t("overview"),
+    members: t("members"),
+    dues: t("dues"),
+    donations: t("donations"),
+    events: t("events"),
+    procurement: t("procurement"),
+    circulars: t("circulars"),
+    resources: t("resources"),
+    settings: t("settings"),
+  };
+
+  const navItems: { view: View; label: string; icon: LucideIcon }[] = [
+    { view: "overview", label: t("overview"), icon: LayoutDashboard },
+    { view: "members", label: t("members"), icon: Users },
+    { view: "dues", label: t("dues"), icon: Wallet },
+    { view: "donations", label: t("donations"), icon: HeartHandshake },
+    { view: "events", label: t("events"), icon: CalendarDays },
+    { view: "procurement", label: t("procurement"), icon: ClipboardList },
+  ];
+
+  const knowledgeItems: { view: View; label: string; icon: LucideIcon }[] = [
+    { view: "circulars", label: t("circulars"), icon: Megaphone },
+    { view: "resources", label: t("resources"), icon: BookOpen },
+  ];
   const user = data.profiles.find((p) => p.id === data.currentUserId) || (guestMode ? {
     id: "",
     fullName: "Public Visitor",
@@ -260,8 +283,23 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
     <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
       <button className="brand" onClick={() => navigate("overview")} aria-label={`${identity.name} home`}><img src="/images/bss-logo.svg" alt="" /><span><strong>{identity.name}<span className="brand-period">.</span></strong><small>{identity.organisation.toUpperCase()}</small></span></button>
       <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{identity.unit}</strong><small>{identity.state}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">YOUR UNIT WORKSPACE</span><button onClick={() => setPopover(null)}><span>{identity.unit}<small>{identity.state} chapter</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />Unit settings<ArrowUpRight size={13} /></button></div>}</div>
-      <nav className="sidebar-nav" aria-label="Main navigation"><div className="nav-group-label">WORKSPACE</div>{navItems.map(renderNavItem)}<div className="nav-group-label knowledge-label">KNOWLEDGE & OUTREACH</div>{knowledgeItems.map(renderNavItem)}<div className="nav-settings">{renderNavItem({ view: "settings", label: "Unit settings", icon: Settings })}</div></nav>
-      <div className="sidebar-bottom"><div className="sidebar-mission"><Atom size={25} strokeWidth={1.2} /><p>Built on curiosity.<br /><strong>Powered by people.</strong></p><span>Taking science to Jalpaiguri, together.</span></div><button className="sidebar-help" onClick={() => open("help")}><CircleHelp size={17} strokeWidth={1.5} /><span>Need a helping hand?</span><ArrowUpRight size={13} /></button><div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? `${offlineCount} to sync` : "Workspace online") : "Field offline queue"}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #bf5029)", color: "#fff" }}>⚡ {offlineCount}</span> : <span className="sidebar-version-pill" title={`Release: ${identity.releaseName} · Build ${identity.build}`}>v{identity.version}</span>}</div><button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? "Unit Executive" : user.role.charAt(0).toUpperCase() + user.role.slice(1)}</small></span><ChevronRight size={15} /></button></div>
+      <nav className="sidebar-nav" aria-label="Main navigation">
+        <div className="nav-group-label">{locale === "bn" ? "কর্মক্ষেত্র" : "WORKSPACE"}</div>
+        {navItems.map(renderNavItem)}
+        <div className="nav-group-label knowledge-label">{locale === "bn" ? "জ্ঞান ও প্রচার" : "KNOWLEDGE & OUTREACH"}</div>
+        {knowledgeItems.map(renderNavItem)}
+        <div className="nav-settings">{renderNavItem({ view: "settings", label: t("settings"), icon: Settings })}</div>
+      </nav>
+      <div className="sidebar-bottom">
+        <div className="sidebar-mission">
+          <Atom size={25} strokeWidth={1.2} />
+          <p>{locale === "bn" ? "কৌতূহল ও যুক্তির ভিত্তি।" : "Built on curiosity."}<br /><strong>{locale === "bn" ? "জনগণের শক্তিতে পরিচালিত।" : "Powered by people."}</strong></p>
+          <span>{locale === "bn" ? "জলপাইগুড়িতে বিজ্ঞানের প্রসার, একসাথে।" : "Taking science to Jalpaiguri, together."}</span>
+        </div>
+        <button className="sidebar-help" onClick={() => open("help")}><CircleHelp size={17} strokeWidth={1.5} /><span>{locale === "bn" ? "সহায়তা প্রয়োজন?" : "Need a helping hand?"}</span><ArrowUpRight size={13} /></button>
+        <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? `${offlineCount} to sync` : (locale === "bn" ? "অনলাইন সংযুক্ত" : "Workspace online")) : (locale === "bn" ? "ফিল্ড অফলাইন কিউ" : "Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #bf5029)", color: "#fff" }}>⚡ {offlineCount}</span> : <span className="sidebar-version-pill" title={`Release: ${identity.releaseName} · Build ${identity.build}`}>v{identity.version}</span>}</div>
+        <button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? (locale === "bn" ? "কার্যনির্বাহক" : "Unit Executive") : (locale === "bn" ? (user.role === "organizer" ? "সংগঠক" : user.role === "volunteer" ? "স্বেচ্ছাসেবক" : "সদস্য") : (user.role.charAt(0).toUpperCase() + user.role.slice(1)))}</small></span><ChevronRight size={15} /></button>
+      </div>
     </aside>
     <div className="main-shell">
       {guestMode && (
@@ -270,7 +308,111 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           <button onClick={() => setGuestMode(false)} className="guest-login-btn">Log In with Member PIN</button>
         </div>
       )}
-      <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Open main navigation"><Menu size={21} /></button><span className="breadcrumb-root">{identity.name}</span><ChevronRight size={13} className="breadcrumb-chevron" /><span className="breadcrumb-current">{labels[view]}</span></div><div className="topbar-right"><button className="global-search-button" onClick={() => setSearchOpen(true)}><Search size={15} /><span>Search the unit…</span><kbd><Command size={10} />K</kbd></button><span className="topbar-date">{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}</span><button className="icon-button help-topbar" aria-label="Workspace help" onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button><div className="notifications-wrap" data-popover><button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label="Open notifications" aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>{popover === "notifications" && <div className="notifications-popover print-tech-slip"><div className="notification-heading"><div><h2>Cadre Alerts & Activity</h2><p>{identity.fullName} · Real-time dispatch</p></div><button className="icon-button" aria-label="Mark all notifications as read" title="Mark all as read" onClick={markRead}><CheckCheck size={18} /></button></div>{showReminder && <button className="dues-reminder" onClick={() => { setPopover(null); navigate("dues"); }}><Wallet size={17} /><span>Monthly membership contribution pending.<small>Baseline ₹20/month. Keep the movement active.</small></span><ArrowRight size={14} /></button>}<div className="notification-items">{data.activities.slice(0, 6).map((a, i) => <button className={`notification-item ${unread && i < 2 ? "unread" : ""}`} key={a.id} onClick={() => { markRead(); setPopover(null); navigate(a.type === "dues" ? "dues" : a.type === "donation" ? "donations" : a.type === "circular" ? "circulars" : a.type === "event" ? "events" : "procurement"); }}><span className={`notification-symbol activity-${a.type}`}>{a.type === "donation" ? <HeartHandshake size={16} /> : a.type === "dues" ? <ArrowDownLeft size={16} /> : a.type === "verified" ? <CircleCheck size={16} /> : <Package size={16} />}</span><span><strong>{a.title}</strong><small>{a.description}</small><time>{relativeTime(a.createdAt)} · Action: Click to inspect</time></span>{unread && i < 2 && <i />}</button>)}</div><div className="notification-footer"><span className="tiny-dot green" />Service Worker Web Push & In-App Sync Active<button onClick={() => { setPopover(null); navigate("settings"); }}>Push settings<ArrowUpRight size={12} /></button></div></div>}</div><span className="topbar-divider" /><div className="account-wrap" data-popover><button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label="Open profile menu"><Avatar person={user} size="small" /><ChevronDown size={12} /></button>{popover === "account" && <div className="small-menu account-menu"><span className="menu-eyebrow">{guestMode ? "GUEST VISITOR" : "LOGGED IN AS"}</span><strong>{user.fullName}</strong><small>{user.role === "admin" ? "Unit executive" : user.role} · {identity.unit}</small><div className="account-version-note"><span>App Release</span><strong>v{identity.version}</strong></div><button onClick={() => navigate("settings")}><Settings size={15} />Account & PIN security<ArrowUpRight size={13} /></button><button onClick={() => guestMode ? setGuestMode(false) : void perform("logout", {})}><LogOut size={15} />{guestMode ? "Log In" : "Sign Out"}<ArrowUpRight size={13} /></button><a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer"><ExternalLink size={15} />About the society<ArrowUpRight size={13} /></a></div>}</div></div></header>
+      <header className="topbar">
+        <div className="topbar-left">
+          <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Open main navigation"><Menu size={21} /></button>
+          <span className="breadcrumb-root">{identity.name}</span>
+          <ChevronRight size={13} className="breadcrumb-chevron" />
+          <span className="breadcrumb-current">{labels[view]}</span>
+        </div>
+        <div className="topbar-right">
+          {/* Language Switcher */}
+          <div className="lang-toggle-wrap" title="Switch language / ভাষা পরিবর্তন">
+            <button
+              type="button"
+              className={`lang-pill ${locale === "en" ? "lang-pill-active" : ""}`}
+              onClick={() => setLocale("en")}
+              aria-label="Switch language to English"
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              className={`lang-pill ${locale === "bn" ? "lang-pill-active" : ""}`}
+              onClick={() => setLocale("bn")}
+              aria-label="Switch language to Bengali"
+            >
+              বাং
+            </button>
+          </div>
+
+          <button className="global-search-button" onClick={() => setSearchOpen(true)}>
+            <Search size={15} />
+            <span>{locale === "bn" ? "অনুসন্ধান করুন…" : "Search the unit…"}</span>
+            <kbd><Command size={10} />K</kbd>
+          </button>
+          <span className="topbar-date">{new Date().toLocaleDateString(locale === "bn" ? "bn-IN" : "en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
+          <button className="icon-button help-topbar" aria-label="Workspace help" onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
+          <div className="notifications-wrap" data-popover>
+            <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label="Open notifications" aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
+            {popover === "notifications" && (
+              <div className="notifications-popover print-tech-slip">
+                <div className="notification-heading">
+                  <div>
+                    <h2>{locale === "bn" ? "ক্যাডার বিজ্ঞপ্তি ও আপডেট" : "Cadre Alerts & Activity"}</h2>
+                    <p>{identity.fullName} · {locale === "bn" ? "রিয়েল-টাইম প্রেরণ" : "Real-time dispatch"}</p>
+                  </div>
+                  <button className="icon-button" aria-label="Mark all notifications as read" title="Mark all as read" onClick={markRead}><CheckCheck size={18} /></button>
+                </div>
+                {showReminder && (
+                  <button className="dues-reminder" onClick={() => { setPopover(null); navigate("dues"); }}>
+                    <Wallet size={17} />
+                    <span>{locale === "bn" ? "মাসিক সদস্য চাঁদা বকেয়া রয়েছে।" : "Monthly membership contribution pending."}<small>{locale === "bn" ? "ভিত্তি ₹২০/মাস। সংগঠনকে এগিয়ে নিয়ে চলুন।" : "Baseline ₹20/month. Keep the movement active."}</small></span>
+                    <ArrowRight size={14} />
+                  </button>
+                )}
+                <div className="notification-items">
+                  {data.activities.slice(0, 6).map((a, i) => (
+                    <button className={`notification-item ${unread && i < 2 ? "unread" : ""}`} key={a.id} onClick={() => { markRead(); setPopover(null); navigate(a.type === "dues" ? "dues" : a.type === "donation" ? "donations" : a.type === "circular" ? "circulars" : a.type === "event" ? "events" : "procurement"); }}>
+                      <span className={`notification-symbol activity-${a.type}`}>
+                        {a.type === "donation" ? <HeartHandshake size={16} /> : a.type === "dues" ? <ArrowDownLeft size={16} /> : a.type === "verified" ? <CircleCheck size={16} /> : <Package size={16} />}
+                      </span>
+                      <span><strong>{a.title}</strong><small>{a.description}</small><time>{relativeTime(a.createdAt)} · Action: Click to inspect</time></span>
+                      {unread && i < 2 && <i />}
+                    </button>
+                  ))}
+                </div>
+                <div className="notification-footer">
+                  <span className="tiny-dot green" />Service Worker Web Push & In-App Sync Active
+                  <button onClick={() => { setPopover(null); navigate("settings"); }}>Push settings<ArrowUpRight size={12} /></button>
+                </div>
+              </div>
+            )}
+          </div>
+          <span className="topbar-divider" />
+          <div className="account-wrap" data-popover>
+            <button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label="Open profile menu"><Avatar person={user} size="small" /><ChevronDown size={12} /></button>
+            {popover === "account" && (
+              <div className="small-menu account-menu">
+                <span className="menu-eyebrow">{guestMode ? "GUEST VISITOR" : (locale === "bn" ? "লগইন আছেন" : "LOGGED IN AS")}</span>
+                <strong>{user.fullName}</strong>
+                <small>{user.role === "admin" ? (locale === "bn" ? "কার্যনির্বাহক" : "Unit executive") : user.role} · {identity.unit}</small>
+                <div className="account-version-note"><span>App Release</span><strong>v{identity.version}</strong></div>
+                <button onClick={() => { setPopover(null); open("idCard", { member: user }); }}>
+                  <IdCard size={15} />
+                  {locale === "bn" ? "আমার পরিচয়পত্র (ID Card)" : "My Member ID Card"}
+                  <ArrowUpRight size={13} />
+                </button>
+                <button onClick={() => navigate("settings")}>
+                  <Settings size={15} />
+                  {locale === "bn" ? "অ্যাকাউন্ট ও নিরাপত্তা" : "Account & PIN security"}
+                  <ArrowUpRight size={13} />
+                </button>
+                <button onClick={() => guestMode ? setGuestMode(false) : void perform("logout", {})}>
+                  <LogOut size={15} />
+                  {guestMode ? (locale === "bn" ? "লগ ইন করুন" : "Log In") : (locale === "bn" ? "সাইন আউট" : "Sign Out")}
+                  <ArrowUpRight size={13} />
+                </button>
+                <a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer">
+                  <ExternalLink size={15} />
+                  {locale === "bn" ? "সংগঠন সম্পর্কে" : "About the society"}
+                  <ArrowUpRight size={13} />
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
       {!online && (
         <div className="offline-banner">
           <WifiOff size={15} />
@@ -325,7 +467,7 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           aria-current={view === "overview" ? "page" : undefined}
         >
           <LayoutDashboard size={20} strokeWidth={view === "overview" ? 2.2 : 1.7} />
-          <span>Overview</span>
+          <span>{t("overview")}</span>
         </button>
         <button
           className={`bottom-nav-item ${view === "members" ? "bottom-nav-active" : ""}`}
@@ -333,7 +475,7 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           aria-current={view === "members" ? "page" : undefined}
         >
           <Users size={20} strokeWidth={view === "members" ? 2.2 : 1.7} />
-          <span>Members</span>
+          <span>{t("members")}</span>
         </button>
         <button
           className={`bottom-nav-item ${view === "dues" ? "bottom-nav-active" : ""}`}
@@ -341,7 +483,7 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           aria-current={view === "dues" ? "page" : undefined}
         >
           <Wallet size={20} strokeWidth={view === "dues" ? 2.2 : 1.7} />
-          <span>Dues</span>
+          <span>{t("dues")}</span>
           {user.unpaidMonths > 0 && <span className="bottom-nav-dot" />}
         </button>
         <button
@@ -350,7 +492,7 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           aria-current={view === "procurement" ? "page" : undefined}
         >
           <ClipboardList size={20} strokeWidth={view === "procurement" ? 2.2 : 1.7} />
-          <span>Procure</span>
+          <span>{t("procurement")}</span>
           {needed > 0 && <span className="bottom-nav-badge">{needed}</span>}
         </button>
         <button
@@ -359,7 +501,7 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           aria-label="Open navigation drawer"
         >
           <Menu size={20} strokeWidth={1.7} />
-          <span>More</span>
+          <span>{locale === "bn" ? "অন্যান্য" : "More"}</span>
         </button>
       </nav>
     </div>

@@ -7,6 +7,9 @@ import { type WorkspaceData, type Donation, type UnitEvent, type Procurement, ty
 import { type Resource } from "@/lib/resources";
 import { Avatar, Badge, Button, FormField, Modal, SubmitButton } from "@/components/ui";
 import { TreasurerSignatureBlock, UnitOfficialSeal } from "@/components/unit-seal";
+import { VirtualIdCard } from "@/components/id-card";
+import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
+import type { Profile } from "@/lib/types";
 import type { Navigate, OpenModal } from "@/components/overview";
 
 export type ModalState = { type: string; record?: unknown } | null;
@@ -24,6 +27,17 @@ export function WorkspaceModals(props: Props) {
       else close();
     }
   };
+
+  if (modal.type === "idCard") {
+    const raw = modal.record as Profile | { member: Profile; memberCode?: string };
+    const member = raw && typeof raw === "object" && "member" in raw ? raw.member : (raw as Profile);
+    const memberCode = raw && typeof raw === "object" && "memberCode" in raw && raw.memberCode ? raw.memberCode : `JPG-${String(Math.max(1, data.profiles.findIndex((p) => p.id === member.id) + 1)).padStart(3, "0")}`;
+    return (
+      <Modal title="Member Credential Card" subtitle="Official Light of Science Digital ID Badge" onClose={close}>
+        <VirtualIdCard member={member} memberCode={memberCode} onClose={close} />
+      </Modal>
+    );
+  }
 
   if (modal.type === "dues") return <DuesCollector data={data} record={modal.record as { memberId?: string; month?: number; year?: number } | undefined} save={save} {...formProps} />;
 
@@ -413,6 +427,10 @@ export function WorkspaceModals(props: Props) {
           </div>
         </div>
         <div className="modal-actions">
+          <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatEventBroadcast(event))}>
+            <MessageCircle size={15} />
+            Mobilize on WhatsApp
+          </button>
           <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify("iCal event file downloaded."); }}>
             Add to calendar
           </Button>
@@ -475,6 +493,10 @@ export function WorkspaceModals(props: Props) {
           </div>
         </article>
         <div className="modal-actions">
+          <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatCircularBroadcast(notice))}>
+            <MessageCircle size={15} />
+            Share to WhatsApp Group
+          </button>
           <Button variant="secondary" onClick={close}>Back to board</Button>
         </div>
       </Modal>

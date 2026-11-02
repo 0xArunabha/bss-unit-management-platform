@@ -1,10 +1,13 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IndianRupee, KeyRound, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, UserPlus, Users, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IdCard, IndianRupee, KeyRound, MessageCircle, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, UserPlus, Users, Wallet } from "lucide-react";
 import { useState } from "react";
 import { type WorkspaceData, type DuesRecord, type Donation, type PerformAction, money, months } from "@/lib/types";
 import { Badge, Button, EmptyState, ExportButton, PageHeading, SearchInput, Select, downloadCsv } from "@/components/ui";
+import { useI18n } from "@/lib/i18n";
+import { getMemberDesignations } from "@/lib/teams";
+import { formatDuesReminderBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 import type { OpenModal } from "@/components/overview";
 
 type Props = { data: WorkspaceData; open: OpenModal; perform?: PerformAction };
@@ -25,12 +28,20 @@ function getDonorBadge(d: Donation): { label: string; tone: string } {
 }
 
 export function MembersView({ data, open, perform }: Props) {
+  const { locale, t } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(0);
   const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0];
   const isExecutive = current.role === "admin";
   const canCollect = current.role !== "member";
+
+  const roleNameDisplay: Record<string, string> = {
+    admin: t("roleAdmin", "Executive"),
+    organizer: t("roleOrganizer", "Organizer"),
+    volunteer: t("roleVolunteer", "Volunteer"),
+    member: t("roleMember", "Member"),
+  };
 
   const people = data.profiles.filter((p) => {
     const matchesSearch = p.fullName.toLowerCase().includes(search.toLowerCase()) || (p.phone && p.phone.includes(search));
@@ -52,7 +63,7 @@ export function MembersView({ data, open, perform }: Props) {
         title="Active members & volunteer organizers."
         description={`Unit membership roster for ${identity.fullName}. Baseline pledge ₹20/month with voluntary higher contributions.`}
       >
-        {isExecutive && <Button icon={UserPlus} onClick={() => open("member")}>Add member</Button>}
+        {isExecutive && <Button icon={UserPlus} onClick={() => open("member")}>{t("addMember", "Add member")}</Button>}
       </PageHeading>
 
       <div className="mini-stats-grid">
@@ -71,10 +82,10 @@ export function MembersView({ data, open, perform }: Props) {
         <div className="register-toolbar">
           <div className="tabs">
             {[
-              ["all", "All members", data.profiles.length],
-              ["active", "Active roster", data.profiles.length - inactiveCount],
-              ["inactive", "Dues pending (6+ mo)", inactiveCount],
-              ["volunteers", "Organizers & cadre", volunteerCount],
+              ["all", t("allMembersTab", "All members"), data.profiles.length],
+              ["active", t("activeRosterTab", "Active roster"), data.profiles.length - inactiveCount],
+              ["inactive", t("duesPendingTab", "Dues pending (6+ mo)"), inactiveCount],
+              ["volunteers", t("organizersCadreTab", "Organizers & cadre"), volunteerCount],
             ].map(([v, label, count]) => (
               <button
                 className={filter === v ? "active" : ""}
@@ -87,7 +98,7 @@ export function MembersView({ data, open, perform }: Props) {
             ))}
           </div>
           <div className="toolbar-right">
-            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder="Search member name or phone…" />
+            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder={t("searchPlaceholder", "Search member name or phone…")} />
             <ExportButton
               onClick={() =>
                 downloadCsv(
@@ -99,7 +110,7 @@ export function MembersView({ data, open, perform }: Props) {
                     ...people.map((p, idx) => [
                       `JPG-${String(idx + 1).padStart(3, "0")}`,
                       p.fullName,
-                      roleName[p.role],
+                      roleNameDisplay[p.role] || p.role,
                       p.status,
                       p.monthlyPledge,
                       p.unpaidMonths,
@@ -117,25 +128,40 @@ export function MembersView({ data, open, perform }: Props) {
           <table className="data-table member-table">
             <thead>
               <tr>
-                <th>CODE & MEMBER</th>
-                <th>ROLE</th>
-                <th>MONTHLY PLEDGE</th>
-                <th>DUES AUDIT STATUS</th>
-                <th>ENROLLED</th>
-                <th>ACTION</th>
+                <th>{t("memberCodeCol", "CODE & MEMBER")}</th>
+                <th>{t("roleCol", "ROLE")}</th>
+                <th>{t("monthlyPledgeCol", "MONTHLY PLEDGE")}</th>
+                <th>{t("duesAuditStatusCol", "DUES AUDIT STATUS")}</th>
+                <th>{t("enrolledCol", "ENROLLED")}</th>
+                <th>{t("actionCol", "ACTION")}</th>
               </tr>
             </thead>
             <tbody>
               {shown.map((p, index) => {
                 const memberCode = `JPG-${String(page * 12 + index + 1).padStart(3, "0")}`;
                 const isOverdue = p.status === "inactive" || p.unpaidMonths >= 6;
+                const designations = getMemberDesignations(p.fullName);
+
                 return (
                   <tr key={p.id}>
                     <td>
                       <div className="person-cell">
-                        <span className="member-code-tag">{memberCode}</span>
+                        <button
+                          type="button"
+                          className="member-code-tag cursor-pointer"
+                          style={{ cursor: "pointer", transition: "transform 0.15s ease" }}
+                          onClick={() => open("idCard", { member: p, memberCode })}
+                          title="Click to view Official ID Card"
+                        >
+                          {memberCode}
+                        </button>
                         <span>
                           <strong>{p.fullName}</strong>
+                          {designations.primaryTitleEn !== "Unit Member & Field Advocate" && (
+                            <span className="id-card-team-pill" style={{ display: "inline-block", marginTop: "3px" }}>
+                              {locale === "bn" ? designations.primaryTitleBn : designations.primaryTitleEn}
+                            </span>
+                          )}
                           <small>
                             {p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}
                             {isExecutive && p.assignedPin && (
@@ -149,7 +175,7 @@ export function MembersView({ data, open, perform }: Props) {
                     </td>
                     <td>
                       <span className={`role-label role-${p.role}`}>
-                        {roleName[p.role]}
+                        {roleNameDisplay[p.role] || p.role}
                       </span>
                     </td>
                     <td>
@@ -160,25 +186,42 @@ export function MembersView({ data, open, perform }: Props) {
                       {isOverdue ? (
                         <span className="status-stamp-pending">
                           <CircleAlert size={12} />
-                          FLAGGED INACTIVE ({p.unpaidMonths} MO UNPAID)
+                          {t("flaggedInactive", "FLAGGED INACTIVE")} ({p.unpaidMonths} MO UNPAID)
                         </span>
                       ) : p.unpaidMonths > 0 ? (
-                        <Badge tone="yellow">{p.unpaidMonths} mo pending</Badge>
+                        <Badge tone="yellow">{p.unpaidMonths} {t("monthsPending", "mo pending")}</Badge>
                       ) : (
                         <span className="status-stamp-ok">
                           <Check size={12} />
-                          UP TO DATE
+                          {t("upToDate", "UP TO DATE")}
                         </span>
                       )}
                     </td>
                     <td className="muted-cell">
-                      {new Date(p.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
+                      {new Date(p.createdAt).toLocaleDateString(locale === "bn" ? "bn-IN" : "en-IN", { month: "short", year: "numeric" })}
                     </td>
                     <td>
                       <div className="table-actions-cluster">
+                        <button
+                          className="table-action"
+                          onClick={() => open("idCard", { member: p, memberCode })}
+                          title="View & print official digital member ID card"
+                        >
+                          <IdCard size={13} />
+                          {t("viewIdCard", "ID Card")}
+                        </button>
+                        <button
+                          className="table-action"
+                          style={{ color: "#1fa851" }}
+                          onClick={() => shareViaWhatsApp(formatDuesReminderBroadcast(p, locale))}
+                          title="Share member contribution status via WhatsApp"
+                        >
+                          <MessageCircle size={13} />
+                          WhatsApp
+                        </button>
                         {canCollect && (
                           <button className="table-action" onClick={() => open("dues", { memberId: p.id })}>
-                            Collect dues
+                            {t("collectDues", "Collect dues")}
                             <ArrowUpRight size={13} />
                           </button>
                         )}
@@ -222,6 +265,7 @@ export function MembersView({ data, open, perform }: Props) {
 }
 
 export function DuesView({ data, open }: Props) {
+  const { locale } = useI18n();
   const now = new Date();
   const [year, setYear] = useState(String(now.getFullYear()));
   const [search, setSearch] = useState("");
@@ -330,7 +374,17 @@ export function DuesView({ data, open }: Props) {
                         <span className="member-code-tag">{memberCode}</span>
                         <span>
                           <strong>{p.fullName}</strong>
-                          <small>{money(p.monthlyPledge)} / mo</small>
+                          <small>
+                            {money(p.monthlyPledge)} / mo
+                            <button
+                              type="button"
+                              style={{ marginLeft: "7px", color: "#20ba59", cursor: "pointer", display: "inline-flex", verticalAlign: "middle" }}
+                              onClick={() => shareViaWhatsApp(formatDuesReminderBroadcast(p, locale))}
+                              title="Send dues statement via WhatsApp"
+                            >
+                              <MessageCircle size={12} />
+                            </button>
+                          </small>
                         </span>
                       </div>
                     </td>

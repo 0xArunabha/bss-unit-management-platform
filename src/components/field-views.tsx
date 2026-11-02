@@ -1,16 +1,19 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FlaskConical, HeartHandshake, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FlaskConical, HeartHandshake, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, money } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
 import type { Navigate, OpenModal } from "@/components/overview";
 import { resources, type Resource } from "@/lib/resources";
+import { useI18n } from "@/lib/i18n";
+import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 
 type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
 
 export function EventsView({ data, open }: Props) {
+  const { locale } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Upcoming");
   const user = data.profiles.find((p) => p.id === data.currentUserId)!;
@@ -80,10 +83,20 @@ export function EventsView({ data, open }: Props) {
                   )}
                 </div>
 
-                <Button variant="secondary" onClick={() => open("event", event)} className="full-width">
-                  View programme briefing & checklist
-                  <ArrowUpRight size={15} />
-                </Button>
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                  <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
+                    View programme briefing & checklist
+                    <ArrowUpRight size={15} />
+                  </Button>
+                  <button
+                    className="button button-secondary button-whatsapp"
+                    style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                    onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
+                    title="Mobilize volunteers on WhatsApp"
+                  >
+                    <MessageCircle size={15} />
+                  </button>
+                </div>
               </div>
             </article>
           );
@@ -406,6 +419,7 @@ function ProcurementCard({
 }
 
 export function CircularsView({ data, open }: Props) {
+  const { locale } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All notices");
   const user = data.profiles.find((p) => p.id === data.currentUserId)!;
@@ -457,21 +471,32 @@ export function CircularsView({ data, open }: Props) {
               <h2><button onClick={() => open("circular", notice)}>{notice.title}</button></h2>
               <p>{notice.content}</p>
 
-              <div className="circular-card-footer">
-                {author && (
-                  <span className="circular-author">
-                    <Avatar person={author} size="small" />
-                    <span>
-                      {author.fullName} ({author.role})
-                      <small>{new Date(notice.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</small>
+                <div className="circular-card-footer">
+                  {author && (
+                    <span className="circular-author">
+                      <Avatar person={author} size="small" />
+                      <span>
+                        {author.fullName} ({author.role})
+                        <small>{new Date(notice.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</small>
+                      </span>
                     </span>
-                  </span>
-                )}
-                <button className="arrow-link" onClick={() => open("circular", notice)}>
-                  Read full circular
-                  <ArrowUpRight size={15} />
-                </button>
-              </div>
+                  )}
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
+                    <button
+                      className="button button-secondary button-whatsapp"
+                      style={{ fontSize: "11px", padding: "4px 9px", height: "27px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      onClick={() => shareViaWhatsApp(formatCircularBroadcast(notice, locale))}
+                      title="Share to WhatsApp group"
+                    >
+                      <MessageCircle size={13} />
+                      WhatsApp
+                    </button>
+                    <button className="arrow-link" onClick={() => open("circular", notice)}>
+                      Read circular
+                      <ArrowUpRight size={14} />
+                    </button>
+                  </div>
+                </div>
             </article>
           );
         })}
