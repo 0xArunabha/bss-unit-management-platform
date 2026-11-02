@@ -955,6 +955,37 @@ export function SettingsView({
         </section>
 
         <section className="panel settings-panel">
+          <h2><Info size={18} />Application release & system information</h2>
+          <div className="unit-detail-row">
+            <span>Platform Release</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <strong className="mono">v{identity.version}</strong>
+              <Badge tone="rust">{identity.releaseName}</Badge>
+            </div>
+          </div>
+          <div className="unit-detail-row">
+            <span>Build Identification</span>
+            <strong className="mono">{identity.build}</strong>
+          </div>
+          <div className="unit-detail-row">
+            <span>PWA Offline Cache</span>
+            <strong className="mono">light-of-science-workspace-v5</strong>
+          </div>
+          <div className="unit-detail-row">
+            <span>Database Backend</span>
+            <strong>PostgreSQL (Neon Serverless · Active)</strong>
+          </div>
+          <div className="unit-detail-row">
+            <span>Local Offline Queue</span>
+            <strong>IndexedDB (Auto-reconnect sync)</strong>
+          </div>
+          <div className="unit-detail-row">
+            <span>Target Jurisdiction</span>
+            <strong>{identity.unit} · {identity.state}</strong>
+          </div>
+        </section>
+
+        <section className="panel settings-panel">
           <h2><MapPin size={18} />Society legal & unit registration</h2>
           <div className="unit-detail-row"><span>Unit Name</span><strong>{identity.name}</strong></div>
           <div className="unit-detail-row"><span>Parent Body</span><strong>{identity.organisation}</strong></div>

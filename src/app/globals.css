@@ -1324,6 +1324,61 @@ body{background-color:var(--paper);background-image:url("data:image/svg+xml;utf8
   color: var(--charcoal, #1e2418);
 }
 
+.login-version-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--charcoal-muted, #7a8270);
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.3px;
+}
+
+.login-version-tag .version-pill {
+  background: #eae7da;
+  color: var(--charcoal, #2a3322);
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 10.5px;
+  border: 1px solid var(--rule, #dcd7c5);
+}
+
+.sidebar-version-pill {
+  font-size: 9px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--charcoal, #2a3322);
+  background: #ebe8dc;
+  border: 1px solid #dcd7c5;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: auto;
+}
+
+.account-version-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f7f5ed;
+  border-radius: 4px;
+  border: 1px solid #e7e4d8;
+  font-size: 10.5px;
+  color: var(--charcoal-muted, #5f6854);
+  font-family: var(--font-mono, monospace);
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.account-version-note strong {
+  color: var(--rust, #bf5029);
+  font-weight: 600;
+}
+
 /* Recovery Modal */
 .recovery-form {
   display: flex;

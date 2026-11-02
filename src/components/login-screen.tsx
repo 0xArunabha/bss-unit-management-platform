@@ -299,6 +299,11 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
               Public Visitor? View Notices & Science Calendar <ChevronRight size={14} />
             </button>
           </div>
+
+          <div className="login-version-tag">
+            <span>{identity.fullName}</span>
+            <span className="version-pill">v{identity.version}</span>
+          </div>
         </div>
       </div>
 
