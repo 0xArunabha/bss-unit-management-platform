@@ -140,10 +140,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     return fallback || key;
   };
 
-  return (
-    <I18nContext.Provider value={{ locale, setLocale, toggleLocale, t }}>
-      {children}
-    </I18nContext.Provider>
+  return React.createElement(
+    I18nContext.Provider,
+    { value: { locale, setLocale, toggleLocale, t } },
+    children
   );
 }
 
