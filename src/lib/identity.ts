@@ -25,7 +25,7 @@ export const identity = {
   motto: "Science for Man. Science for Society. Science in Thinking.",
   unitContact: "jalpaiguri@breakthroughindia.org",
   treasurerTitle: "Authorized Signatory / Unit Treasurer",
-  version: "1.2.0",
+  version: "1.3.0",
   build: "2026.11-pwa",
   releaseName: "Jalpaiguri Field Edition",
 } as const;
