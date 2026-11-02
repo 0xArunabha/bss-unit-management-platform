@@ -152,7 +152,7 @@ export default async function ReceiptPage({
         {/* Signatures & Seal Section */}
         <div className="receipt-sign-row">
           <TreasurerSignatureBlock
-            officerName={collector?.fullName || "Anirban Sen"}
+            officerName={collector?.fullName || "Arunabha Ghosh"}
             roleTitle={collector?.role === "admin" ? "Unit Executive / Convener" : "Authorized Collector / Organizer"}
             date={dateFormatted}
           />
@@ -171,7 +171,7 @@ export default async function ReceiptPage({
         </div>
 
         <div className="public-receipt-disclaimer">
-          <strong>DEMONSTRATION RECORD · SAMPLE WORKSPACE · {identity.unit.toUpperCase()}</strong>
+          <strong>OFFICIAL CONTRIBUTION RECEIPT · BREAKTHROUGH SCIENCE SOCIETY · {identity.unit.toUpperCase()}</strong>
           <p>
             This digital slip acknowledges a recorded entry in the Light of Science unit ledger. Headquarters: {identity.headquarters}. Registered under {identity.act}.
           </p>

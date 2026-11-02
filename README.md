@@ -3,7 +3,7 @@
 
 A responsive, database-backed progressive web platform built with Next.js (App Router), React, Tailwind CSS, PostgreSQL, and Drizzle ORM for **Light of Science (Breakthrough Science Society, Jalpaiguri Unit, West Bengal)**.
 
-> 📄 **Official Specification:** See [PRD.md](file:///c:/Users/risho/OneDrive/Desktop/bss-unit-management-platform/PRD.md) for the complete Product Requirements Document, module specifications, database schema, and multi-phase implementation roadmap.
+> 📄 **Official Specification:** See [PRD.md](./PRD.md) for the complete Product Requirements Document, module specifications, database schema, and multi-phase implementation roadmap.
 
 ---
 

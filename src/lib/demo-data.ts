@@ -1,5 +1,6 @@
 import { identity } from "@/lib/identity";
 import { sendDonationSms } from "@/lib/sms";
+import { hashPin, verifyPin } from "@/lib/pin-security";
 import type { WorkspaceData, Profile, DuesRecord, UnitEvent, Procurement, Donation, Circular, Activity } from "@/lib/types";
 
 export const DEMO_ADMIN_ID = "10000000-0000-4000-8000-000000000001";
@@ -25,42 +26,41 @@ export interface RealMemberSpec {
   monthlyPledge: number;
   avatarColor: "peach" | "sage" | "blue" | "lavender" | "sand";
   paid: boolean;
-  pin: string;
 }
 
 export const REAL_MEMBERS: RealMemberSpec[] = [
-  { id: DEMO_ADMIN_ID, fullName: "Arunabha Ghosh", phone: "9832012345", role: "admin", monthlyPledge: 100, avatarColor: "peach", paid: true, pin: "2401" },
-  { id: uid(1, 2), fullName: "Utsav Sen", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "sage", paid: true, pin: "2402" },
-  { id: uid(1, 3), fullName: "Pritam Sarkar", phone: null, role: "admin", monthlyPledge: 50, avatarColor: "blue", paid: true, pin: "2403" },
-  { id: uid(1, 4), fullName: "Hari Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true, pin: "2404" },
-  { id: uid(1, 5), fullName: "Soham Das", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true, pin: "2405" },
-  { id: uid(1, 6), fullName: "Samarpan Chakraborty", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "peach", paid: true, pin: "2406" },
-  { id: uid(1, 7), fullName: "Kunal Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: true, pin: "2407" },
-  { id: uid(1, 8), fullName: "Kaushiki Ray", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: true, pin: "2408" },
-  { id: uid(1, 9), fullName: "Udita Roy Basunia", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "sand", paid: true, pin: "2409" },
-  { id: uid(1, 10), fullName: "Debarghya Das", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "lavender", paid: true, pin: "2410" },
-  { id: uid(1, 11), fullName: "Dwija", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: true, pin: "2411" },
-  { id: uid(1, 12), fullName: "Anirban Kar", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "sage", paid: true, pin: "2412" },
-  { id: uid(1, 13), fullName: "Dipta Paul", phone: null, role: "organizer", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2413" },
-  { id: uid(1, 14), fullName: "Supriyo Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2414" },
-  { id: uid(1, 15), fullName: "Supriyo Sarkar", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "2415" },
-  { id: uid(1, 16), fullName: "Member (+91 93826 18134)", phone: "+91 93826 18134", role: "member", monthlyPledge: 20, avatarColor: "peach", paid: false, pin: "8134" },
-  { id: uid(1, 17), fullName: "Ananya Kar", phone: "+91 98327 37610", role: "organizer", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "7610" },
-  { id: uid(1, 18), fullName: "Joydev Adhikary", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2418" },
-  { id: uid(1, 19), fullName: "Anowar Hossain", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2419" },
-  { id: uid(1, 20), fullName: "Member (+91 95316 26335)", phone: "+91 95316 26335", role: "member", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "6335" },
-  { id: uid(1, 21), fullName: "Pritam Ghosh", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: false, pin: "2421" },
-  { id: uid(1, 22), fullName: "Hrithik Sen", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "2422" },
-  { id: uid(1, 23), fullName: "Kaustubhi Singha", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2423" },
-  { id: uid(1, 24), fullName: "Shree Roy (শ্রী রায়)", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2424" },
-  { id: uid(1, 25), fullName: "Swarndeep Sen", phone: null, role: "admin", monthlyPledge: 100, avatarColor: "peach", paid: true, pin: "2425" },
-  { id: uid(1, 26), fullName: "Avash Rajak", phone: null, role: "admin", monthlyPledge: 50, avatarColor: "sage", paid: true, pin: "2426" },
-  { id: uid(1, 27), fullName: "Arindam Bhattacharya", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "blue", paid: true, pin: "2427" },
-  { id: uid(1, 28), fullName: "Sreelekha Sarkar", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true, pin: "2428" },
-  { id: uid(1, 29), fullName: "Nilanjan Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true, pin: "2429" },
-  { id: uid(1, 30), fullName: "Debasmita Bhandari", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: true, pin: "2430" },
-  { id: uid(1, 31), fullName: "Supriyo Mondal", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: true, pin: "2431" },
-  { id: uid(1, 32), fullName: "Arnish Hossain", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: true, pin: "2432" },
+  { id: DEMO_ADMIN_ID, fullName: "Arunabha Ghosh", phone: "9832012345", role: "admin", monthlyPledge: 100, avatarColor: "peach", paid: true },
+  { id: uid(1, 2), fullName: "Utsav Sen", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "sage", paid: true },
+  { id: uid(1, 3), fullName: "Pritam Sarkar", phone: null, role: "admin", monthlyPledge: 50, avatarColor: "blue", paid: true },
+  { id: uid(1, 4), fullName: "Hari Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true },
+  { id: uid(1, 5), fullName: "Soham Das", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true },
+  { id: uid(1, 6), fullName: "Samarpan Chakraborty", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "peach", paid: true },
+  { id: uid(1, 7), fullName: "Kunal Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: true },
+  { id: uid(1, 8), fullName: "Kaushiki Ray", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: true },
+  { id: uid(1, 9), fullName: "Udita Roy Basunia", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "sand", paid: true },
+  { id: uid(1, 10), fullName: "Debarghya Das", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "lavender", paid: true },
+  { id: uid(1, 11), fullName: "Dwija", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: true },
+  { id: uid(1, 12), fullName: "Anirban Kar", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "sage", paid: true },
+  { id: uid(1, 13), fullName: "Dipta Paul", phone: null, role: "organizer", monthlyPledge: 20, avatarColor: "blue", paid: false },
+  { id: uid(1, 14), fullName: "Supriyo Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false },
+  { id: uid(1, 15), fullName: "Supriyo Sarkar", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: false },
+  { id: uid(1, 16), fullName: "Member (+91 93826 18134)", phone: "+91 93826 18134", role: "member", monthlyPledge: 20, avatarColor: "peach", paid: false },
+  { id: uid(1, 17), fullName: "Ananya Kar", phone: "+91 98327 37610", role: "organizer", monthlyPledge: 20, avatarColor: "sage", paid: false },
+  { id: uid(1, 18), fullName: "Joydev Adhikary", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: false },
+  { id: uid(1, 19), fullName: "Anowar Hossain", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false },
+  { id: uid(1, 20), fullName: "Member (+91 95316 26335)", phone: "+91 95316 26335", role: "member", monthlyPledge: 20, avatarColor: "lavender", paid: false },
+  { id: uid(1, 21), fullName: "Pritam Ghosh", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: false },
+  { id: uid(1, 22), fullName: "Hrithik Sen", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: false },
+  { id: uid(1, 23), fullName: "Kaustubhi Singha", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: false },
+  { id: uid(1, 24), fullName: "Shree Roy (শ্রী রায়)", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: false },
+  { id: uid(1, 25), fullName: "Swarndeep Sen", phone: null, role: "admin", monthlyPledge: 100, avatarColor: "peach", paid: true },
+  { id: uid(1, 26), fullName: "Avash Rajak", phone: null, role: "admin", monthlyPledge: 50, avatarColor: "sage", paid: true },
+  { id: uid(1, 27), fullName: "Arindam Bhattacharya", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "blue", paid: true },
+  { id: uid(1, 28), fullName: "Sreelekha Sarkar", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true },
+  { id: uid(1, 29), fullName: "Nilanjan Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true },
+  { id: uid(1, 30), fullName: "Debasmita Bhandari", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "peach", paid: true },
+  { id: uid(1, 31), fullName: "Supriyo Mondal", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: true },
+  { id: uid(1, 32), fullName: "Arnish Hossain", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: true },
 ];
 
 function createInitialState(): {
@@ -257,23 +257,64 @@ export function resetInMemoryState() {
   return inMemoryState;
 }
 
-const demoPins = new Map<string, string>(REAL_MEMBERS.map((m) => [m.id, m.pin]));
+const INITIAL_DEMO_PINS: Record<string, string> = {
+  [DEMO_ADMIN_ID]: "2401",
+  [uid(1, 16)]: "8134",
+  [uid(1, 17)]: "7610",
+  [uid(1, 20)]: "6335",
+};
+
+const demoPins = new Map<string, string>(
+  REAL_MEMBERS.map((m, idx) => {
+    const initialPin = INITIAL_DEMO_PINS[m.id] || String(2401 + idx);
+    return [m.id, hashPin(initialPin, m.id)];
+  })
+);
 const demoGoogle = new Map<string, string>();
 
 export function getDemoWorkspace(userId?: string): WorkspaceData {
   const state = getInMemoryState();
+  const foundUser = userId ? state.profiles.find((p) => p.id === userId) : undefined;
+
+  if (!foundUser) {
+    const publicProfiles: Profile[] = state.profiles.map((p) => ({
+      id: p.id,
+      fullName: p.fullName,
+      phone: null, // Phone numbers are private
+      role: p.role,
+      status: p.status,
+      monthlyPledge: 0, // Individual pledges are private
+      avatarColor: p.avatarColor,
+      unpaidMonths: 0,
+      createdAt: p.createdAt,
+      hasGoogleLinked: false,
+      googleEmail: null,
+      needsPinChange: false,
+    }));
+
+    return JSON.parse(JSON.stringify({
+      profiles: publicProfiles,
+      dues: [], // Private financial ledger
+      events: state.events,
+      procurements: [], // Private procurements
+      donations: [], // Private donor records
+      circulars: state.circulars,
+      activities: [], // Private activity log
+      currentUserId: "",
+      openingBalance: 0,
+    })) as WorkspaceData;
+  }
+
   const people = state.profiles.map((p) => ({
     ...p,
     hasGoogleLinked: Boolean(demoGoogle.get(p.id) || p.googleEmail),
     googleEmail: p.id === userId ? (demoGoogle.get(p.id) || p.googleEmail || null) : (demoGoogle.get(p.id) || p.googleEmail) ? "Linked" : null,
     needsPinChange: Boolean(p.needsPinChange),
-    assignedPin: p.id === userId ? (demoPins.get(p.id) || "2400") : undefined,
   }));
-  const currentUserId = people.some((p) => p.id === userId) ? (userId as string) : "";
   return JSON.parse(JSON.stringify({
     ...state,
     profiles: people,
-    currentUserId,
+    currentUserId: foundUser.id,
     openingBalance: DEMO_OPENING_BALANCE,
   })) as WorkspaceData;
 }
@@ -294,9 +335,9 @@ export async function executeDemoAction(action: string, body: any, currentUserId
     case "login": {
       const selected = state.profiles.find((p) => p.id === body.memberId);
       if (!selected) throw new Error("Member profile not found.");
-      const currentPin = demoPins.get(selected.id) || "1234";
+      const storedHash = demoPins.get(selected.id);
       const pinInput = String(body.pin || "").trim();
-      if (pinInput !== currentPin) {
+      if (!verifyPin(pinInput, selected.id, storedHash)) {
         throw new Error("Incorrect 4-digit PIN. Please try again.");
       }
       nextUser = selected.id;
@@ -312,11 +353,11 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       const oldPin = String(body.oldPin || "").trim();
       const newPin = String(body.newPin || "").trim();
       if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
-      const currentPin = demoPins.get(user.id) || "1234";
-      if (!user.needsPinChange && currentPin !== oldPin) {
+      const storedHash = demoPins.get(user.id);
+      if (!user.needsPinChange && !verifyPin(oldPin, user.id, storedHash)) {
         throw new Error("Current PIN does not match.");
       }
-      demoPins.set(user.id, newPin);
+      demoPins.set(user.id, hashPin(newPin, user.id));
       user.needsPinChange = false;
       message = "PIN updated successfully.";
       break;
@@ -340,7 +381,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       if (!linked || linked.toLowerCase() !== googleEmail) {
         throw new Error(`Google account does not match the recovery email for ${target.fullName}. Contact unit secretary Arunabha Ghosh.`);
       }
-      demoPins.set(target.id, newPin);
+      demoPins.set(target.id, hashPin(newPin, target.id));
       target.needsPinChange = false;
       nextUser = target.id;
       message = `Identity verified via ${googleEmail}. New PIN set and logged in!`;
@@ -350,9 +391,11 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       if (user.role !== "admin") throw new Error("Only unit executives can reset PINs.");
       const target = state.profiles.find((p) => p.id === body.memberId);
       if (!target) throw new Error("Member not found.");
-      demoPins.set(target.id, "1234");
+      const newUniquePin = Math.floor(1000 + Math.random() * 9000).toString();
+      demoPins.set(target.id, hashPin(newUniquePin, target.id));
       target.needsPinChange = true;
-      message = `PIN for ${target.fullName} has been reset to default (1234).`;
+      message = `PIN for ${target.fullName} has been reset to: ${newUniquePin}. Convey this directly to the member.`;
+      nextUser = user.id;
       break;
     }
     case "switchUser": {
@@ -365,26 +408,47 @@ export async function executeDemoAction(action: string, body: any, currentUserId
     }
     case "collectDues": {
       const member = state.profiles.find((p) => p.id === body.memberId);
+      if (!member) throw new Error("Member not found.");
       const total = Number(body.amount) || 20;
+      if (total < 20) throw new Error("Contribution must be at least ₹20.");
       const monthly = Number(body.monthlyAmount) || 20;
       let m = Number(body.month) || 1;
       let y = Number(body.year) || new Date().getFullYear();
+      if (m < 1 || m > 12) throw new Error("Month must be between 1 and 12.");
+
+      // Prevent double-booking on network retries
+      const isTargetMonthPaid = state.dues.some((d) => d.memberId === body.memberId && d.month === m && d.year === y);
+      if (isTargetMonthPaid) {
+        const recent = state.dues.find(
+          (d) => d.memberId === body.memberId && d.month === m && d.year === y &&
+                 Date.now() - new Date(d.paidAt).getTime() < 30000
+        );
+        if (recent) {
+          message = `₹${total} already recorded (idempotent retry).`;
+          break;
+        }
+        throw new Error(`Dues for ${m}/${y} are already recorded for this member. Please refresh the dues ledger.`);
+      }
+
       let remaining = total;
       let count = 0;
       while (remaining > 0 && count < 24) {
-        const amount = Math.min(monthly, remaining);
-        state.dues.push({
-          id: uid(6, state.dues.length + 1),
-          memberId: body.memberId,
-          month: m,
-          year: y,
-          amount,
-          paymentMode: body.paymentMode || "cash",
-          collectedBy: user.id,
-          paidAt: new Date().toISOString(),
-        });
-        remaining -= amount;
-        count++;
+        if (m < 1 || m > 12) throw new Error("Invalid dues month.");
+        if (!state.dues.some((d) => d.memberId === body.memberId && d.month === m && d.year === y)) {
+          const amount = Math.min(monthly, remaining);
+          state.dues.push({
+            id: uid(6, state.dues.length + 1),
+            memberId: body.memberId,
+            month: m,
+            year: y,
+            amount,
+            paymentMode: body.paymentMode || "cash",
+            collectedBy: user.id,
+            paidAt: new Date().toISOString(),
+          });
+          remaining -= amount;
+          count++;
+        }
         m = m === 12 ? 1 : m + 1;
         if (m === 1) y++;
       }
@@ -448,7 +512,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
             receiptNo: donation.receiptNo,
             receiptId: donation.id,
           });
-          if (res.success) {
+          if (!res.simulated && res.success) {
             donation.smsSent = true;
           }
           message = res.message;

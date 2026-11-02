@@ -7,6 +7,9 @@ import { getWorkspace } from "@/lib/workspace";
 import { sendPush } from "@/lib/push";
 import { sendDonationSms } from "@/lib/sms";
 import { executeDemoAction } from "@/lib/demo-data";
+import { SESSION_COOKIE_NAME, createSessionToken, verifySessionToken } from "@/lib/session";
+import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rate-limit";
+import { hashPin, verifyPin } from "@/lib/pin-security";
 import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
@@ -36,20 +39,41 @@ const mode = (value: unknown) => {
 };
 
 export async function GET(request: NextRequest) {
-  return NextResponse.json(await getWorkspace(request.cookies.get("bss_demo_user")?.value));
+  const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
+  const userId = verifySessionToken(rawCookie);
+  return NextResponse.json(await getWorkspace(userId || undefined));
 }
 
 export async function POST(request: NextRequest) {
+  let rateLimitKey: string | null = null;
   try {
     const body = await request.json();
-    const userId = request.cookies.get("bss_demo_user")?.value;
+    const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
+    const userId = verifySessionToken(rawCookie);
     const isPublicAction = body.action === "login" || body.action === "resetPinWithGoogle";
+
+    if (body.action === "login") {
+      const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
+      rateLimitKey = `${clientIp}:${body.memberId || "unknown"}`;
+      const rateCheck = checkLoginRateLimit(rateLimitKey);
+      if (!rateCheck.allowed) {
+        return NextResponse.json(
+          { error: rateCheck.message },
+          { status: 429, headers: { "Retry-After": String(rateCheck.retryAfterSeconds) } }
+        );
+      }
+      // Timing defense delay against high-frequency brute-forcing
+      await new Promise((r) => setTimeout(r, 100));
+    }
 
     if (!isDatabaseConfigured) {
       if (!isPublicAction && !userId) {
         return NextResponse.json({ error: "Please log in to the workspace with your 4-digit PIN." }, { status: 401 });
       }
       const demoResult = await executeDemoAction(body.action, body, userId || "");
+      if (rateLimitKey && body.action === "login") {
+        resetLoginRateLimit(rateLimitKey);
+      }
       const nextUser = demoResult.nextUser !== undefined ? demoResult.nextUser : (userId || "");
       const response = NextResponse.json({
         data: await getWorkspace(nextUser),
@@ -57,15 +81,17 @@ export async function POST(request: NextRequest) {
         receiptId: demoResult.receiptId,
       });
       if (nextUser) {
-        response.cookies.set("bss_demo_user", nextUser, {
+        response.cookies.set(SESSION_COOKIE_NAME, createSessionToken(nextUser), {
           httpOnly: true,
           sameSite: "lax",
           path: "/",
-          maxAge: 86400 * 7,
+          maxAge: 86400 * 30,
+          secure: process.env.NODE_ENV === "production" && request.nextUrl.protocol === "https:",
         });
       } else {
-        response.cookies.delete("bss_demo_user");
+        response.cookies.delete(SESSION_COOKIE_NAME);
       }
+      response.cookies.delete("bss_demo_user");
       return response;
     }
 
@@ -100,10 +126,11 @@ export async function POST(request: NextRequest) {
         const pinInput = String(body.pin || "").trim();
         const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
         if (!target) throw new Error("Member profile not found.");
-        const expectedPin = target.pin || "1234";
-        if (pinInput !== expectedPin) {
+        const isValid = verifyPin(pinInput, memberId, target.pin);
+        if (!isValid) {
           throw new Error("Incorrect 4-digit PIN. Please try again or use Google recovery.");
         }
+        if (rateLimitKey) resetLoginRateLimit(rateLimitKey);
         nextUser = target.id;
         message = `Welcome back, ${target.fullName}!`;
         break;
@@ -118,11 +145,11 @@ export async function POST(request: NextRequest) {
         const oldPin = String(body.oldPin || "").trim();
         const newPin = String(body.newPin || "").trim();
         if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
-        const expected = user.pin || "1234";
-        if (!user.needsPinChange && expected !== oldPin) {
+        if (!user.needsPinChange && !verifyPin(oldPin, user.id, user.pin)) {
           throw new Error("Current PIN is incorrect.");
         }
-        await db.update(profiles).set({ pin: newPin, needsPinChange: false }).where(eq(profiles.id, user.id));
+        const hashedPin = hashPin(newPin, user.id);
+        await db.update(profiles).set({ pin: hashedPin, needsPinChange: false }).where(eq(profiles.id, user.id));
         message = "Your 4-digit PIN has been updated successfully.";
         break;
       }
@@ -146,7 +173,8 @@ export async function POST(request: NextRequest) {
         if (!target.googleEmail || target.googleEmail.toLowerCase() !== googleEmail) {
           throw new Error(`Google account does not match the linked recovery email for ${target.fullName}. Contact unit secretary Arunabha Ghosh.`);
         }
-        await db.update(profiles).set({ pin: newPin, needsPinChange: false }).where(eq(profiles.id, target.id));
+        const hashedPin = hashPin(newPin, target.id);
+        await db.update(profiles).set({ pin: hashedPin, needsPinChange: false }).where(eq(profiles.id, target.id));
         nextUser = target.id;
         message = `Identity verified via ${googleEmail}. New PIN set and logged in!`;
         break;
@@ -157,9 +185,11 @@ export async function POST(request: NextRequest) {
         const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
         if (!target) throw new Error("Member not found.");
         const newUniquePin = Math.floor(1000 + Math.random() * 9000).toString();
-        await db.update(profiles).set({ pin: newUniquePin, needsPinChange: true }).where(eq(profiles.id, targetId));
-        message = `PIN for ${target.fullName} has been reset to: ${newUniquePin}.`;
+        const hashedPin = hashPin(newUniquePin, targetId);
+        await db.update(profiles).set({ pin: hashedPin, needsPinChange: true }).where(eq(profiles.id, targetId));
+        message = `PIN for ${target.fullName} has been reset to: ${newUniquePin}. Convey this directly to the member.`;
         await log("member", "PIN reset", `Unit admin reset login PIN for ${target.fullName}.`, targetId);
+        nextUser = user.id;
         break;
       }
       case "collectDues": {
@@ -177,6 +207,20 @@ export async function POST(request: NextRequest) {
           await tx.execute((await import("drizzle-orm")).sql`select pg_advisory_xact_lock(hashtext(${memberId}))`);
           const existing = await tx.select().from(dues).where(eq(dues.memberId, memberId));
           const occupied = new Set(existing.map((d) => `${d.year}-${d.month}`));
+
+          // Check if this starting month is already paid (prevent double booking)
+          if (occupied.has(`${y}-${m}`)) {
+            const recent = existing.find(
+              (d) => d.year === y && d.month === m &&
+                     Date.now() - new Date(d.paidAt).getTime() < 30000
+            );
+            if (recent) {
+              message = `₹${total.toLocaleString("en-IN")} already recorded (idempotent retry).`;
+              return;
+            }
+            throw new Error(`Dues for ${m}/${y} have already been recorded for ${member.fullName}. Please refresh the dues ledger.`);
+          }
+
           let remaining = total;
           let guard = 0;
           const allocations: { memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string }[] = [];
@@ -242,7 +286,7 @@ export async function POST(request: NextRequest) {
           origin,
         });
         const updateData: { donorPhone: string; smsSent?: boolean } = { donorPhone: phone };
-        if (smsResult.success) {
+        if (!smsResult.simulated && smsResult.success) {
           updateData.smsSent = true;
         }
         await db.update(donations).set(updateData).where(eq(donations.id, donationId));
@@ -295,7 +339,7 @@ export async function POST(request: NextRequest) {
           role,
           monthlyPledge: number(body.monthlyPledge || 20, "Monthly pledge", 20),
           avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
-          pin: generatedPin,
+          pin: hashPin(generatedPin, randomUUID()),
         }).returning();
         await log("member", "Our community is growing", `${member.fullName} joined ${identity.name}, ${identity.unit}.`, member.id);
         message = `Welcome! ${member.fullName} added. Unique access PIN: ${generatedPin}`;
@@ -331,7 +375,7 @@ export async function POST(request: NextRequest) {
     }
     const response = NextResponse.json({ data: await getWorkspace(nextUser), message, receiptId });
     if (nextUser) {
-      response.cookies.set("bss_demo_user", nextUser, {
+      response.cookies.set(SESSION_COOKIE_NAME, createSessionToken(nextUser), {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
@@ -339,10 +383,14 @@ export async function POST(request: NextRequest) {
         secure: process.env.NODE_ENV === "production" && request.nextUrl.protocol === "https:",
       });
     } else {
-      response.cookies.delete("bss_demo_user");
+      response.cookies.delete(SESSION_COOKIE_NAME);
     }
+    response.cookies.delete("bss_demo_user");
     return response;
   } catch (error) {
+    if (rateLimitKey) {
+      recordFailedLogin(rateLimitKey);
+    }
     const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
     console.error("Workspace action:", message);
     const safe = message.includes("violates") || message.includes("query:") || message.includes("invalid input") ? "Unable to save. Please check the details and try again." : message;

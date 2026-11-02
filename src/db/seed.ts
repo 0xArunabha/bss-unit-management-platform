@@ -2,6 +2,7 @@ import { identity } from "@/lib/identity";
 import { db } from "@/db";
 import { profiles, dues, events, procurements, donations, circulars, activities } from "@/db/schema";
 import { REAL_MEMBERS } from "@/lib/demo-data";
+import { hashPin } from "@/lib/pin-security";
 import { and, eq, sql } from "drizzle-orm";
 
 export const ADMIN_ID = "10000000-0000-4000-8000-000000000001";
@@ -182,6 +183,28 @@ async function seed() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      -- PostgreSQL engine-level integrity check constraints
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dues_valid_month') THEN
+          ALTER TABLE membership_dues ADD CONSTRAINT dues_valid_month CHECK (dues_month >= 1 AND dues_month <= 12);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'minimum_dues') THEN
+          ALTER TABLE membership_dues ADD CONSTRAINT minimum_dues CHECK (amount >= 20);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'different_verifier') THEN
+          ALTER TABLE event_procurements ADD CONSTRAINT different_verifier CHECK (verified_by IS NULL OR verified_by != purchased_by);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'procurement_status_check') THEN
+          ALTER TABLE event_procurements ADD CONSTRAINT procurement_status_check CHECK (status IN ('needed', 'purchased', 'verified'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'positive_donation') THEN
+          ALTER TABLE donations ADD CONSTRAINT positive_donation CHECK (amount > 0);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'minimum_pledge') THEN
+          ALTER TABLE profiles ADD CONSTRAINT minimum_pledge CHECK (monthly_pledge >= 20);
+        END IF;
+      END $$;
+
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -217,11 +240,19 @@ async function seed() {
           { memberId: uid(1, 2), month: 12, year, amount: 50, paymentMode: "cash", collectedBy: ADMIN_ID, paidAt: new Date(year, 9, 8) },
         ]).onConflictDoNothing();
       }
-      for (const member of REAL_MEMBERS) {
+      const INITIAL_PINS: Record<string, string> = {
+        [ADMIN_ID]: "2401",
+        [uid(1, 16)]: "8134",
+        [uid(1, 17)]: "7610",
+        [uid(1, 20)]: "6335",
+      };
+      for (const [idx, member] of REAL_MEMBERS.entries()) {
+        const initialPin = INITIAL_PINS[member.id] || String(2401 + idx);
+        const hashedPin = hashPin(initialPin, member.id);
         await tx.execute(sql`
           INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, pin, google_email, needs_pin_change, created_at)
-          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${member.pin}, NULL, FALSE, NOW())
-          ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, pin = EXCLUDED.pin, phone = EXCLUDED.phone
+          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${hashedPin}, NULL, FALSE, NOW())
+          ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, phone = EXCLUDED.phone
         `);
       }
       return;
@@ -232,20 +263,29 @@ async function seed() {
     const ago = (minutes: number) => new Date(now.getTime() - minutes * 60000);
     const upcoming = (days: number, hour: number) => { const d = new Date(now); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return d; };
 
-    const people = REAL_MEMBERS.map((m, idx) => ({
-      id: m.id,
-      fullName: m.fullName,
-      phone: m.phone,
-      role: m.role,
-      status: "active",
-      monthlyPledge: m.monthlyPledge,
-      avatarColor: m.avatarColor,
-      unpaidMonths: m.paid ? 0 : 1,
-      pin: m.pin,
-      googleEmail: null,
-      needsPinChange: false,
-      createdAt: new Date(year - 1, idx % 12, 10),
-    }));
+    const INITIAL_PINS: Record<string, string> = {
+      [ADMIN_ID]: "2401",
+      [uid(1, 16)]: "8134",
+      [uid(1, 17)]: "7610",
+      [uid(1, 20)]: "6335",
+    };
+    const people = REAL_MEMBERS.map((m, idx) => {
+      const initialPin = INITIAL_PINS[m.id] || String(2401 + idx);
+      return {
+        id: m.id,
+        fullName: m.fullName,
+        phone: m.phone,
+        role: m.role,
+        status: "active",
+        monthlyPledge: m.monthlyPledge,
+        avatarColor: m.avatarColor,
+        unpaidMonths: m.paid ? 0 : 1,
+        pin: hashPin(initialPin, m.id),
+        googleEmail: null,
+        needsPinChange: false,
+        createdAt: new Date(year - 1, idx % 12, 10),
+      };
+    });
     await tx.insert(profiles).values(people);
 
     const payments: { memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string; paidAt: Date }[] = [];

@@ -116,7 +116,6 @@ export function MembersView({ data, open, perform }: Props) {
                       p.monthlyPledge,
                       p.unpaidMonths,
                       new Date(p.createdAt).toLocaleDateString("en-IN"),
-                      ...(isExecutive ? [p.id === current.id && p.assignedPin ? p.assignedPin : "—"] : []),
                     ]),
                   ]
                 )
@@ -165,11 +164,6 @@ export function MembersView({ data, open, perform }: Props) {
                           )}
                           <small>
                             {p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}
-                            {p.id === current.id && p.assignedPin && (
-                              <span className="admin-pin-chip" title="Unique Member PIN">
-                                PIN: <code>{p.assignedPin}</code>
-                              </span>
-                            )}
                           </small>
                         </span>
                       </div>
@@ -305,14 +299,9 @@ export function MembersView({ data, open, perform }: Props) {
                     </div>
                   </div>
                   <div className="mobile-member-meta-item">
-                    <span className="mobile-meta-label">PHONE / PIN</span>
+                    <span className="mobile-meta-label">PHONE</span>
                     <span className="mobile-meta-value mono text-xs">
                       {p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}
-                      {p.id === current.id && p.assignedPin && (
-                        <span className="admin-pin-chip" title="Unique Member PIN" style={{ marginLeft: "4px" }}>
-                          PIN: <code>{p.assignedPin}</code>
-                        </span>
-                      )}
                     </span>
                   </div>
                   <div className="mobile-member-meta-item">
