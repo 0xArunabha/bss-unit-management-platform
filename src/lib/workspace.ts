@@ -2,7 +2,7 @@ import { db, isDatabaseConfigured } from "@/db";
 import { profiles, dues, events, procurements, donations, circulars, activities } from "@/db/schema";
 import { ensureSeed, ADMIN_ID, OPENING_BALANCE } from "@/db/seed";
 import { asc, desc } from "drizzle-orm";
-import type { WorkspaceData, Profile } from "@/lib/types";
+import type { WorkspaceData, Profile, Role } from "@/lib/types";
 import { getDemoWorkspace } from "@/lib/demo-data";
 
 export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
@@ -23,61 +23,105 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   people.sort((a, b) => a.id.localeCompare(b.id));
   const requestingUser = people.find((p) => p.id === userId);
 
-  // If no authenticated user session, return sanitized public data
+  // 1. PUBLIC VISITOR (Unauthenticated)
+  // Hidden means the server never sends it:
+  // - No member directory
+  // - No dues or money figures
+  // - No procurements / shopping list
+  // - No donor register
+  // - No internal circulars or meeting agendas
+  // - No activity audit log
   if (!requestingUser) {
-    const publicProfiles: Profile[] = people.map((person) => ({
-      id: person.id,
-      fullName: person.fullName,
-      phone: null, // Protected: phone numbers hidden from anonymous readers
-      role: person.role as Profile["role"],
-      status: person.status as "active" | "inactive",
-      monthlyPledge: 0, // Protected: individual pledge amounts hidden
-      avatarColor: person.avatarColor as "peach" | "sage" | "blue" | "lavender" | "sand",
-      unpaidMonths: 0,
-      createdAt: person.createdAt.toISOString(),
-      hasGoogleLinked: false,
-      googleEmail: null,
-      needsPinChange: false,
-    }));
-
     return JSON.parse(JSON.stringify({
-      profiles: publicProfiles,
-      dues: [], // Private financial ledger
+      profiles: [],
+      dues: [],
       events: unitEvents,
-      procurements: [], // Private procurement ledger
-      donations: [], // Private donor contributions
-      circulars: notices,
-      activities: [], // Private audit log
+      procurements: [],
+      donations: [],
+      circulars: [],
+      activities: [],
       currentUserId: "",
+      currentUserRole: "guest",
       openingBalance: 0,
     })) as WorkspaceData;
   }
 
+  const role = requestingUser.role as Role;
+  const isExecutive = role === "admin";
+  const isVolunteerOrOrganizer = role === "volunteer" || role === "organizer";
+
+  // Calculate unpaid months accurately for the requesting user
   const now = new Date();
   const paymentSet = new Set(payments.map((p) => `${p.memberId}-${p.year}-${p.month}`));
-  const roster = people.map((person) => {
+
+  // 2. MEMBER ROSTER PROJECTION
+  // - Executive: Names, roles, plus phones, pledges, and arrears
+  // - Member & Volunteer: Names, roles only. No phones! Other members' payment status is never revealed.
+  const roster: Profile[] = people.map((person) => {
     let unpaidMonths = 0;
-    for (let i = 0; i < 24; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      if (date < new Date(person.createdAt.getFullYear(), person.createdAt.getMonth(), 1)) break;
-      if (paymentSet.has(`${person.id}-${date.getFullYear()}-${date.getMonth() + 1}`)) break;
-      unpaidMonths++;
+    if (isExecutive || person.id === requestingUser.id) {
+      for (let i = 0; i < 24; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        if (date < new Date(person.createdAt.getFullYear(), person.createdAt.getMonth(), 1)) break;
+        if (paymentSet.has(`${person.id}-${date.getFullYear()}-${date.getMonth() + 1}`)) break;
+        unpaidMonths++;
+      }
     }
-    const sanitized: Record<string, unknown> = {
-      ...person,
-      unpaidMonths,
-      status: unpaidMonths >= 6 ? "inactive" : "active",
+
+    return {
+      id: person.id,
+      fullName: person.fullName,
+      phone: isExecutive || person.id === requestingUser.id ? person.phone : null,
+      role: person.role as Role,
+      status: person.id === requestingUser.id ? (unpaidMonths >= 6 ? "inactive" : "active") : (person.status || "active"),
+      monthlyPledge: isExecutive || person.id === requestingUser.id ? Number(person.monthlyPledge || 20) : 0,
+      avatarColor: person.avatarColor as Profile["avatarColor"],
+      unpaidMonths: isExecutive || person.id === requestingUser.id ? unpaidMonths : 0,
+      createdAt: person.createdAt.toISOString(),
       hasGoogleLinked: Boolean(person.googleEmail),
-      googleEmail: person.id === userId ? person.googleEmail : person.googleEmail ? "Linked" : null,
-      needsPinChange: Boolean(person.needsPinChange),
+      googleEmail: person.id === requestingUser.id ? person.googleEmail : person.googleEmail ? "Linked" : null,
+      isMinor: Boolean(person.isMinor),
     };
-    delete sanitized.pin;
-    delete sanitized.assignedPin;
-    return sanitized as unknown as Profile;
   });
+
+  // 3. DUES PROJECTION
+  // - Executive: Full 12-month treasury matrix of everyone's dues and who owes
+  // - Volunteer & Member: Own dues only! (Volunteers only look up single member dues when recording)
+  const projectedDues = isExecutive
+    ? payments
+    : payments.filter((p) => p.memberId === requestingUser.id);
+
+  // 4. DONATIONS PROJECTION
+  // - Executive: Full donation register (donor names, phones, amounts)
+  // - Volunteer: Record-only (server sends empty array; volunteer submits new donations and gets shareable receipt)
+  // - Member: Empty
+  const projectedDonations = isExecutive ? contributions : [];
+
+  // 5. PROCUREMENTS PROJECTION
+  // - Executive & Volunteer / Organizer: Event shopping checklist & spend
+  // - Member: Empty
+  const projectedProcurements = (isExecutive || isVolunteerOrOrganizer) ? items : [];
+
+  // 6. CIRCULARS & NOTICES PROJECTION
+  // - Public: Empty (filtered above)
+  // - Member, Volunteer, Executive: Unit circulars and meeting agendas
+  const projectedCirculars = notices;
+
+  // 7. ACTIVITY LOG PROJECTION
+  // - Executive: Full audit log
+  // - Volunteer & Member: Empty
+  const projectedActivities = isExecutive ? feed : [];
+
   return JSON.parse(JSON.stringify({
-    profiles: roster, dues: payments, events: unitEvents, procurements: items, donations: contributions,
-    circulars: notices, activities: feed, currentUserId: requestingUser.id,
-    openingBalance: OPENING_BALANCE,
+    profiles: roster,
+    dues: projectedDues,
+    events: unitEvents,
+    procurements: projectedProcurements,
+    donations: projectedDonations,
+    circulars: projectedCirculars,
+    activities: projectedActivities,
+    currentUserId: requestingUser.id,
+    currentUserRole: role,
+    openingBalance: isExecutive ? OPENING_BALANCE : 0,
   })) as WorkspaceData;
 }

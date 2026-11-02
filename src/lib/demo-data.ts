@@ -1,7 +1,8 @@
 import { identity } from "@/lib/identity";
 import { sendDonationSms } from "@/lib/sms";
 import { hashPin, verifyPin } from "@/lib/pin-security";
-import type { WorkspaceData, Profile, DuesRecord, UnitEvent, Procurement, Donation, Circular, Activity } from "@/lib/types";
+import type { WorkspaceData, Profile, Role, DuesRecord, UnitEvent, Procurement, Donation, Circular, Activity, ClaimCode, MembershipApplication } from "@/lib/types";
+import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, resetClaimRateLimit, demoClaimCodesStore } from "@/lib/claim-codes";
 
 export const DEMO_ADMIN_ID = "10000000-0000-4000-8000-000000000001";
 export const DEMO_OPENING_BALANCE = 24800;
@@ -268,55 +269,107 @@ export function getDemoWorkspace(userId?: string): WorkspaceData {
   const state = getInMemoryState();
   const foundUser = userId ? state.profiles.find((p) => p.id === userId) : undefined;
 
+  // 1. PUBLIC VISITOR (Unauthenticated)
+  // Hidden means the server never sends it
   if (!foundUser) {
-    const publicProfiles: Profile[] = state.profiles.map((p) => ({
-      id: p.id,
-      fullName: p.fullName,
-      phone: null, // Phone numbers are private
-      role: p.role,
-      status: p.status,
-      monthlyPledge: 0, // Individual pledges are private
-      avatarColor: p.avatarColor,
-      unpaidMonths: 0,
-      createdAt: p.createdAt,
-      hasGoogleLinked: false,
-      googleEmail: null,
-      needsPinChange: false,
-    }));
-
     return JSON.parse(JSON.stringify({
-      profiles: publicProfiles,
-      dues: [], // Private financial ledger
+      profiles: [],
+      dues: [],
       events: state.events,
-      procurements: [], // Private procurements
-      donations: [], // Private donor records
-      circulars: state.circulars,
-      activities: [], // Private activity log
+      procurements: [],
+      donations: [],
+      circulars: [],
+      activities: [],
       currentUserId: "",
+      currentUserRole: "guest",
       openingBalance: 0,
     })) as WorkspaceData;
   }
 
+  const role = foundUser.role as Role;
+  const isExecutive = role === "admin";
+  const isVolunteerOrOrganizer = role === "volunteer" || role === "organizer";
+
+  // 2. MEMBER ROSTER PROJECTION
+  // - Executive: Names, roles, plus phones, pledges, and arrears
+  // - Member & Volunteer: Names, roles only. No phones! Other members' payment status is never revealed.
   const people = state.profiles.map((p) => ({
-    ...p,
+    id: p.id,
+    fullName: p.fullName,
+    phone: isExecutive || p.id === foundUser.id ? p.phone : null,
+    role: p.role,
+    status: p.id === foundUser.id ? p.status : "active",
+    monthlyPledge: isExecutive || p.id === foundUser.id ? p.monthlyPledge : 0,
+    avatarColor: p.avatarColor,
+    unpaidMonths: isExecutive || p.id === foundUser.id ? p.unpaidMonths : 0,
+    createdAt: p.createdAt,
     hasGoogleLinked: Boolean(demoGoogle.get(p.id) || p.googleEmail),
     googleEmail: p.id === userId ? (demoGoogle.get(p.id) || p.googleEmail || null) : (demoGoogle.get(p.id) || p.googleEmail) ? "Linked" : null,
-    needsPinChange: Boolean(p.needsPinChange),
+    isMinor: Boolean(p.isMinor),
   }));
+
+  // 3. DUES PROJECTION
+  // - Executive: Full 12-month treasury matrix of everyone's dues and who owes
+  // - Volunteer & Member: Own dues only!
+  const projectedDues = isExecutive
+    ? state.dues
+    : state.dues.filter((d) => d.memberId === foundUser.id);
+
+  // 4. DONATIONS PROJECTION
+  // - Executive: Full donation register
+  // - Volunteer & Member: Empty
+  const projectedDonations = isExecutive ? state.donations : [];
+
+  // 5. PROCUREMENTS PROJECTION
+  // - Executive & Volunteer / Organizer: Event shopping checklist & spend
+  // - Member: Empty
+  const projectedProcurements = (isExecutive || isVolunteerOrOrganizer) ? state.procurements : [];
+
+  // 6. CIRCULARS & NOTICES PROJECTION
+  const projectedCirculars = state.circulars;
+
+  // 7. ACTIVITY LOG PROJECTION
+  const projectedActivities = isExecutive ? state.activities : [];
+
+  const claimCodesList: ClaimCode[] = isExecutive
+    ? Array.from(demoClaimCodesStore.values()).map((c) => {
+        const mem = state.profiles.find((p) => p.id === c.memberId);
+        return {
+          id: c.id,
+          memberId: c.memberId,
+          memberName: mem?.fullName || "Unit Member",
+          expiresAt: c.expiresAt.toISOString(),
+          claimedAt: c.claimedAt ? c.claimedAt.toISOString() : null,
+          claimedByGoogleSub: c.claimedByGoogleSub || null,
+          createdAt: c.createdAt.toISOString(),
+        };
+      })
+    : [];
+
   return JSON.parse(JSON.stringify({
-    ...state,
     profiles: people,
+    dues: projectedDues,
+    events: state.events,
+    procurements: projectedProcurements,
+    donations: projectedDonations,
+    circulars: projectedCirculars,
+    activities: projectedActivities,
     currentUserId: foundUser.id,
-    openingBalance: DEMO_OPENING_BALANCE,
+    currentUserRole: role,
+    openingBalance: isExecutive ? DEMO_OPENING_BALANCE : 0,
+    claimCodes: isExecutive ? claimCodesList : undefined,
+    applications: isExecutive ? demoApplicationsStore : undefined,
   })) as WorkspaceData;
 }
 
-export async function executeDemoAction(action: string, body: any, currentUserId: string): Promise<{ message: string; receiptId?: string; nextUser?: string }> {
+export const demoApplicationsStore: MembershipApplication[] = [];
+
+export async function executeDemoAction(action: string, body: any, currentUserId: string): Promise<{ message: string; receiptId?: string; nextUser?: string; claimCode?: string }> {
   const state = getInMemoryState();
-  const isPublicAction = action === "login" || action === "resetPinWithGoogle";
+  const isPublicAction = ["login", "claimInviteCode", "applyToJoin", "checkMemberDues"].includes(action);
   const foundUser = state.profiles.find((p) => p.id === currentUserId);
   if (!isPublicAction && !foundUser) {
-    throw new Error("Please log in to the workspace with your 4-digit PIN.");
+    throw new Error("Please log in to the workspace with your member account.");
   }
   const user = foundUser || state.profiles[0];
 
@@ -335,30 +388,12 @@ export async function executeDemoAction(action: string, body: any, currentUserId
   let message = "Action completed.";
   let receiptId: string | undefined;
   let nextUser = foundUser ? foundUser.id : "";
+  let generatedCode: string | undefined;
 
   switch (action) {
     case "login": {
       const selected = state.profiles.find((p) => p.id === body.memberId);
       if (!selected) throw new Error("Member profile not found.");
-      const storedHash = demoPins.get(selected.id);
-      const pinInput = String(body.pin || "").trim();
-
-      // First-time admin setup if unseeded from code
-      if (!storedHash && selected.id === DEMO_ADMIN_ID && pinInput.length >= 4) {
-        demoPins.set(selected.id, hashPin(pinInput, selected.id));
-        selected.needsPinChange = false;
-        nextUser = selected.id;
-        message = `Welcome back, ${selected.fullName}!`;
-        break;
-      }
-
-      if (!storedHash) {
-        throw new Error(`PIN not initialized for ${selected.fullName}. Please ask Unit Executive Arunabha Ghosh to issue an access PIN or use Google recovery.`);
-      }
-
-      if (!verifyPin(pinInput, selected.id, storedHash)) {
-        throw new Error("Incorrect 4-digit PIN. Please try again.");
-      }
       nextUser = selected.id;
       message = `Welcome back, ${selected.fullName}!`;
       break;
@@ -368,54 +403,138 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       message = "You have logged out of the unit workspace.";
       break;
     }
-    case "changePin": {
-      const oldPin = String(body.oldPin || "").trim();
-      const newPin = String(body.newPin || "").trim();
-      if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
-      const storedHash = demoPins.get(user.id);
-      if (!user.needsPinChange && !verifyPin(oldPin, user.id, storedHash)) {
-        throw new Error("Current PIN does not match.");
-      }
-      demoPins.set(user.id, hashPin(newPin, user.id));
-      user.needsPinChange = false;
-      message = "PIN updated successfully.";
-      break;
-    }
-    case "linkGoogle": {
-      const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(googleEmail)) throw new Error("Please enter a valid Google email address.");
-      demoGoogle.set(user.id, googleEmail);
-      user.googleEmail = googleEmail;
-      user.hasGoogleLinked = true;
-      message = `Google account linked: ${googleEmail}`;
-      break;
-    }
-    case "resetPinWithGoogle": {
+    case "issueClaimCode": {
+      if (user.role !== "admin") throw new Error("Only unit executives can issue member invite codes.");
       const target = state.profiles.find((p) => p.id === body.memberId);
-      if (!target) throw new Error("Member not found.");
-      const linked = demoGoogle.get(target.id) || target.googleEmail;
-      const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
-      const newPin = String(body.newPin || "").trim();
-      if (!/^\d{4,6}$/.test(newPin)) throw new Error("New PIN must be 4 to 6 numbers.");
-      if (!linked || linked.toLowerCase() !== googleEmail) {
-        throw new Error(`Google account does not match the recovery email for ${target.fullName}. Contact unit secretary Arunabha Ghosh.`);
-      }
-      demoPins.set(target.id, hashPin(newPin, target.id));
-      target.needsPinChange = false;
-      nextUser = target.id;
-      message = `Identity verified via ${googleEmail}. New PIN set and logged in!`;
-      break;
-    }
-    case "adminResetPin": {
-      if (user.role !== "admin") throw new Error("Only unit executives can reset PINs.");
-      const target = state.profiles.find((p) => p.id === body.memberId);
-      if (!target) throw new Error("Member not found.");
-      const newUniquePin = Math.floor(1000 + Math.random() * 9000).toString();
-      demoPins.set(target.id, hashPin(newUniquePin, target.id));
-      target.needsPinChange = true;
-      message = `PIN for ${target.fullName} has been reset to: ${newUniquePin}. Convey this directly to the member.`;
+      if (!target) throw new Error("Member profile not found.");
+      const { code, hash } = generateClaimCode();
+      const codeId = uid(9, demoClaimCodesStore.size + 1);
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+      demoClaimCodesStore.set(hash, {
+        id: codeId,
+        codeHash: hash,
+        memberId: target.id,
+        issuedBy: user.id,
+        expiresAt,
+        createdAt: new Date(),
+      });
+      generatedCode = code;
+      message = `Single-use code issued for ${target.fullName}: ${code}. Valid for 14 days. Hand this over in person.`;
       nextUser = user.id;
       break;
+    }
+    case "claimInviteCode": {
+      const codeInput = String(body.code || "").trim();
+      const normalized = normalizeCode(codeInput);
+      if (normalized.length !== 8) throw new Error("Please enter a valid 8-character invite code (e.g. K7M2-Q9XD).");
+      const hash = hashClaimCode(normalized);
+      const record = demoClaimCodesStore.get(hash);
+      if (!record) {
+        throw new Error("Invalid or unrecognised invite code. Please check with unit secretary Arunabha Ghosh.");
+      }
+      if (record.claimedAt || record.claimedByGoogleSub) {
+        throw new Error("This invite code has already been claimed and can no longer be used.");
+      }
+      if (record.expiresAt.getTime() < Date.now()) {
+        throw new Error("This invite code expired after 14 days. Please ask an executive for a new code.");
+      }
+      const target = state.profiles.find((p) => p.id === record.memberId);
+      if (!target) throw new Error("Associated member profile not found.");
+      record.claimedAt = new Date();
+      record.claimedByGoogleSub = String(body.googleSub || "demo_google_sub");
+      target.hasGoogleLinked = true;
+      target.googleEmail = String(body.googleEmail || "member@gmail.com");
+      demoGoogle.set(target.id, target.googleEmail);
+      nextUser = target.id;
+      message = `Welcome to Breakthrough Science Society, ${target.fullName}! Your Google account is now linked.`;
+      break;
+    }
+    case "unlinkGoogle": {
+      if (user.role !== "admin") throw new Error("Only unit executives can unlink Google accounts.");
+      const target = state.profiles.find((p) => p.id === body.memberId);
+      if (!target) throw new Error("Member not found.");
+      target.hasGoogleLinked = false;
+      target.googleEmail = null;
+      demoGoogle.delete(target.id);
+      // Invalidate any existing codes
+      for (const [hash, record] of demoClaimCodesStore.entries()) {
+        if (record.memberId === target.id) {
+          demoClaimCodesStore.delete(hash);
+        }
+      }
+      message = `Google account unlinked for ${target.fullName}. A fresh invite code can now be issued.`;
+      nextUser = user.id;
+      break;
+    }
+    case "applyToJoin": {
+      const fullName = String(body.fullName || "").trim();
+      const phone = String(body.phone || "").trim();
+      const reason = String(body.reason || "").trim();
+      const isMinor = Boolean(body.isMinor);
+      const guardianName = body.guardianName ? String(body.guardianName).trim() : null;
+      if (!fullName) throw new Error("Please enter your full name.");
+      if (!phone) throw new Error("Please enter your phone number.");
+      if (!reason) throw new Error("Please share a short reason why you would like to join.");
+      const newApp: MembershipApplication = {
+        id: uid(8, demoApplicationsStore.length + 1),
+        googleSub: String(body.googleSub || "demo_pending_sub"),
+        googleEmail: String(body.googleEmail || "applicant@gmail.com"),
+        fullName,
+        phone,
+        isMinor,
+        guardianName,
+        reason,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      };
+      demoApplicationsStore.unshift(newApp);
+      message = "Your membership application has been received. Unit executives will review and approve your request.";
+      break;
+    }
+    case "reviewApplication": {
+      if (user.role !== "admin") throw new Error("Only unit executives can review membership applications.");
+      const appId = String(body.applicationId);
+      const app = demoApplicationsStore.find((a) => a.id === appId);
+      if (!app) throw new Error("Application not found.");
+      const status = body.status === "approved" ? "approved" : "rejected";
+      app.status = status;
+      if (status === "approved") {
+        // Enrol new member
+        const newMemberId = uid(1, state.profiles.length + 1);
+        const newProfile: Profile = {
+          id: newMemberId,
+          fullName: app.fullName,
+          phone: app.phone,
+          role: "member",
+          status: "active",
+          monthlyPledge: 20,
+          avatarColor: ["peach", "sage", "blue", "lavender"][state.profiles.length % 4],
+          unpaidMonths: 0,
+          createdAt: new Date().toISOString(),
+          hasGoogleLinked: true,
+          googleEmail: app.googleEmail,
+          isMinor: app.isMinor,
+        };
+        state.profiles.push(newProfile);
+        demoGoogle.set(newMemberId, app.googleEmail);
+        message = `Application approved! ${app.fullName} has been enrolled as a unit member.`;
+      } else {
+        message = `Application from ${app.fullName} was rejected.`;
+      }
+      nextUser = user.id;
+      break;
+    }
+    case "checkMemberDues": {
+      if (!user) throw new Error("Please log in to look up dues.");
+      if (user.role === "member" && body.memberId !== user.id) {
+        throw new Error("Members may only inspect their own dues.");
+      }
+      const target = state.profiles.find((p) => p.id === body.memberId);
+      if (!target) throw new Error("Member not found.");
+      return {
+        message: `Status for ${target.fullName}: Pledge ₹${target.monthlyPledge}/mo, ${target.unpaidMonths} months unpaid.`,
+        nextUser: user.id,
+      };
     }
     case "switchUser": {
       if (!user || user.role !== "admin") throw new Error("Only unit executives can switch preview accounts.");
@@ -502,7 +621,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
         transactionRef: body.transactionRef || null,
         receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
         smsSent: false,
-        receivedBy: user.id,
+        receivedBy: user ? user.id : null,
         idempotencyKey,
         createdAt: new Date().toISOString(),
       };
@@ -514,7 +633,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
         type: "donation",
         title: "New donation recorded",
         description: `${newDonation.donorName} contributed ₹${amount}.`,
-        actorId: user.id,
+        actorId: user ? user.id : null,
         targetId: donationId,
         amount,
         createdAt: new Date().toISOString(),
@@ -618,9 +737,8 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       break;
     }
     case "addMember": {
-      const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
       const memberId = uid(1, state.profiles.length + 1);
-      demoPins.set(memberId, generatedPin);
+      const isMinor = Boolean(body.isMinor);
       const newMember: Profile = {
         id: memberId,
         fullName: body.fullName,
@@ -631,9 +749,23 @@ export async function executeDemoAction(action: string, body: any, currentUserId
         avatarColor: "sage",
         unpaidMonths: 0,
         createdAt: new Date().toISOString(),
+        isMinor,
       };
       state.profiles.push(newMember);
-      message = `New member registered. Unique access PIN: ${generatedPin}`;
+
+      const { code, hash } = generateClaimCode();
+      const codeId = uid(9, demoClaimCodesStore.size + 1);
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      demoClaimCodesStore.set(hash, {
+        id: codeId,
+        codeHash: hash,
+        memberId,
+        issuedBy: user.id,
+        expiresAt,
+        createdAt: new Date(),
+      });
+      generatedCode = code;
+      message = `Welcome! ${newMember.fullName} added. Single-use invite code: ${code}. Hand this over in person.`;
       break;
     }
     case "createEvent": {
@@ -672,5 +804,5 @@ export async function executeDemoAction(action: string, body: any, currentUserId
     demoIdempotency.set(idempotencyKey, { action, message, receiptId, createdAt: Date.now() });
   }
 
-  return { message, receiptId, nextUser };
+  return { message, receiptId, nextUser, claimCode: generatedCode };
 }

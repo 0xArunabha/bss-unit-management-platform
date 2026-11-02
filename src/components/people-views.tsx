@@ -1,9 +1,9 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IdCard, IndianRupee, KeyRound, MessageCircle, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, UserPlus, Users, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IdCard, IndianRupee, KeyRound, MessageCircle, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, Unlink, UserPlus, Users, Wallet } from "lucide-react";
 import { useState } from "react";
-import { type WorkspaceData, type DuesRecord, type Donation, type PerformAction, money, months } from "@/lib/types";
+import { type WorkspaceData, type DuesRecord, type Donation, type PerformAction, type Role, money, months } from "@/lib/types";
 import { Badge, Button, EmptyState, ExportButton, PageHeading, SearchInput, Select, downloadCsv } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 import { getMemberDesignations } from "@/lib/teams";
@@ -33,9 +33,19 @@ export function MembersView({ data, open, perform }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(0);
-  const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0];
+  const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0] || {
+    id: "",
+    fullName: "Public Visitor",
+    phone: null,
+    role: "guest" as Role,
+    status: "active",
+    monthlyPledge: 0,
+    avatarColor: "sand",
+    unpaidMonths: 0,
+    createdAt: new Date().toISOString(),
+  };
   const isExecutive = current.role === "admin";
-  const canCollect = current.role !== "member";
+  const canCollect = current.role !== "member" && current.role !== "guest";
 
   const roleNameDisplay: Record<string, string> = {
     admin: t("roleAdmin", "Executive"),
@@ -47,14 +57,14 @@ export function MembersView({ data, open, perform }: Props) {
   const people = data.profiles.filter((p) => {
     const matchesSearch = p.fullName.toLowerCase().includes(search.toLowerCase()) || (p.phone && p.phone.includes(search));
     if (!matchesSearch) return false;
-    if (filter === "inactive") return p.status === "inactive" || p.unpaidMonths >= 6;
-    if (filter === "active") return p.status === "active" && p.unpaidMonths < 6;
+    if (filter === "inactive") return p.status === "inactive" || (p.unpaidMonths || 0) >= 6;
+    if (filter === "active") return p.status === "active" && (p.unpaidMonths || 0) < 6;
     if (filter === "volunteers") return ["volunteer", "organizer", "admin"].includes(p.role);
     return true;
   });
 
   const shown = people.slice(page * 12, page * 12 + 12);
-  const inactiveCount = data.profiles.filter((p) => p.status === "inactive" || p.unpaidMonths >= 6).length;
+  const inactiveCount = data.profiles.filter((p) => p.status === "inactive" || (p.unpaidMonths || 0) >= 6).length;
   const volunteerCount = data.profiles.filter((p) => ["volunteer", "organizer", "admin"].includes(p.role)).length;
 
   return (
@@ -139,7 +149,7 @@ export function MembersView({ data, open, perform }: Props) {
             <tbody>
               {shown.map((p, index) => {
                 const memberCode = `JPG-${String(page * 12 + index + 1).padStart(3, "0")}`;
-                const isOverdue = p.status === "inactive" || p.unpaidMonths >= 6;
+                const isOverdue = p.status === "inactive" || (p.unpaidMonths || 0) >= 6;
                 const designations = getMemberDesignations(p.fullName);
 
                 return (
@@ -174,21 +184,30 @@ export function MembersView({ data, open, perform }: Props) {
                       </span>
                     </td>
                     <td>
-                      <strong className="table-money">{money(p.monthlyPledge)}</strong>
-                      <span className="muted-small"> / mo</span>
+                      <strong className="table-money">
+                        {isExecutive || p.id === data.currentUserId ? money(p.monthlyPledge) : "—"}
+                      </strong>
+                      {(isExecutive || p.id === data.currentUserId) && <span className="muted-small"> / mo</span>}
                     </td>
                     <td>
-                      {isOverdue ? (
-                        <span className="status-stamp-pending">
-                          <CircleAlert size={12} />
-                          {t("flaggedInactive", "FLAGGED INACTIVE")} ({p.unpaidMonths} MO UNPAID)
-                        </span>
-                      ) : p.unpaidMonths > 0 ? (
-                        <Badge tone="yellow">{p.unpaidMonths} {t("monthsPending", "mo pending")}</Badge>
+                      {isExecutive || p.id === data.currentUserId ? (
+                        isOverdue ? (
+                          <span className="status-stamp-pending">
+                            <CircleAlert size={12} />
+                            {t("flaggedInactive", "FLAGGED INACTIVE")} ({p.unpaidMonths || 0} MO UNPAID)
+                          </span>
+                        ) : (p.unpaidMonths || 0) > 0 ? (
+                          <Badge tone="yellow">{p.unpaidMonths || 0} {t("monthsPending", "mo pending")}</Badge>
+                        ) : (
+                          <span className="status-stamp-ok">
+                            <Check size={12} />
+                            {t("upToDate", "UP TO DATE")}
+                          </span>
+                        )
                       ) : (
                         <span className="status-stamp-ok">
                           <Check size={12} />
-                          {t("upToDate", "UP TO DATE")}
+                          Active
                         </span>
                       )}
                     </td>
@@ -197,41 +216,62 @@ export function MembersView({ data, open, perform }: Props) {
                     </td>
                     <td>
                       <div className="table-actions-cluster">
-                        <button
-                          className="table-action"
-                          onClick={() => open("idCard", { member: p, memberCode })}
-                          title="View & print official digital member ID card"
-                        >
-                          <IdCard size={14} />
-                          {t("viewIdCard", "ID Card")}
-                        </button>
-                        <button
-                          className="table-action"
-                          style={{ color: "#1fa851" }}
-                          onClick={() => shareViaWhatsApp(formatDuesReminderBroadcast(p, locale))}
-                          title="Share member contribution status via WhatsApp"
-                        >
-                          <MessageCircle size={14} />
-                          WhatsApp
-                        </button>
+                        {(isExecutive || p.id === data.currentUserId) && (
+                          <button
+                            className="table-action"
+                            onClick={() => open("idCard", { member: p, memberCode })}
+                            title="View & print official digital member ID card"
+                          >
+                            <IdCard size={14} />
+                            {t("viewIdCard", "ID Card")}
+                          </button>
+                        )}
+                        {isExecutive && (
+                          <button
+                            className="table-action"
+                            style={{ color: "#1fa851" }}
+                            onClick={() => shareViaWhatsApp(formatDuesReminderBroadcast(p, locale))}
+                            title="Share member contribution status via WhatsApp"
+                          >
+                            <MessageCircle size={14} />
+                            WhatsApp
+                          </button>
+                        )}
                         {canCollect && (
                           <button className="table-action" onClick={() => open("dues", { memberId: p.id })}>
                             {t("collectDues", "Collect dues")}
                             <ArrowUpRight size={14} />
                           </button>
                         )}
-                        {isExecutive && (
+                        {isExecutive && !p.hasGoogleLinked && (
                           <button
                             className="table-action table-action-muted"
-                            title="Generate a new unique 4-digit PIN for this member"
+                            title="Issue single-use invite code for this member"
                             onClick={async () => {
-                              if (confirm(`Generate a new unique 4-digit PIN for ${p.fullName}?`)) {
-                                if (perform) await perform("adminResetPin", { memberId: p.id });
+                              if (perform) {
+                                const res = await perform("issueClaimCode", { memberId: p.id });
+                                if (res && res.claimCode) {
+                                  open("showInviteCode", { code: res.claimCode, message: res.message });
+                                }
                               }
                             }}
                           >
                             <KeyRound size={14} />
-                            New PIN
+                            Issue Code
+                          </button>
+                        )}
+                        {isExecutive && p.hasGoogleLinked && (
+                          <button
+                            className="table-action table-action-muted"
+                            title="Unlink Google account so member can re-claim"
+                            onClick={async () => {
+                              if (confirm(`Unlink Google account for ${p.fullName}? They will require a new invite code to log in.`)) {
+                                if (perform) await perform("unlinkGoogle", { memberId: p.id });
+                              }
+                            }}
+                          >
+                            <Unlink size={14} />
+                            Unlink
                           </button>
                         )}
                       </div>
@@ -246,7 +286,7 @@ export function MembersView({ data, open, perform }: Props) {
         <div className="mobile-member-cards">
           {shown.map((p, index) => {
             const memberCode = `JPG-${String(page * 12 + index + 1).padStart(3, "0")}`;
-            const isOverdue = p.status === "inactive" || p.unpaidMonths >= 6;
+            const isOverdue = p.status === "inactive" || (p.unpaidMonths || 0) >= 6;
             const designations = getMemberDesignations(p.fullName);
 
             return (
@@ -278,22 +318,31 @@ export function MembersView({ data, open, perform }: Props) {
                 <div className="mobile-member-meta-grid">
                   <div className="mobile-member-meta-item">
                     <span className="mobile-meta-label">{t("monthlyPledgeCol", "PLEDGE")}</span>
-                    <strong className="mobile-meta-value">{money(p.monthlyPledge)}<span className="muted-small">/mo</span></strong>
+                    <strong className="mobile-meta-value">
+                      {isExecutive || p.id === data.currentUserId ? `${money(p.monthlyPledge)}/mo` : "—"}
+                    </strong>
                   </div>
                   <div className="mobile-member-meta-item">
                     <span className="mobile-meta-label">{t("duesAuditStatusCol", "STATUS")}</span>
                     <div className="mobile-meta-value">
-                      {isOverdue ? (
-                        <span className="status-stamp-pending">
-                          <CircleAlert size={11} />
-                          {t("flaggedInactive", "FLAGGED")}
-                        </span>
-                      ) : p.unpaidMonths > 0 ? (
-                        <Badge tone="yellow">{p.unpaidMonths} mo</Badge>
+                      {isExecutive || p.id === data.currentUserId ? (
+                        isOverdue ? (
+                          <span className="status-stamp-pending">
+                            <CircleAlert size={11} />
+                            {t("flaggedInactive", "FLAGGED")}
+                          </span>
+                        ) : (p.unpaidMonths || 0) > 0 ? (
+                          <Badge tone="yellow">{p.unpaidMonths || 0} mo</Badge>
+                        ) : (
+                          <span className="status-stamp-ok">
+                            <Check size={11} />
+                            {t("upToDate", "UP TO DATE")}
+                          </span>
+                        )
                       ) : (
                         <span className="status-stamp-ok">
                           <Check size={11} />
-                          {t("upToDate", "UP TO DATE")}
+                          Active
                         </span>
                       )}
                     </div>
@@ -319,34 +368,55 @@ export function MembersView({ data, open, perform }: Props) {
                       {t("collectDues", "Collect dues")}
                     </button>
                   )}
-                  <button
-                    className="mobile-card-action-btn whatsapp"
-                    onClick={() => { hapticTap(); shareViaWhatsApp(formatDuesReminderBroadcast(p, locale)); }}
-                    title="Share member contribution status via WhatsApp"
-                  >
-                    <MessageCircle size={13} />
-                    WhatsApp
-                  </button>
-                  <button
-                    className="mobile-card-action-btn"
-                    onClick={() => { hapticTap(); open("idCard", { member: p, memberCode }); }}
-                    title="View & print official digital member ID card"
-                  >
-                    <IdCard size={13} />
-                    {t("viewIdCard", "ID Card")}
-                  </button>
                   {isExecutive && (
                     <button
-                      className="mobile-card-action-btn muted"
-                      title="Generate a new unique 4-digit PIN for this member"
+                      className="mobile-card-action-btn whatsapp"
+                      onClick={() => { hapticTap(); shareViaWhatsApp(formatDuesReminderBroadcast(p, locale)); }}
+                      title="Share member contribution status via WhatsApp"
+                    >
+                      <MessageCircle size={13} />
+                      WhatsApp
+                    </button>
+                  )}
+                  {(isExecutive || p.id === data.currentUserId) && (
+                    <button
+                      className="mobile-card-action-btn"
+                      onClick={() => { hapticTap(); open("idCard", { member: p, memberCode }); }}
+                      title="View & print official digital member ID card"
+                    >
+                      <IdCard size={13} />
+                      {t("viewIdCard", "ID Card")}
+                    </button>
+                  )}
+                  {isExecutive && !p.hasGoogleLinked && (
+                    <button
+                      className="mobile-card-action-btn primary"
+                      title="Issue single-use invite code for this member"
                       onClick={async () => {
-                        if (confirm(`Generate a new unique 4-digit PIN for ${p.fullName}?`)) {
-                          if (perform) await perform("adminResetPin", { memberId: p.id });
+                        if (perform) {
+                          const res = await perform("issueClaimCode", { memberId: p.id });
+                          if (res && res.claimCode) {
+                            open("showInviteCode", { code: res.claimCode, message: res.message });
+                          }
                         }
                       }}
                     >
                       <KeyRound size={13} />
-                      PIN
+                      Issue Code
+                    </button>
+                  )}
+                  {isExecutive && p.hasGoogleLinked && (
+                    <button
+                      className="mobile-card-action-btn muted"
+                      title="Unlink Google account"
+                      onClick={async () => {
+                        if (confirm(`Unlink Google account for ${p.fullName}?`)) {
+                          if (perform) await perform("unlinkGoogle", { memberId: p.id });
+                        }
+                      }}
+                    >
+                      <Unlink size={13} />
+                      Unlink
                     </button>
                   )}
                 </div>
@@ -379,7 +449,94 @@ export function DuesView({ data, open }: Props) {
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(0);
   const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const isExecutive = user ? user.role === "admin" : false;
   const canCollect = user ? user.role !== "member" : false;
+
+  // Non-executives only view their own personal dues history card
+  if (!isExecutive) {
+    const isLapsed = (user?.unpaidMonths || 0) >= 6;
+    return (
+      <div className="view-enter">
+        <PageHeading
+          eyebrow="MODULE A · PERSONAL DUES & TREASURY SLIPS"
+          title="My Membership Contributions."
+          description={`Official digital contribution record for ${user?.fullName || "Member"}.`}
+        >
+          {canCollect && <Button icon={Plus} onClick={() => open("dues")}>Record dues payment</Button>}
+        </PageHeading>
+
+        {isLapsed && (
+          <div className="warning-banner mb-5" role="alert" style={{ background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", padding: "14px", borderRadius: "8px" }}>
+            <CircleAlert size={16} className="inline mr-2" />
+            <strong>Membership Notice:</strong> Your account is currently {user?.unpaidMonths} months pending. You retain uninterrupted access to all unit activities, circulars, and meetings. Please contact unit secretary Arunabha Ghosh to reconcile contributions.
+          </div>
+        )}
+
+        <div className="mini-stats-grid">
+          <MiniStat icon={Wallet} title="My Monthly Pledge" value={`${money(user?.monthlyPledge || 20)}/mo`} detail="Grassroots contribution to science movement" tone="orange" />
+          <MiniStat
+            icon={CircleCheck}
+            title="Dues Status"
+            value={user?.unpaidMonths ? `${user.unpaidMonths} mo pending` : "Up to date"}
+            detail={user?.unpaidMonths ? "Contribution due for recent months" : "All monthly pledges cleared"}
+            tone={user?.unpaidMonths ? "yellow" : "sage"}
+          />
+          <MiniStat icon={ReceiptText} title="Verified Slips" value={String(data.dues.length)} detail="Official digital treasury receipts" tone="blue" />
+        </div>
+
+        <section className="panel register-panel">
+          <div className="section-title" style={{ padding: "16px 20px" }}>
+            <h3>Recorded Payment Ledger</h3>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--muted, #666)" }}>Audited dues receipts acknowledged by unit executive.</p>
+          </div>
+
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>MONTH & YEAR</th>
+                  <th>CONTRIBUTION</th>
+                  <th>PAYMENT MODE</th>
+                  <th>DATE RECORDED</th>
+                  <th>DIGITAL SLIP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.dues.map((d) => (
+                  <tr key={d.id}>
+                    <td><strong>{months[d.month - 1]} {d.year}</strong></td>
+                    <td><strong>{money(d.amount)}</strong></td>
+                    <td><span className="capitalize">{d.paymentMode.replace("_", " ")}</span></td>
+                    <td>{new Date(d.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                    <td><Button variant="secondary" onClick={() => open("duesDetail", d)}>View Slip</Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {!data.dues.length && (
+            <EmptyState icon={Wallet} title="No dues recorded yet" description="When you make your monthly contribution, your official digital receipts will be listed here." />
+          )}
+        </section>
+
+        {canCollect && (
+          <section className="panel" style={{ padding: "24px", marginTop: "24px", textAlign: "center" }}>
+            <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+              <IndianRupee size={36} style={{ color: "var(--brand, #0066cc)", margin: "0 auto 12px" }} />
+              <h3 style={{ margin: "0 0 8px 0" }}>Field Dues Collection Workbench</h3>
+              <p style={{ color: "var(--muted, #666)", lineHeight: 1.5, marginBottom: "20px" }}>
+                As an organizer or volunteer, you are authorized to collect cash or UPI dues from fellow unit members during conventions and meetings. Member status updates instantly.
+              </p>
+              <Button icon={Plus} onClick={() => open("dues")}>
+                Record Member Dues Payment
+              </Button>
+            </div>
+          </section>
+        )}
+      </div>
+    );
+  }
 
   const payments = data.dues.filter((d) => d.year === Number(year));
   const lookup = new Map(payments.map((p) => [`${p.memberId}-${p.month}`, p]));
@@ -560,8 +717,53 @@ export function DonationsView({ data, open }: Props) {
   const [method, setMethod] = useState("all");
   const [page, setPage] = useState(0);
   const user = data.profiles.find((p) => p.id === data.currentUserId);
-  const canManage = user ? user.role !== "member" : false;
+  const isExecutive = user ? user.role === "admin" : false;
+  const canRecord = user ? user.role !== "member" : false;
   const now = new Date();
+
+  // Non-executives get the Record-Only workbench or contribution card
+  if (!isExecutive) {
+    return (
+      <div className="view-enter">
+        <PageHeading
+          eyebrow="MODULE B · PUBLIC SCIENCE ADVOCACY FUND"
+          title="Public & Patron Science Fund."
+          description="Support student science exhibitions, telescope observation camps, and anti-superstition campaigns."
+        >
+          {canRecord ? (
+            <Button icon={Plus} onClick={() => open("donation")}>Record donation</Button>
+          ) : (
+            <Button icon={HeartHandshake} onClick={() => open("donation")}>Contribute to fund</Button>
+          )}
+        </PageHeading>
+
+        <section className="panel record-only-panel" style={{ padding: "36px", textAlign: "center" }}>
+          <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+            <HeartHandshake size={48} style={{ color: "var(--brand, #0066cc)", margin: "0 auto 16px" }} />
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "8px" }}>
+              {canRecord ? "Field Donation Workbench (Record Only)" : "Grassroots Science Movement Solidarity"}
+            </h2>
+            <p style={{ color: "var(--muted, #666)", lineHeight: 1.6, marginBottom: "24px" }}>
+              {canRecord
+                ? "Volunteers and organizers hold verified donation entry privileges. When you record a public contribution, an official cryptographic digital receipt is generated instantly with universal sharing (WhatsApp/SMS) and verified by Unit Executive Arunabha Ghosh."
+                : "Contributions power anti-superstition demonstration kits, school science workshops, and public sky-watching sessions across Jalpaiguri. Every contribution receives an official digital receipt verified by unit executives."}
+            </p>
+            {canRecord ? (
+              <Button icon={Plus} onClick={() => open("donation")}>
+                Record Public Contribution Now
+              </Button>
+            ) : (
+              <Button icon={HeartHandshake} onClick={() => open("donation")}>
+                Contribute to Science Fund
+              </Button>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const canManage = user ? user.role !== "member" : false;
 
   const total = data.donations.reduce((s, d) => s + d.amount, 0);
   const monthly = data.donations

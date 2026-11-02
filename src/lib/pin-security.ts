@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const PIN_SALT = process.env.PIN_SALT || "bss_jalpaiguri_science_pin_salt_918237";
 

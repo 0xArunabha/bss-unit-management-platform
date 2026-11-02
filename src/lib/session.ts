@@ -1,7 +1,7 @@
 import { db, isDatabaseConfigured } from "@/db";
 import { sessions } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
-import { randomBytes } from "node:crypto";
+import { randomBytes } from "crypto";
 
 export const SESSION_COOKIE_NAME = "bss_session";
 

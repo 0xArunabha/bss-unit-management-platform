@@ -3296,3 +3296,213 @@ textarea,
 }
 
 
+
+/* Google OAuth & Onboarding Claim Code System */
+.google-oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 20px;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.15s ease-in-out;
+}
+.google-oauth-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.google-oauth-btn:active {
+  transform: translateY(1px);
+}
+
+.auth-google-box {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+.auth-instruction {
+  font-size: 13.5px;
+  color: var(--muted, #666);
+  line-height: 1.5;
+  text-align: center;
+  margin: 0;
+}
+
+.in-app-browser-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #fef3c7;
+  border-bottom: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.login-links-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.text-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--brand, #0066cc);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.text-link-btn:hover {
+  text-decoration: underline;
+  background: #f0f7ff;
+}
+.dot-sep {
+  color: #9ca3af;
+}
+
+.claim-code-input {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 26px;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 800;
+  padding: 14px;
+  border: 2px solid var(--rule-strong, #b0b7c3);
+  border-radius: 8px;
+  background: #fdfdfd;
+}
+.claim-code-input:focus {
+  border-color: var(--brand, #0066cc);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+}
+
+.invite-code-box {
+  background: #f8fafc;
+  border: 2px dashed #94a3b8;
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.invite-code-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+.invite-code-digits {
+  font-family: var(--font-mono, monospace);
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+.invite-code-validity {
+  font-size: 12px;
+  color: #475569;
+}
+.invite-handover-card {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #334155;
+  margin-bottom: 20px;
+}
+.invite-handover-card h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.invite-handover-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.dpdp-age-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-top: 6px;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.guardian-field {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.application-item-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #ffffff;
+}
+.app-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+.app-sub-meta {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+.app-reason-box {
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #334155;
+  margin: 10px 0;
+}
+.app-reason-box small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.app-item-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

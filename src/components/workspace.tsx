@@ -3,7 +3,7 @@
 import { identity } from "@/lib/identity";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { type WorkspaceData, type View, type ActionResult } from "@/lib/types";
+import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
 import { Avatar, Badge, Button, Modal, relativeTime } from "@/components/ui";
 import { Overview } from "@/components/overview";
@@ -89,30 +89,53 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
     settings: t("settings"),
   };
 
-  const navItems: { view: View; label: string; icon: LucideIcon }[] = [
-    { view: "overview", label: t("overview"), icon: LayoutDashboard },
-    { view: "members", label: t("members"), icon: Users },
-    { view: "dues", label: t("dues"), icon: Wallet },
-    { view: "donations", label: t("donations"), icon: HeartHandshake },
-    { view: "events", label: t("events"), icon: CalendarDays },
-    { view: "procurement", label: t("procurement"), icon: ClipboardList },
-  ];
+  const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
+  const userRole: Role = (data.currentUserRole || currentUser?.role || (guestMode ? "guest" : (data.currentUserId ? "member" : "guest"))) as Role;
+  const isGuest = userRole === "guest" || guestMode;
+  const isExecutive = userRole === "admin";
+  const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
 
-  const knowledgeItems: { view: View; label: string; icon: LucideIcon }[] = [
-    { view: "circulars", label: t("circulars"), icon: Megaphone },
-    { view: "resources", label: t("resources"), icon: BookOpen },
-  ];
-  const user = data.profiles.find((p) => p.id === data.currentUserId) || (guestMode ? {
+  const user = currentUser || {
     id: "",
     fullName: "Public Visitor",
     phone: null,
-    role: "member" as const,
+    role: "guest" as Role,
     status: "active",
     monthlyPledge: 0,
     avatarColor: "sand",
     unpaidMonths: 0,
     createdAt: new Date().toISOString(),
-  } : data.profiles[0]);
+  };
+
+  const navItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
+    ? [
+        { view: "overview", label: t("overview"), icon: LayoutDashboard },
+        { view: "events", label: t("events"), icon: CalendarDays },
+      ]
+    : userRole === "member"
+    ? [
+        { view: "overview", label: t("overview"), icon: LayoutDashboard },
+        { view: "members", label: t("members"), icon: Users },
+        { view: "dues", label: t("dues"), icon: Wallet },
+        { view: "events", label: t("events"), icon: CalendarDays },
+      ]
+    : [
+        { view: "overview", label: t("overview"), icon: LayoutDashboard },
+        { view: "members", label: t("members"), icon: Users },
+        { view: "dues", label: t("dues"), icon: Wallet },
+        { view: "donations", label: t("donations"), icon: HeartHandshake },
+        { view: "events", label: t("events"), icon: CalendarDays },
+        { view: "procurement", label: t("procurement"), icon: ClipboardList },
+      ];
+
+  const knowledgeItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
+    ? [
+        { view: "resources", label: t("resources"), icon: BookOpen },
+      ]
+    : [
+        { view: "circulars", label: t("circulars"), icon: Megaphone },
+        { view: "resources", label: t("resources"), icon: BookOpen },
+      ];
   const needed = data.procurements.filter((p) => p.status === "needed").length;
   const notify = useCallback((message: string) => setToast({ message }), []);
   const close = useCallback(() => { setModal(null); setActionError(""); }, []);
@@ -155,10 +178,17 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
 
   const navigate = useCallback((target: View, eventId?: string) => {
     hapticTap(8);
+    let resolvedTarget = target;
+    if (isGuest && !["overview", "events", "resources"].includes(target)) {
+      resolvedTarget = "overview";
+    }
+    if (userRole === "member" && ["procurement", "donations"].includes(target)) {
+      resolvedTarget = "overview";
+    }
     const update = () => {
-      setView(target); setSidebarOpen(false); setPopover(null); setSearchOpen(false);
-      if (target === "procurement") setEventFilter(eventId || "all");
-      const url = target === "overview" ? "/" : `/?view=${target}${eventId ? `&event=${eventId}` : ""}`;
+      setView(resolvedTarget); setSidebarOpen(false); setPopover(null); setSearchOpen(false);
+      if (resolvedTarget === "procurement") setEventFilter(eventId || "all");
+      const url = resolvedTarget === "overview" ? "/" : `/?view=${resolvedTarget}${eventId ? `&event=${eventId}` : ""}`;
       window.history.pushState(null, "", url);
       window.scrollTo({ top: 0, behavior: "instant" });
     };
@@ -170,7 +200,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
     } else {
       update();
     }
-  }, []);
+  }, [isGuest, userRole]);
   useEffect(() => {
     const readLocation = () => { const params = new URLSearchParams(window.location.search); const target = params.get("view"); setView(target && target in labels ? target as View : "overview"); setEventFilter(params.get("event") || "all"); };
     readLocation();
@@ -299,7 +329,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
       window.dispatchEvent(new Event("storage"));
     }
   };
-  const showReminder = duesReminderPref && user.unpaidMonths > 0;
+  const showReminder = duesReminderPref && (user?.unpaidMonths || 0) > 0;
   const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => <button key={item.view} className={`nav-item ${view === item.view ? "nav-item-active" : ""}`} aria-current={view === item.view ? "page" : undefined} onClick={() => navigate(item.view)}><item.icon size={18} strokeWidth={1.65} /><span>{item.label}</span>{item.view === "procurement" && needed > 0 && <span className="nav-count">{needed}</span>}{item.view === "members" && <span className="nav-member-count">{data.profiles.length}</span>}{item.view === "circulars" && <span className="nav-new-dot" />}</button>;
 
   if (!isAuthorized && !guestMode) {
@@ -339,7 +369,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
       {guestMode && (
         <div className="guest-banner">
           <span>👀 Browsing public announcements & science calendar in <strong>read-only visitor mode</strong>.</span>
-          <button onClick={() => setGuestMode(false)} className="guest-login-btn">Log In with Member PIN</button>
+          <button onClick={() => setGuestMode(false)} className="guest-login-btn">Member Login (Google)</button>
         </div>
       )}
       <header className="topbar">
@@ -490,45 +520,24 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
           {view === "events" && <EventsView data={data} open={open} navigate={navigate} />}
           {view === "procurement" && <ProcurementView data={data} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}
           {view === "circulars" && <CircularsView data={data} open={open} navigate={navigate} />}
-          {view === "resources" && <ResourcesView open={open} />}
+          {view === "resources" && <ResourcesView open={open} data={data} />}
           {view === "settings" && <SettingsView data={data} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} />}
         </div>
       </main>
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
-        <button
-          className={`bottom-nav-item ${view === "overview" ? "bottom-nav-active" : ""}`}
-          onClick={() => navigate("overview")}
-          aria-current={view === "overview" ? "page" : undefined}
-        >
-          <LayoutDashboard size={19} strokeWidth={view === "overview" ? 2.2 : 1.7} />
-          <span>{locale === "bn" ? "সারসংক্ষেপ" : "Overview"}</span>
-        </button>
-        <button
-          className={`bottom-nav-item ${view === "members" ? "bottom-nav-active" : ""}`}
-          onClick={() => navigate("members")}
-          aria-current={view === "members" ? "page" : undefined}
-        >
-          <Users size={19} strokeWidth={view === "members" ? 2.2 : 1.7} />
-          <span>{locale === "bn" ? "সদস্য" : "Members"}</span>
-        </button>
-        <button
-          className={`bottom-nav-item ${view === "dues" ? "bottom-nav-active" : ""}`}
-          onClick={() => navigate("dues")}
-          aria-current={view === "dues" ? "page" : undefined}
-        >
-          <Wallet size={19} strokeWidth={view === "dues" ? 2.2 : 1.7} />
-          <span>{locale === "bn" ? "চাঁদা" : "Dues"}</span>
-          {user.unpaidMonths > 0 && <span className="bottom-nav-dot" />}
-        </button>
-        <button
-          className={`bottom-nav-item ${view === "procurement" ? "bottom-nav-active" : ""}`}
-          onClick={() => navigate("procurement")}
-          aria-current={view === "procurement" ? "page" : undefined}
-        >
-          <ClipboardList size={19} strokeWidth={view === "procurement" ? 2.2 : 1.7} />
-          <span>{locale === "bn" ? "কেনাকাটা" : "Procure"}</span>
-          {needed > 0 && <span className="bottom-nav-badge">{needed}</span>}
-        </button>
+        {navItems.slice(0, 4).map((item) => (
+          <button
+            key={item.view}
+            className={`bottom-nav-item ${view === item.view ? "bottom-nav-active" : ""}`}
+            onClick={() => navigate(item.view)}
+            aria-current={view === item.view ? "page" : undefined}
+          >
+            <item.icon size={19} strokeWidth={view === item.view ? 2.2 : 1.7} />
+            <span>{item.label}</span>
+            {item.view === "dues" && (user?.unpaidMonths || 0) > 0 && <span className="bottom-nav-dot" />}
+            {item.view === "procurement" && needed > 0 && <span className="bottom-nav-badge">{needed}</span>}
+          </button>
+        ))}
         <button
           className="bottom-nav-item"
           onClick={() => setSidebarOpen(true)}

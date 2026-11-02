@@ -114,9 +114,110 @@ export function WorkspaceModals(props: Props) {
     const result = await perform(action, values);
     if (result) {
       if (result.receiptId) open("receipt", result.data.donations.find((d) => d.id === result.receiptId));
+      else if (result.claimCode) open("showInviteCode", { code: result.claimCode, message: result.message });
       else close();
     }
   };
+
+  if (modal.type === "showInviteCode") {
+    const record = modal.record as { code: string; message?: string };
+    const code = record?.code || "";
+    return (
+      <Modal title="Single-Use Member Invite Code" subtitle="Hand over in person or via direct WhatsApp" onClose={close}>
+        <div className="invite-code-modal-content">
+          <div className="invite-code-box">
+            <span className="invite-code-eyebrow">8-CHARACTER CROCKFORD BASE32 CODE</span>
+            <div className="invite-code-digits">{code}</div>
+            <span className="invite-code-validity">Single-use · Expires in 14 days · Stored hashed</span>
+          </div>
+
+          <div className="invite-handover-card">
+            <h4>In-Person Handover Checklist:</h4>
+            <ul>
+              <li>Give this code directly to the member in person or via verified WhatsApp.</li>
+              <li>Member taps <strong>Member Login with Google</strong> on their device.</li>
+              <li>They enter <strong>{code}</strong> to link their permanent Google ID.</li>
+              <li>Once linked, this code permanently stops working. No recovery flow to attack!</li>
+            </ul>
+          </div>
+
+          <div className="modal-actions">
+            <Button
+              icon={Copy}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(code);
+                  notify("Code copied to clipboard!");
+                } catch {
+                  notify("Please copy the code manually.");
+                }
+              }}
+            >
+              Copy Code
+            </Button>
+            <Button variant="secondary" onClick={close}>Done</Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (modal.type === "reviewApplications") {
+    const apps = data.applications || [];
+    const pending = apps.filter((a) => a.status === "pending");
+    return (
+      <Modal title="Pending Membership Applications" subtitle="Review and approve public applicants" onClose={close}>
+        <div className="applications-modal-content">
+          {pending.length === 0 ? (
+            <p className="empty-text">No pending membership applications at this time.</p>
+          ) : (
+            pending.map((app) => (
+              <div key={app.id} className="application-item-card">
+                <div className="app-item-top">
+                  <div>
+                    <strong>{app.fullName}</strong>
+                    <span className="app-sub-meta">📱 +91 {app.phone} · 📧 {app.googleEmail}</span>
+                  </div>
+                  <Badge tone={app.isMinor ? "orange" : "blue"}>{app.isMinor ? "Under 18 (Minor)" : "18+ Adult"}</Badge>
+                </div>
+                {app.isMinor && app.guardianName && (
+                  <div className="guardian-notice">
+                    <span>Parent/Guardian: <strong>{app.guardianName}</strong> (DPDP Act Verified)</span>
+                  </div>
+                )}
+                <div className="app-reason-box">
+                  <small>STATEMENT OF INTEREST:</small>
+                  <p>&ldquo;{app.reason}&rdquo;</p>
+                </div>
+                <div className="app-item-buttons">
+                  <Button
+                    onClick={async () => {
+                      await perform("reviewApplication", { applicationId: app.id, status: "approved" });
+                      notify(`Enrolled ${app.fullName} as unit member!`);
+                    }}
+                  >
+                    Approve & Enroll
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      await perform("reviewApplication", { applicationId: app.id, status: "rejected" });
+                      notify(`Declined application for ${app.fullName}.`);
+                    }}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+          <div className="modal-actions">
+            <Button variant="secondary" onClick={close}>Close</Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   if (modal.type === "idCard") {
     const raw = modal.record as Profile | { member: Profile; memberCode?: string };
@@ -651,10 +752,10 @@ function ActionForm({ action, save, children, busy, error, close, submit, disabl
 
 function DuesCollector({ data, record, save, busy, error, close }: { data: WorkspaceData; record?: { memberId?: string; month?: number; year?: number }; save: (action: string, values: Record<string, unknown>) => Promise<void>; busy: boolean; error: string; close: () => void }) {
   const now = new Date();
-  const [memberId, setMemberId] = useState(record?.memberId || data.profiles[0].id);
-  const selected = data.profiles.find((p) => p.id === memberId)!;
-  const [amount, setAmount] = useState(String(selected.monthlyPledge));
-  const [monthly, setMonthly] = useState(String(selected.monthlyPledge));
+  const [memberId, setMemberId] = useState(record?.memberId || data.profiles[0]?.id || "");
+  const selected = data.profiles.find((p) => p.id === memberId) || data.profiles[0];
+  const [amount, setAmount] = useState(String(selected?.monthlyPledge || 50));
+  const [monthly, setMonthly] = useState(String(selected?.monthlyPledge || 50));
   const [month, setMonth] = useState(record?.month || now.getMonth() + 1);
   const [year, setYear] = useState(record?.year || now.getFullYear());
 

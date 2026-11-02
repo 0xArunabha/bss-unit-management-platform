@@ -16,7 +16,9 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const [currentTime] = useState(() => Date.now());
   const now = new Date(currentTime);
   const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
-  const userRole = currentUser?.role || "guest";
+  const userRole = data.currentUserRole || currentUser?.role || "guest";
+  const isExecutive = userRole === "admin";
+  const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
 
@@ -33,7 +35,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
     data.procurements.reduce((s, d) => s + (d.actualCost || 0), 0);
 
   const paidCount = data.dues.filter((d) => d.month === now.getMonth() + 1 && d.year === now.getFullYear()).length;
-  const paidPercent = Math.round((paidCount / data.profiles.length) * 100);
+  const paidPercent = data.profiles.length > 0 ? Math.round((paidCount / data.profiles.length) * 100) : 0;
   const needed = data.procurements.filter((p) => p.status === "needed").length;
   const items = [...data.procurements]
     .sort((a, b) => ({ needed: 0, purchased: 1, verified: 2 }[a.status] - { needed: 0, purchased: 1, verified: 2 }[b.status]))
@@ -128,67 +130,130 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         <span className="campaign-bengali" aria-hidden="true">{identity.bengali}</span>
       </section>
 
-      <div className="stats-grid">
-        <Stat icon={Wallet} tone="orange" title="Unit balance" value={money(balance)} onClick={() => navigate("dues")}>
-          <span className="stat-footnote"><span className="tiny-dot green" />Net treasury available</span>
-        </Stat>
-        <Stat icon={Users} tone="blue" title="Unit members" value={String(data.profiles.length)} onClick={() => navigate("members")}>
-          <span className="stat-footnote">
-            <strong>{active} active</strong>
-            <span className="text-dot">·</span>
-            {data.profiles.length - active} flagged dues pending
-          </span>
-        </Stat>
-        <Stat icon={ArrowDownLeft} tone="sage" title="Membership dues" value={money(duesTotal)} onClick={() => navigate("dues")}>
-          <div className="dues-stat-bottom">
-            <span>{paidCount} of {data.profiles.length} paid this month <b>{paidPercent}%</b></span>
-            <div className="progress-track"><span style={{ width: `${paidPercent}%` }} /></div>
-          </div>
-        </Stat>
-        <Stat icon={HeartHandshake} tone="lavender" title="Donations received" value={money(donationsTotal)} onClick={() => navigate("donations")}>
-          <span className="stat-footnote">
-            <span className="tiny-dot purple" />
-            {data.donations.filter((d) => inPeriod(d.createdAt)).length} contributions · {period.toLowerCase()}
-          </span>
-        </Stat>
-      </div>
+      {/* Role-tailored stats grid: strictly no money figures for public visitors */}
+      {userRole === "guest" ? (
+        <div className="stats-grid">
+          <Stat icon={CalendarDays} tone="orange" title="Public science rallies" value={String(data.events.length)} onClick={() => navigate("events")}>
+            <span className="stat-footnote"><span className="tiny-dot green" />Scheduled outreach across Jalpaiguri</span>
+          </Stat>
+          <Stat icon={Megaphone} tone="blue" title="Demonstration toolkits" value="Available" onClick={() => navigate("resources")}>
+            <span className="stat-footnote">Anti-superstition chemical & physics scripts</span>
+          </Stat>
+          <Stat icon={Users} tone="sage" title="Citizen advocacy" value="Open" onClick={() => navigate("events")}>
+            <div className="dues-stat-bottom">
+              <span>No fees · Students and citizens welcome</span>
+            </div>
+          </Stat>
+          <Stat icon={HeartHandshake} tone="lavender" title="Public movement" value="Support" onClick={() => open("donation")}>
+            <span className="stat-footnote">
+              <span className="tiny-dot purple" />
+              100% voluntary · Powered by people
+            </span>
+          </Stat>
+        </div>
+      ) : isExecutive ? (
+        <div className="stats-grid">
+          <Stat icon={Wallet} tone="orange" title="Unit balance" value={money(balance)} onClick={() => navigate("dues")}>
+            <span className="stat-footnote"><span className="tiny-dot green" />Net treasury available</span>
+          </Stat>
+          <Stat icon={Users} tone="blue" title="Unit members" value={String(data.profiles.length)} onClick={() => navigate("members")}>
+            <span className="stat-footnote">
+              <strong>{active} active</strong>
+              <span className="text-dot">·</span>
+              {data.profiles.length - active} flagged dues pending
+            </span>
+          </Stat>
+          <Stat icon={ArrowDownLeft} tone="sage" title="Membership dues" value={money(duesTotal)} onClick={() => navigate("dues")}>
+            <div className="dues-stat-bottom">
+              <span>{paidCount} of {data.profiles.length} paid this month <b>{paidPercent}%</b></span>
+              <div className="progress-track"><span style={{ width: `${paidPercent}%` }} /></div>
+            </div>
+          </Stat>
+          <Stat icon={HeartHandshake} tone="lavender" title="Donations received" value={money(donationsTotal)} onClick={() => navigate("donations")}>
+            <span className="stat-footnote">
+              <span className="tiny-dot purple" />
+              {data.donations.filter((d) => inPeriod(d.createdAt)).length} contributions · {period.toLowerCase()}
+            </span>
+          </Stat>
+        </div>
+      ) : (
+        <div className="stats-grid">
+          <Stat icon={CalendarDays} tone="orange" title="Outreach events" value={String(data.events.length)} onClick={() => navigate("events")}>
+            <span className="stat-footnote"><span className="tiny-dot green" />Unit programmes & conventions</span>
+          </Stat>
+          <Stat icon={Users} tone="blue" title="Unit advocates" value={String(data.profiles.length)} onClick={() => navigate("members")}>
+            <span className="stat-footnote">Active advocates in Jalpaiguri</span>
+          </Stat>
+          <Stat icon={Wallet} tone="sage" title="My monthly pledge" value={money(currentUser?.monthlyPledge || 20)} onClick={() => navigate("dues")}>
+            <div className="dues-stat-bottom">
+              <span>{currentUser?.unpaidMonths ? `${currentUser.unpaidMonths} mo in arrears` : "Up to date"}</span>
+            </div>
+          </Stat>
+          <Stat icon={HeartHandshake} tone="lavender" title="Working Guides" value="Repertoire" onClick={() => navigate("resources")}>
+            <span className="stat-footnote">Miracle-busting & advocacy manuals</span>
+          </Stat>
+        </div>
+      )}
 
       <div className="dashboard-grid">
-        <section className="panel procurement-panel">
-          <SectionTitle title="A few things need a hand" subtitle="Requisitions pending out-of-pocket purchase or peer check.">
-            <ArrowLink onClick={() => navigate("procurement")}>View checklist</ArrowLink>
-          </SectionTitle>
-          <div className="attention-table">
-            <div className="attention-table-head">
-              <span>ITEM & EVENT</span>
-              <span>STAGE</span>
-              <span>EST. COST</span>
-              <span />
+        {/* Procurements panel: strictly visible to volunteers and executives only */}
+        {(isExecutive || isVolunteerOrOrganizer) && items.length > 0 && (
+          <section className="panel procurement-panel">
+            <SectionTitle title="A few things need a hand" subtitle="Requisitions pending out-of-pocket purchase or peer check.">
+              <ArrowLink onClick={() => navigate("procurement")}>View checklist</ArrowLink>
+            </SectionTitle>
+            <div className="attention-table">
+              <div className="attention-table-head">
+                <span>ITEM & EVENT</span>
+                <span>STAGE</span>
+                <span>EST. COST</span>
+                <span />
+              </div>
+              {items.map((item, idx) => (
+                <AttentionRow
+                  key={item.id}
+                  item={item}
+                  data={data}
+                  index={idx + 1}
+                  onClick={() =>
+                    item.status === "needed"
+                      ? open("purchase", item)
+                      : item.status === "purchased"
+                      ? open("verify", item)
+                      : navigate("procurement", item.eventId)
+                  }
+                />
+              ))}
             </div>
-            {items.map((item, idx) => (
-              <AttentionRow
-                key={item.id}
-                item={item}
-                data={data}
-                index={idx + 1}
-                onClick={() =>
-                  item.status === "needed"
-                    ? open("purchase", item)
-                    : item.status === "purchased"
-                    ? open("verify", item)
-                    : navigate("procurement", item.eventId)
-                }
-              />
-            ))}
-          </div>
-          <button className="panel-footer attention-footer" onClick={() => navigate("procurement")}>
-            <span>
-              <span className="attention-dot" />{needed} items still needed
-              <span className="footer-divider">·</span>Every helping hand counts.
-            </span>
-            <ArrowRight size={15} />
-          </button>
-        </section>
+            <button className="panel-footer attention-footer" onClick={() => navigate("procurement")}>
+              <span>
+                <span className="attention-dot" />{needed} items still needed
+                <span className="footer-divider">·</span>Every helping hand counts.
+              </span>
+              <ArrowRight size={15} />
+            </button>
+          </section>
+        )}
+
+        {/* Public Action Hub if Guest or Member without procurement */}
+        {!isExecutive && !isVolunteerOrOrganizer && (
+          <section className="panel public-hub-panel" style={{ padding: "24px" }}>
+            <SectionTitle title="Public Science Advocacy Hub" subtitle="Explore campaign literature and take part in scientific inquiry." />
+            <div className="public-actions-cluster" style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
+              <div className="cluster-item" style={{ border: "1px solid var(--rule-soft, #e2e8f0)", padding: "14px", borderRadius: "8px", background: "var(--card-bg, #fff)" }}>
+                <strong style={{ display: "block", marginBottom: "4px" }}>Anti-Superstition Demonstration Repertoire</strong>
+                <p style={{ fontSize: "13px", color: "var(--muted, #64748b)", margin: 0 }}>Discover chemical debunking of common &lsquo;miracles&rsquo; like spontaneous combustion and bleeding lemons.</p>
+                <Button variant="secondary" className="mt-2.5" onClick={() => navigate("resources")}>Browse Demo Scripts</Button>
+              </div>
+
+              <div className="cluster-item" style={{ border: "1px solid var(--rule-soft, #e2e8f0)", padding: "14px", borderRadius: "8px", background: "var(--card-bg, #fff)" }}>
+                <strong style={{ display: "block", marginBottom: "4px" }}>Public Donation & Receipt Verification</strong>
+                <p style={{ fontSize: "13px", color: "var(--muted, #64748b)", margin: 0 }}>Support student science exhibitions. Every contribution generates an official verified digital receipt.</p>
+                <Button className="mt-2.5" onClick={() => open("donation")}>Make a Contribution</Button>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="panel events-panel">
           <SectionTitle title="Coming up" subtitle="Upcoming outreach and convention schedule.">
@@ -206,20 +271,21 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           </button>
         </section>
 
-        <section className="panel activity-panel">
-          <SectionTitle title="Our unit, in motion" subtitle="Real-time audit stream of treasury, purchases, and verifications.">
-            <div className="activity-tabs-mini">
-              {(["all", "dues", "procurement", "donation"] as const).map((t) => (
-                <button
-                  key={t}
-                  className={`mini-tab-btn ${activityFilter === t ? "active" : ""}`}
-                  onClick={() => setActivityFilter(t)}
-                >
-                  {t === "all" ? "All" : t === "dues" ? "Dues" : t === "procurement" ? "Procure" : "Donations"}
-                </button>
-              ))}
-            </div>
-          </SectionTitle>
+        {isExecutive && filteredActivities.length > 0 && (
+          <section className="panel activity-panel">
+            <SectionTitle title="Our unit, in motion" subtitle="Real-time audit stream of treasury, purchases, and verifications.">
+              <div className="activity-tabs-mini">
+                {(["all", "dues", "procurement", "donation"] as const).map((t) => (
+                  <button
+                    key={t}
+                    className={`mini-tab-btn ${activityFilter === t ? "active" : ""}`}
+                    onClick={() => setActivityFilter(t)}
+                  >
+                    {t === "all" ? "All" : t === "dues" ? "Dues" : t === "procurement" ? "Procure" : "Donations"}
+                  </button>
+                ))}
+              </div>
+            </SectionTitle>
 
           <div className="activity-list">
             {filteredActivities.slice(0, 4).map((a) => {
@@ -255,6 +321,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             })}
           </div>
         </section>
+        )}
 
         <div className="dashboard-right-stack">
           <section className="notice-card">

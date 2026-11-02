@@ -78,8 +78,7 @@ function BrandedQR({
     `${designation}`,
     `Reg: ${identity.registrationNo}`,
     `Unit: ${identity.city}`,
-    member.phone ? `Ph: +91 ${member.phone}` : ``,
-    `Session: 2026-27`,
+    `Validity: Active (Session 2026-27)`,
     `${identity.unitContact}`,
   ]
     .filter(Boolean)

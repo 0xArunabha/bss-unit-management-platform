@@ -6,7 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, money } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
 import type { Navigate, OpenModal } from "@/components/overview";
-import { resources, type Resource } from "@/lib/resources";
+import { resources, type Resource, getSanitizedResources } from "@/lib/resources";
 import { useI18n } from "@/lib/i18n";
 import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 
@@ -516,12 +516,14 @@ export function CircularsView({ data, open }: Props) {
   );
 }
 
-export function ResourcesView({ open }: Pick<Props, "open">) {
+export function ResourcesView({ open, data }: { open: OpenModal; data?: WorkspaceData }) {
   const [category, setCategory] = useState("All resources");
   const [search, setSearch] = useState("");
   const [expandedProtocol, setExpandedProtocol] = useState<string | null>("fire-miracle");
+  const isAuthenticated = Boolean(data?.currentUserId);
+  const allResources = getSanitizedResources(isAuthenticated);
 
-  const list = resources.filter(
+  const list = allResources.filter(
     (r) => (category === "All resources" || r.category === category) && `${r.title} ${r.description}`.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -739,7 +741,19 @@ export function SettingsView({
   installApp: () => void;
   busy: boolean;
 }) {
-  const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0];
+  const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0] || {
+    id: "",
+    fullName: "Public Visitor",
+    phone: null,
+    role: "guest",
+    status: "active",
+    monthlyPledge: 0,
+    avatarColor: "sand",
+    unpaidMonths: 0,
+    createdAt: new Date().toISOString(),
+    googleEmail: "",
+    hasGoogleLinked: false,
+  };
   const [soundOverride, setSoundOverride] = useState<boolean | null>(null);
   const [duesReminderOverride, setDuesReminderOverride] = useState<boolean | null>(null);
   const storedSound = useSyncExternalStore(

@@ -10,9 +10,9 @@ export const profiles = pgTable("profiles", {
   monthlyPledge: numeric("monthly_pledge", { precision: 12, scale: 2, mode: "number" }).notNull().default(20),
   avatarColor: text("avatar_color").notNull().default("peach"),
   unpaidMonths: integer("unpaid_months").notNull().default(0),
-  pin: text("pin"),
   googleEmail: text("google_email"),
-  needsPinChange: boolean("needs_pin_change").notNull().default(true),
+  googleSub: text("google_sub"),
+  isMinor: boolean("is_minor").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check("minimum_pledge", sql`${t.monthlyPledge} >= 20`),
@@ -128,5 +128,79 @@ export const actionIdempotency = pgTable("action_idempotency", {
   action: text("action").notNull(),
   userId: uuid("user_id").references(() => profiles.id),
   responsePayload: text("response_payload"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Better Auth core tables
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const account = pgTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// Single-use invite and onboarding claim codes (8 characters Crockford Base32)
+export const claimCodes = pgTable("claim_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  codeHash: text("code_hash").notNull().unique(),
+  memberId: uuid("member_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  issuedBy: uuid("issued_by").notNull().references(() => profiles.id),
+  claimedByGoogleSub: text("claimed_by_google_sub"),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Membership applications from public visitors signing in via Google
+export const membershipApplications = pgTable("membership_applications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  googleSub: text("google_sub").notNull(),
+  googleEmail: text("google_email").notNull(),
+  fullName: text("full_name").notNull(),
+  phone: text("phone").notNull(),
+  isMinor: boolean("is_minor").notNull().default(false),
+  guardianName: text("guardian_name"),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected'
+  reviewedBy: uuid("reviewed_by").references(() => profiles.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

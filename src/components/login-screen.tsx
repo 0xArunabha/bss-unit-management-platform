@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { identity } from "@/lib/identity";
 import { Avatar, Badge, Button, Modal } from "@/components/ui";
-import { Lock, ShieldCheck, KeyRound, ChevronRight, HelpCircle, Eye, EyeOff, UserCheck, Sparkles, AlertCircle } from "lucide-react";
+import { Lock, ShieldCheck, KeyRound, ChevronRight, HelpCircle, Eye, EyeOff, UserCheck, Sparkles, AlertCircle, ArrowRight, CheckCircle2, Compass, AlertTriangle, ExternalLink } from "lucide-react";
 import type { WorkspaceData, Profile, PerformAction } from "@/lib/types";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
+import { normalizeCode } from "@/lib/claim-format";
+import { authClient } from "@/lib/auth-client";
 
 interface LoginScreenProps {
   data: WorkspaceData;
@@ -14,115 +16,183 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenProps) {
-  const [selectedId, setSelectedId] = useState<string>(data.profiles[0]?.id || "");
-  const [pin, setPin] = useState<string>("");
+  const [mode, setMode] = useState<"login" | "claimCode" | "apply">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [success, setSuccess] = useState<string>("");
 
-  // Recovery state
-  const [recoveryEmail, setRecoveryEmail] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [recoveryLoading, setRecoveryLoading] = useState(false);
-  const [recoveryError, setRecoveryError] = useState("");
-  const [recoverySuccess, setRecoverySuccess] = useState("");
+  // In-app browser detection (Google OAuth blocks webviews)
+  const [isInAppBrowser] = useState(() => {
+    if (typeof navigator !== "undefined") {
+      const ua = navigator.userAgent || "";
+      return /FBAN|FBAV|Instagram|Line|WhatsApp|Snapchat|BytedanceWebview/i.test(ua);
+    }
+    return false;
+  });
 
-  const selectedMember = data.profiles.find((p) => p.id === selectedId) || data.profiles[0];
+  // Claim code state
+  const [claimCodeInput, setClaimCodeInput] = useState("");
+  const [simulatedGoogleEmail, setSimulatedGoogleEmail] = useState("");
 
-  const handleKeyPress = (num: string) => {
-    hapticTap(8);
-    if (pin.length < 6) {
-      const next = pin + num;
-      setPin(next);
-      setError("");
-      if (next.length === 4) {
-        // Auto-submit after 4 digits for fast thumb entry
-        void submitLogin(next);
+  // Application form state
+  const [appFullName, setAppFullName] = useState("");
+  const [appPhone, setAppPhone] = useState("");
+  const [appReason, setAppReason] = useState("");
+  const [isAdult, setIsAdult] = useState(true);
+  const [guardianName, setGuardianName] = useState("");
+
+  // Auto-format code as XXXX-XXXX
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.toUpperCase().replace(/[^23456789ABCDEFGHJKMNPQRSTVWXYZ]/g, "");
+    if (raw.length <= 8) {
+      if (raw.length > 4) {
+        setClaimCodeInput(`${raw.slice(0, 4)}-${raw.slice(4)}`);
+      } else {
+        setClaimCodeInput(raw);
       }
     }
   };
 
-  const handleDelete = () => {
-    hapticTap(12);
-    setPin((prev) => prev.slice(0, -1));
-    setError("");
-  };
-
-  const handleClear = () => {
-    hapticTap(15);
-    setPin("");
-    setError("");
-  };
-
-  const submitLogin = async (pinToTry?: string) => {
-    const attemptPin = pinToTry || pin;
-    if (!attemptPin) {
-      setError("Please enter your 4-digit PIN.");
-      hapticWarning();
-      return;
-    }
+  const handleGoogleSignIn = async () => {
+    hapticTap(10);
     setLoading(true);
     setError("");
+
     try {
-      const res = await perform("login", { memberId: selectedMember.id, pin: attemptPin });
-      if (!res) {
-        setError("Incorrect PIN. Check with Secretary Arunabha Ghosh or reset below.");
-        hapticWarning();
-        setPin("");
-      } else {
-        hapticSuccess();
+      // If Better Auth has configured social providers and we are on a real domain with Google keys
+      if (process.env.NEXT_PUBLIC_USE_REAL_GOOGLE === "true") {
+        await authClient.signIn.social({
+          provider: "google",
+          callbackURL: window.location.origin,
+        });
+        return;
       }
+
+      // Preview / demo authentication: prompt user for demo Google account or auto-match
+      // If already linked, straight into the workspace!
+      const email = prompt("Enter your Google Account email for sign-in (or leave default for Secretary Arunabha Ghosh):", "arunabha.science@gmail.com");
+      if (!email) {
+        setLoading(false);
+        return;
+      }
+
+      setSimulatedGoogleEmail(email.trim().toLowerCase());
+
+      // Check if this Google account is already linked to a profile
+      const matchingProfile = data.profiles.find(
+        (p) => p.googleEmail?.toLowerCase() === email.trim().toLowerCase()
+      );
+
+      if (matchingProfile) {
+        // Straight into workspace!
+        const res = await perform("login", { memberId: matchingProfile.id });
+        if (res) {
+          hapticSuccess();
+          return;
+        }
+      }
+
+      // If unlinked, direct user to onboarding step (Enter invite code or Apply to join)
+      setMode("claimCode");
+      setError("");
+      setSuccess(`Signed in with Google as ${email.trim().toLowerCase()}. Link your member code below, or submit an application.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid PIN. Check with Secretary Arunabha Ghosh.");
+      setError(err instanceof Error ? err.message : "Google sign-in could not be completed.");
       hapticWarning();
-      setPin("");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleRecovery = async (e: React.FormEvent) => {
+  const handleClaimCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recoveryEmail || !recoveryEmail.includes("@")) {
-      setRecoveryError("Please enter a valid Gmail address.");
-      return;
-    }
-    if (newPin.length < 4 || newPin.length > 6 || !/^\d+$/.test(newPin)) {
-      setRecoveryError("PIN must be 4 to 6 numbers.");
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setRecoveryError("PINs do not match.");
+    const normalized = normalizeCode(claimCodeInput);
+    if (normalized.length !== 8) {
+      setError("Please enter a complete 8-character code (e.g. K7M2-Q9XD).");
+      hapticWarning();
       return;
     }
 
-    setRecoveryLoading(true);
-    setRecoveryError("");
-    setRecoverySuccess("");
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
     try {
-      const res = await perform("resetPinWithGoogle", {
-        memberId: selectedMember.id,
-        googleEmail: recoveryEmail.trim().toLowerCase(),
-        newPin: newPin.trim(),
+      const res = await perform("claimInviteCode", {
+        code: normalized,
+        googleEmail: simulatedGoogleEmail || "member@gmail.com",
+        googleSub: `sub_${Date.now()}`,
       });
       if (res) {
-        setRecoverySuccess("Identity verified! PIN reset and logged in.");
-        setTimeout(() => setShowRecoveryModal(false), 1200);
-      } else {
-        setRecoveryError(`Recovery email didn't match the linked Google account for ${selectedMember.fullName}. Ask unit secretary Arunabha Ghosh to reset your PIN.`);
+        hapticSuccess();
+        setSuccess("Success! Code verified. Entering unit workspace...");
       }
     } catch (err) {
-      setRecoveryError(err instanceof Error ? err.message : "Failed to reset PIN with Google.");
+      setError(err instanceof Error ? err.message : "Failed to claim code. Check with Secretary Arunabha Ghosh.");
+      hapticWarning();
     } finally {
-      setRecoveryLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleApplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appFullName.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!appPhone.trim() || appPhone.trim().length < 10) {
+      setError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!isAdult && !guardianName.trim()) {
+      setError("Under-18 advocates must provide a parent/guardian name for DPDP Act compliance.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await perform("applyToJoin", {
+        fullName: appFullName.trim(),
+        phone: appPhone.trim(),
+        reason: appReason.trim() || "Passionate about scientific temper and anti-superstition advocacy in Jalpaiguri.",
+        isMinor: !isAdult,
+        guardianName: !isAdult ? guardianName.trim() : null,
+        googleEmail: simulatedGoogleEmail || "applicant@gmail.com",
+        googleSub: `sub_${Date.now()}`,
+      });
+      if (res) {
+        hapticSuccess();
+        setSuccess("Application received! Unit executives will review and approve your membership.");
+        setTimeout(() => {
+          onContinueAsGuest();
+        }, 2000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit application.");
+      hapticWarning();
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-screen-wrap">
       <div className="login-card">
+        {/* In-app browser warning pill */}
+        {isInAppBrowser && (
+          <div className="in-app-browser-alert" role="alert">
+            <AlertTriangle size={16} />
+            <div>
+              <strong>In-app browser detected:</strong> Google blocks OAuth inside social media apps.
+              <span> Tap the menu (⋮ or Share) and choose <strong>Open in Chrome / Safari</strong>.</span>
+            </div>
+          </div>
+        )}
+
         {/* Unit Masthead */}
         <div className="login-header">
           <div className="login-logo-seal">
@@ -141,259 +211,237 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
           </div>
         </div>
 
-        {/* Member Chooser */}
-        <div className="login-body">
-          <label className="login-label">
-            <span>Select Unit Member</span>
-            <select
-              value={selectedId}
-              onChange={(e) => {
-                setSelectedId(e.target.value);
-                setPin("");
-                setError("");
-              }}
-              className="login-select"
-            >
-              {data.profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName} ({p.role === "admin" ? "Secretary / Executive" : p.role})
-                </option>
-              ))}
-            </select>
-          </label>
+        {error && (
+          <div className="login-error-banner" role="alert">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
 
-          {/* Member Card Preview */}
-          <div className="login-member-badge">
-            <Avatar person={selectedMember} size="normal" />
-            <div className="login-member-info">
-              <strong>{selectedMember.fullName}</strong>
-              <span>
-                {selectedMember.role === "admin"
-                  ? "Unit Executive / Secretary"
-                  : selectedMember.role.charAt(0).toUpperCase() + selectedMember.role.slice(1)}{" "}
-                · {identity.city}
+        {success && (
+          <div className="login-success-banner" role="status">
+            <CheckCircle2 size={16} />
+            <span>{success}</span>
+          </div>
+        )}
+
+        {/* MODE 1: SINGLE MEMBER LOGIN BUTTON (GOOGLE FIRST) */}
+        {mode === "login" && (
+          <div className="login-body">
+            <div className="auth-google-box">
+              <p className="auth-instruction">
+                Sign in with your Google account. If your account is linked to the unit, you will be taken straight to your workspace.
+              </p>
+
+              <button
+                type="button"
+                className="google-oauth-btn"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+              >
+                <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>{loading ? "Signing in..." : "Member Login with Google"}</span>
+              </button>
+
+              <div className="login-links-row">
+                <button
+                  type="button"
+                  className="text-link-btn"
+                  onClick={() => setMode("claimCode")}
+                >
+                  <KeyRound size={14} />
+                  <span>I have a single-use member code</span>
+                </button>
+                <span className="dot-sep">·</span>
+                <button
+                  type="button"
+                  className="text-link-btn"
+                  onClick={() => setMode("apply")}
+                >
+                  <Sparkles size={14} />
+                  <span>Apply to join unit</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="public-visitor-divider">
+              <span>OR</span>
+            </div>
+
+            {/* Public Entry */}
+            <div className="public-access-card">
+              <div className="public-access-info">
+                <strong>Public Visitor or Science Advocate?</strong>
+                <p>Browse open science outreach notices, anti-superstition demo guides, verify donation receipts, or submit a membership request.</p>
+              </div>
+              <button
+                type="button"
+                className="guest-action-btn"
+                onClick={onContinueAsGuest}
+              >
+                <Compass size={16} />
+                <span>Explore Public Unit Portal</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODE 2: ONBOARDING — ENTER MEMBER CODE */}
+        {mode === "claimCode" && (
+          <form className="login-body onboarding-form" onSubmit={handleClaimCodeSubmit}>
+            <div className="onboarding-step-header">
+              <span className="step-tag">STEP 2 OF 2</span>
+              <h2>Claim your Member Invite Code</h2>
+              <p>
+                Enter the 8-character single-use code handed over by Secretary Arunabha Ghosh. This links your Google account permanently.
+              </p>
+            </div>
+
+            <div className="code-input-wrap">
+              <input
+                type="text"
+                className="claim-code-input"
+                placeholder="K7M2-Q9XD"
+                value={claimCodeInput}
+                onChange={handleCodeChange}
+                maxLength={9}
+                autoFocus
+                required
+              />
+              <span className="code-help-text">
+                Codes are random 8 characters (Crockford Base32), single-use, and expire in 14 days.
               </span>
             </div>
-            <Badge tone="green">
-              {selectedMember.hasGoogleLinked ? "Google Linked" : "Member"}
-            </Badge>
-          </div>
 
-          {/* 4-Digit PIN Display */}
-          <div className="login-pin-section">
-            <span className="login-pin-title">Enter 4-Digit Security PIN</span>
-            <div className="login-pin-dots">
-              {[0, 1, 2, 3].map((idx) => (
-                <div
-                  key={idx}
-                  className={`login-pin-dot ${idx < pin.length ? "filled" : ""} ${error ? "error-dot" : ""}`}
-                />
-              ))}
-            </div>
-
-            {/* Hidden Input for Keyboard Typing */}
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              value={pin}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "");
-                setPin(val);
-                setError("");
-                if (val.length === 4) void submitLogin(val);
-              }}
-              className="login-hidden-input"
-              autoFocus
-              placeholder="Type PIN..."
-            />
-
-            {error ? (
-              <div className="login-error-msg">
-                <AlertCircle size={15} />
-                <span>{error}</span>
-              </div>
-            ) : (
-              <div className="login-hint-msg">
-                <KeyRound size={13} />
-                <span>
-                  {selectedMember.role === "admin"
-                    ? <>Executive initial PIN is <strong>2401</strong></>
-                    : <>Enter assigned unique PIN (phone members: last 4 digits)</>}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* On-Screen Touch Numpad */}
-          <div className="login-keypad">
-            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
-              <button
-                key={num}
-                type="button"
-                onClick={() => handleKeyPress(num)}
-                disabled={loading}
-                className="keypad-btn"
+            <div className="onboarding-actions">
+              <Button
+                type="submit"
+                disabled={loading || claimCodeInput.replace(/[^A-Z0-9]/gi, "").length !== 8}
               >
-                {num}
+                {loading ? "Verifying code..." : "Link Google & Enter Workspace"}
+              </Button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setMode("login")}
+              >
+                Back to Sign In
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={handleClear}
-              disabled={loading || pin.length === 0}
-              className="keypad-btn keypad-util"
-            >
-              C
-            </button>
-            <button
-              type="button"
-              onClick={() => handleKeyPress("0")}
-              disabled={loading}
-              className="keypad-btn"
-            >
-              0
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={loading || pin.length === 0}
-              className="keypad-btn keypad-util"
-            >
-              ⌫
-            </button>
-          </div>
+            </div>
 
-          {/* Unlock Submit Button */}
-          <Button
-            variant="primary"
-            onClick={() => void submitLogin()}
-            disabled={loading || pin.length === 0}
-            className="login-unlock-btn"
-          >
-            {loading ? "Unlocking Workspace…" : <><Lock size={16} /> Unlock Unit Workspace</>}
-          </Button>
-
-          {/* Recovery & Public Visitor links */}
-          <div className="login-footer-actions">
-            <button
-              type="button"
-              onClick={() => {
-                setRecoveryError("");
-                setRecoverySuccess("");
-                setNewPin("");
-                setConfirmPin("");
-                setShowRecoveryModal(true);
-              }}
-              className="login-link-btn"
-            >
-              <ShieldCheck size={14} /> Forgot PIN? Reset with Google Account
-            </button>
-
-            <button
-              type="button"
-              onClick={onContinueAsGuest}
-              className="login-guest-btn"
-            >
-              Public Visitor? View Notices & Science Calendar <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="login-version-tag">
-            <span>{identity.fullName}</span>
-            <span className="version-pill">v{identity.version}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Google PIN Recovery Modal */}
-      {showRecoveryModal && (
-        <Modal
-          title="Reset PIN with Google Account"
-          subtitle={`Security recovery for ${selectedMember.fullName}`}
-          onClose={() => setShowRecoveryModal(false)}
-        >
-          <form onSubmit={handleGoogleRecovery} className="recovery-form">
-            <div className="recovery-explainer">
-              <ShieldCheck size={20} className="shield-icon" />
+            <div className="onboarding-footer">
               <p>
-                Enter the verified <strong>Google (Gmail) address</strong> linked to your member profile to authorize setting a new 4-digit PIN.
+                Don’t have a code yet?{" "}
+                <button type="button" className="inline-link" onClick={() => setMode("apply")}>
+                  Submit a membership application
+                </button>{" "}
+                or contact the unit secretary in person.
               </p>
-            </div>
-
-            <label className="form-field">
-              <span>Your Linked Google Email</span>
-              <input
-                type="email"
-                required
-                placeholder="e.g. yourname@gmail.com"
-                value={recoveryEmail}
-                onChange={(e) => setRecoveryEmail(e.target.value)}
-              />
-              <small>Must match the recovery account saved in your profile.</small>
-            </label>
-
-            <div className="recovery-pin-grid">
-              <label className="form-field">
-                <span>New 4-Digit PIN</span>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  placeholder="••••"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                />
-              </label>
-
-              <label className="form-field">
-                <span>Confirm PIN</span>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  placeholder="••••"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                />
-              </label>
-            </div>
-
-            {recoveryError && (
-              <div className="login-error-msg">
-                <AlertCircle size={15} />
-                <span>{recoveryError}</span>
-              </div>
-            )}
-
-            {recoverySuccess && (
-              <div className="login-success-msg">
-                <ShieldCheck size={15} />
-                <span>{recoverySuccess}</span>
-              </div>
-            )}
-
-            <div className="recovery-help-box">
-              <HelpCircle size={15} />
-              <p>
-                Haven&apos;t linked a Google account yet? Ask Unit Secretary <strong>Arunabha Ghosh</strong> to view or issue your unique PIN.
-              </p>
-            </div>
-
-            <div className="form-actions">
-              <Button variant="secondary" onClick={() => setShowRecoveryModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit" disabled={recoveryLoading}>
-                {recoveryLoading ? "Verifying..." : "Verify & Set New PIN"}
-              </Button>
             </div>
           </form>
-        </Modal>
-      )}
+        )}
+
+        {/* MODE 3: APPLY TO JOIN UNIT */}
+        {mode === "apply" && (
+          <form className="login-body onboarding-form" onSubmit={handleApplySubmit}>
+            <div className="onboarding-step-header">
+              <span className="step-tag">MEMBERSHIP</span>
+              <h2>Apply to Join Jalpaiguri Unit</h2>
+              <p>
+                Join our science movement. Once submitted, unit executives will review your application and issue your member code.
+              </p>
+            </div>
+
+            <div className="form-field-group">
+              <label>
+                <span>Full Name</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Priyabrata Roy"
+                  value={appFullName}
+                  onChange={(e) => setAppFullName(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                <span>Mobile Number (WhatsApp)</span>
+                <input
+                  type="tel"
+                  placeholder="e.g. 9434012345"
+                  value={appPhone}
+                  onChange={(e) => setAppPhone(e.target.value)}
+                  required
+                />
+              </label>
+
+              {/* India DPDP Act minor protection */}
+              <div className="dpdp-age-box">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={isAdult}
+                    onChange={(e) => setIsAdult(e.target.checked)}
+                  />
+                  <span>I am 18 years of age or older</span>
+                </label>
+                <small className="dpdp-notice text-xs text-muted block mt-1">
+                  Compliant with India&apos;s Digital Personal Data Protection (DPDP) Act.
+                </small>
+                {!isAdult && (
+                  <div className="guardian-field mt-2">
+                    <label>
+                      <span>Parent / Guardian Name (Required under DPDP Act 2023)</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Subir Roy (Guardian)"
+                        value={guardianName}
+                        onChange={(e) => setGuardianName(e.target.value)}
+                        required={!isAdult}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <label>
+                <span>Why do you want to join Breakthrough Science Society?</span>
+                <textarea
+                  rows={3}
+                  placeholder="Share your interests (e.g. school science demonstration camps, telescope sessions, debunking miracles)..."
+                  value={appReason}
+                  onChange={(e) => setAppReason(e.target.value)}
+                  required
+                />
+              </label>
+            </div>
+
+            <div className="onboarding-actions">
+              <Button type="submit" disabled={loading}>
+                {loading ? "Submitting application..." : "Submit Membership Application"}
+              </Button>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setMode("login")}
+              >
+                Cancel & Return
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Footer info */}
+        <div className="login-footer">
+          <span>Zero-Knowledge Server Projection · Zero Plaintext Storage · DPDP Act Compliant</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -224,3 +224,28 @@ Astronomy is the greatest gateway to scientific temper. When a schoolchild sees 
     url: "https://breakthroughindia.org/",
   },
 ];
+
+export function getSanitizedResources(isAuthenticated: boolean): Resource[] {
+  if (isAuthenticated) {
+    return resources;
+  }
+  return resources.map((r) => {
+    if (r.category === "Demonstrations") {
+      return {
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        kind: r.kind,
+        readTime: r.readTime,
+        icon: r.icon,
+        image: r.image,
+        keyQuestion: r.keyQuestion,
+        materials: undefined,
+        safetyNotes: undefined,
+        content: `[Summary for Public Viewers] ${r.description} Log in with your unit member account to view full chemical safety checklists, reagent proportions, and demonstration protocols.`,
+      };
+    }
+    return r;
+  });
+}

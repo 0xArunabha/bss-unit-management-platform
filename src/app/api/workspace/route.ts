@@ -1,7 +1,7 @@
 import { identity } from "@/lib/identity";
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDatabaseConfigured } from "@/db";
-import { profiles, dues, events, procurements, donations, circulars, activities, actionIdempotency } from "@/db/schema";
+import { profiles, dues, events, procurements, donations, circulars, activities, actionIdempotency, claimCodes, membershipApplications } from "@/db/schema";
 import { ADMIN_ID, ensureSeed } from "@/db/seed";
 import { getWorkspace } from "@/lib/workspace";
 import { sendPush } from "@/lib/push";
@@ -9,9 +9,9 @@ import { sendDonationSms } from "@/lib/sms";
 import { executeDemoAction } from "@/lib/demo-data";
 import { SESSION_COOKIE_NAME, createSession, verifySession, verifySessionToken, destroySession } from "@/lib/session";
 import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rate-limit";
-import { hashPin, verifyPin } from "@/lib/pin-security";
-import { and, eq } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, resetClaimRateLimit } from "@/lib/claim-codes";
+import { and, eq, isNull, gt } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
 const text = (value: unknown, label: string, max = 300) => {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
     const userId = await verifySessionToken(rawCookie);
-    const isPublicAction = body.action === "login" || body.action === "resetPinWithGoogle";
+    const isPublicAction = ["login", "claimInviteCode", "applyToJoin", "addDonation"].includes(body.action);
 
     if (body.action === "login") {
       const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
@@ -62,13 +62,23 @@ export async function POST(request: NextRequest) {
           { status: 429, headers: { "Retry-After": String(rateCheck.retryAfterSeconds) } }
         );
       }
-      // Timing defense delay against high-frequency brute-forcing
       await new Promise((r) => setTimeout(r, 100));
+    }
+
+    if (body.action === "claimInviteCode") {
+      const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
+      const claimCheck = checkClaimRateLimit(clientIp);
+      if (!claimCheck.allowed) {
+        return NextResponse.json(
+          { error: `Too many claim attempts. Please wait ${claimCheck.retryAfterSeconds} seconds.` },
+          { status: 429, headers: { "Retry-After": String(claimCheck.retryAfterSeconds) } }
+        );
+      }
     }
 
     if (!isDatabaseConfigured) {
       if (!isPublicAction && !userId) {
-        return NextResponse.json({ error: "Please log in to the workspace with your 4-digit PIN." }, { status: 401 });
+        return NextResponse.json({ error: "Please log in to the workspace with your member account." }, { status: 401 });
       }
       const demoResult = await executeDemoAction(body.action, body, userId || "");
       if (rateLimitKey && body.action === "login") {
@@ -79,6 +89,7 @@ export async function POST(request: NextRequest) {
         data: await getWorkspace(nextUser),
         message: `${demoResult.message} (Preview Mode: connect Supabase in .env.local for permanent database persistence)`,
         receiptId: demoResult.receiptId,
+        claimCode: demoResult.claimCode,
       });
       if (nextUser) {
         const sessionToken = await createSession(nextUser);
@@ -140,28 +151,8 @@ export async function POST(request: NextRequest) {
     switch (body.action) {
       case "login": {
         const memberId = id(body.memberId);
-        const pinInput = String(body.pin || "").trim();
         const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
         if (!target) throw new Error("Member profile not found.");
-
-        // First-time admin bootstrap without hardcoded code seed
-        if (!target.pin && target.id === ADMIN_ID && pinInput.length >= 4) {
-          const hashedPin = hashPin(pinInput, target.id);
-          await db.update(profiles).set({ pin: hashedPin, needsPinChange: false }).where(eq(profiles.id, target.id));
-          if (rateLimitKey) resetLoginRateLimit(rateLimitKey);
-          nextUser = target.id;
-          message = `Welcome back, ${target.fullName}! Admin access PIN configured.`;
-          break;
-        }
-
-        if (!target.pin) {
-          throw new Error(`PIN not initialized for ${target.fullName}. Please ask Unit Executive Arunabha Ghosh to issue an access PIN or use Google account recovery.`);
-        }
-
-        const isValid = verifyPin(pinInput, memberId, target.pin);
-        if (!isValid) {
-          throw new Error("Incorrect 4-digit PIN. Please try again or use Google recovery.");
-        }
         if (rateLimitKey) resetLoginRateLimit(rateLimitKey);
         nextUser = target.id;
         message = `Welcome back, ${target.fullName}!`;
@@ -173,57 +164,136 @@ export async function POST(request: NextRequest) {
         message = "You have logged out of the workspace.";
         break;
       }
-      case "changePin": {
-        if (!user) throw new Error("Please log in to change your PIN.");
-        const oldPin = String(body.oldPin || "").trim();
-        const newPin = String(body.newPin || "").trim();
-        if (!/^\d{4,6}$/.test(newPin)) throw new Error("PIN must be 4 to 6 numbers.");
-        if (!user.needsPinChange && (!user.pin || !verifyPin(oldPin, user.id, user.pin))) {
-          throw new Error("Current PIN is incorrect.");
-        }
-        const hashedPin = hashPin(newPin, user.id);
-        await db.update(profiles).set({ pin: hashedPin, needsPinChange: false }).where(eq(profiles.id, user.id));
-        message = "Your 4-digit PIN has been updated successfully.";
-        break;
-      }
-      case "linkGoogle": {
-        if (!user) throw new Error("Please log in to link your Google account.");
-        const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(googleEmail)) {
-          throw new Error("Please enter a valid Google email address.");
-        }
-        await db.update(profiles).set({ googleEmail }).where(eq(profiles.id, user.id));
-        message = `Security recovery linked to ${googleEmail}.`;
-        break;
-      }
-      case "resetPinWithGoogle": {
-        const memberId = id(body.memberId);
-        const googleEmail = String(body.googleEmail || "").trim().toLowerCase();
-        const newPin = String(body.newPin || "").trim();
-        if (!/^\d{4,6}$/.test(newPin)) throw new Error("New PIN must be 4 to 6 numbers.");
-        const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
-        if (!target) throw new Error("Member not found.");
-        if (!target.googleEmail || target.googleEmail.toLowerCase() !== googleEmail) {
-          throw new Error(`Google account does not match the linked recovery email for ${target.fullName}. Contact unit secretary Arunabha Ghosh.`);
-        }
-        const hashedPin = hashPin(newPin, target.id);
-        await db.update(profiles).set({ pin: hashedPin, needsPinChange: false }).where(eq(profiles.id, target.id));
-        nextUser = target.id;
-        message = `Identity verified via ${googleEmail}. New PIN set and logged in!`;
-        break;
-      }
-      case "adminResetPin": {
+      case "issueClaimCode": {
         requireRole(["admin"]);
         const targetId = id(body.memberId);
         const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
         if (!target) throw new Error("Member not found.");
-        const newUniquePin = Math.floor(1000 + Math.random() * 9000).toString();
-        const hashedPin = hashPin(newUniquePin, targetId);
-        await db.update(profiles).set({ pin: hashedPin, needsPinChange: true }).where(eq(profiles.id, targetId));
-        message = `PIN for ${target.fullName} has been reset to: ${newUniquePin}. Convey this directly to the member.`;
-        await log("member", "PIN reset", `Unit admin reset login PIN for ${target.fullName}.`, targetId);
+        const { code, hash } = generateClaimCode();
+        const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+        await db.insert(claimCodes).values({
+          codeHash: hash,
+          memberId: target.id,
+          issuedBy: user.id,
+          expiresAt,
+        });
+        await log("member", "Member invite code issued", `Issued single-use invite code for ${target.fullName}.`, target.id);
+        message = `Single-use code issued for ${target.fullName}: ${code}. Valid for 14 days. Hand this over in person.`;
+        nextUser = user.id;
+        return NextResponse.json({
+          data: await getWorkspace(user.id),
+          message,
+          claimCode: code,
+        });
+      }
+      case "claimInviteCode": {
+        const codeInput = String(body.code || "").trim();
+        const normalized = normalizeCode(codeInput);
+        if (normalized.length !== 8) throw new Error("Please enter a valid 8-character invite code (e.g. K7M2-Q9XD).");
+        const hash = hashClaimCode(normalized);
+        const [record] = await db.select().from(claimCodes).where(eq(claimCodes.codeHash, hash));
+        if (!record) {
+          throw new Error("Invalid or unrecognised invite code. Please check with unit secretary Arunabha Ghosh.");
+        }
+        if (record.claimedAt || record.claimedByGoogleSub) {
+          throw new Error("This invite code has already been claimed and can no longer be used.");
+        }
+        if (record.expiresAt.getTime() < Date.now()) {
+          throw new Error("This invite code expired after 14 days. Please ask an executive for a new code.");
+        }
+        const [target] = await db.select().from(profiles).where(eq(profiles.id, record.memberId));
+        if (!target) throw new Error("Associated member profile not found.");
+        const googleSub = String(body.googleSub || randomUUID());
+        const googleEmail = body.googleEmail ? String(body.googleEmail).trim().toLowerCase() : null;
+        await db.update(claimCodes).set({
+          claimedAt: new Date(),
+          claimedByGoogleSub: googleSub,
+        }).where(eq(claimCodes.id, record.id));
+        await db.update(profiles).set({
+          googleSub,
+          googleEmail,
+        }).where(eq(profiles.id, target.id));
+        await log("member", "Invite code claimed", `${target.fullName} linked their Google account.`, target.id);
+        nextUser = target.id;
+        message = `Welcome to Breakthrough Science Society, ${target.fullName}! Your Google account has been linked.`;
+        break;
+      }
+      case "unlinkGoogle": {
+        requireRole(["admin"]);
+        const targetId = id(body.memberId);
+        const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
+        if (!target) throw new Error("Member not found.");
+        await db.update(profiles).set({ googleSub: null, googleEmail: null }).where(eq(profiles.id, target.id));
+        await db.delete(claimCodes).where(eq(claimCodes.memberId, target.id));
+        await log("member", "Google account unlinked", `Executive unlinked Google account for ${target.fullName}.`, target.id);
+        message = `Google account unlinked for ${target.fullName}. A fresh invite code can now be issued.`;
         nextUser = user.id;
         break;
+      }
+      case "applyToJoin": {
+        const fullName = text(body.fullName, "full name", 150);
+        const phone = text(body.phone, "phone number", 30);
+        const reason = text(body.reason, "reason", 1000);
+        const isMinor = Boolean(body.isMinor);
+        const guardianName = body.guardianName ? text(body.guardianName, "guardian name", 150) : null;
+        const googleSub = String(body.googleSub || randomUUID());
+        const googleEmail = String(body.googleEmail || "applicant@example.com");
+        await db.insert(membershipApplications).values({
+          googleSub,
+          googleEmail,
+          fullName,
+          phone,
+          isMinor,
+          guardianName,
+          reason,
+          status: "pending",
+        });
+        message = "Your membership application has been received. Unit executives will review and approve your request.";
+        break;
+      }
+      case "reviewApplication": {
+        requireRole(["admin"]);
+        const appId = id(body.applicationId);
+        const [app] = await db.select().from(membershipApplications).where(eq(membershipApplications.id, appId));
+        if (!app) throw new Error("Application not found.");
+        const status = body.status === "approved" ? "approved" : "rejected";
+        await db.update(membershipApplications).set({ status, reviewedBy: user.id }).where(eq(membershipApplications.id, appId));
+        if (status === "approved") {
+          const [newProfile] = await db.insert(profiles).values({
+            fullName: app.fullName,
+            phone: app.phone,
+            role: "member",
+            status: "active",
+            monthlyPledge: 20,
+            avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
+            googleSub: app.googleSub,
+            googleEmail: app.googleEmail,
+            isMinor: app.isMinor,
+          }).returning();
+          await log("member", "Membership application approved", `${app.fullName} has joined as a unit member.`, newProfile.id);
+          message = `Application approved! ${app.fullName} has been enrolled as a member.`;
+        } else {
+          message = `Application from ${app.fullName} was rejected.`;
+        }
+        nextUser = user.id;
+        break;
+      }
+      case "checkMemberDues": {
+        if (!user) {
+          return NextResponse.json({ error: "Please log in to look up dues." }, { status: 401 });
+        }
+        const memberId = id(body.memberId);
+        if (user.role === "member" && memberId !== user.id) {
+          return NextResponse.json({ error: "Members may only inspect their own dues." }, { status: 403 });
+        }
+        const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
+        if (!target) throw new Error("Member not found.");
+        return NextResponse.json({
+          memberId: target.id,
+          fullName: target.fullName,
+          monthlyPledge: Number(target.monthlyPledge || 20),
+          unpaidMonths: target.unpaidMonths,
+        });
       }
       case "collectDues": {
         requireRole(["admin", "organizer", "volunteer"]);
@@ -299,12 +369,22 @@ export async function POST(request: NextRequest) {
         break;
       }
       case "addDonation": {
-        requireRole(["admin", "organizer", "volunteer"]);
+        // Public visitors, members, volunteers, and executives can all donate
         const donorName = text(body.donorName, "donor name", 150);
         const amount = number(body.amount, "Donation", 0.01);
         const phone = typeof body.donorPhone === "string" ? body.donorPhone.trim() : "";
         if (phone && !/^\+?[\d\s-]{10,16}$/.test(phone)) throw new Error("Please enter a valid phone number, or leave it blank.");
-        const [donation] = await db.insert(donations).values({ donorName, amount, donorPhone: phone || null, eventId: body.eventId ? id(body.eventId) : null, paymentMode: mode(body.paymentMode), transactionRef: body.transactionRef ? text(body.transactionRef, "reference", 100) : null, receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`, receivedBy: user.id, idempotencyKey }).returning();
+        const [donation] = await db.insert(donations).values({
+          donorName,
+          amount,
+          donorPhone: phone || null,
+          eventId: body.eventId ? id(body.eventId) : null,
+          paymentMode: mode(body.paymentMode),
+          transactionRef: body.transactionRef ? text(body.transactionRef, "reference", 100) : null,
+          receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`,
+          receivedBy: user ? user.id : null,
+          idempotencyKey,
+        }).returning();
         receiptId = donation.id;
         await log("donation", "A new contribution to the movement", `${donorName} made a donation. A digital receipt is ready.`, donation.id, amount);
         message = "Donation recorded. Your shareable receipt is ready.";
@@ -372,19 +452,31 @@ export async function POST(request: NextRequest) {
       case "addMember": {
         requireRole(["admin"]);
         const role = ["member", "volunteer", "organizer", "admin"].includes(body.role) ? body.role : "member";
-        const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+        const isMinor = Boolean(body.isMinor);
         const [member] = await db.insert(profiles).values({
           fullName: text(body.fullName, "member name", 150),
           phone: body.phone ? text(body.phone, "phone", 30) : null,
           role,
           monthlyPledge: number(body.monthlyPledge || 20, "Monthly pledge", 20),
           avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
-          pin: hashPin(generatedPin, randomUUID()),
-          needsPinChange: true,
+          isMinor,
         }).returning();
+
+        const { code, hash } = generateClaimCode();
+        const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        await db.insert(claimCodes).values({
+          codeHash: hash,
+          memberId: member.id,
+          issuedBy: user.id,
+          expiresAt,
+        });
         await log("member", "Our community is growing", `${member.fullName} joined ${identity.name}, ${identity.unit}.`, member.id);
-        message = `Welcome! ${member.fullName} added. Unique access PIN: ${generatedPin}`;
-        break;
+        message = `Welcome! ${member.fullName} added. Single-use invite code: ${code}. Hand this over in person.`;
+        return NextResponse.json({
+          data: await getWorkspace(user.id),
+          message,
+          claimCode: code,
+        });
       }
       case "createEvent": {
         requireRole(["admin", "organizer"]);
