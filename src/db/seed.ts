@@ -153,6 +153,7 @@ async function seed() {
       }
       for (const member of REAL_MEMBERS) {
         await tx.execute(sql`UPDATE profiles SET pin = ${member.pin} WHERE id = ${member.id} AND (pin = '1234' OR pin IS NULL)`);
+        await tx.execute(sql`UPDATE profiles SET full_name = ${member.fullName} WHERE id = ${member.id} AND full_name LIKE 'Member (%'`);
       }
       return;
     }

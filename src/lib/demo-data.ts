@@ -45,7 +45,7 @@ export const REAL_MEMBERS: RealMemberSpec[] = [
   { id: uid(1, 14), fullName: "Supriyo Roy", phone: null, role: "member", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2414" },
   { id: uid(1, 15), fullName: "Supriyo Sarkar", phone: null, role: "member", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "2415" },
   { id: uid(1, 16), fullName: "Member (+91 93826 18134)", phone: "+91 93826 18134", role: "member", monthlyPledge: 20, avatarColor: "peach", paid: false, pin: "8134" },
-  { id: uid(1, 17), fullName: "Member (+91 98327 37610)", phone: "+91 98327 37610", role: "member", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "7610" },
+  { id: uid(1, 17), fullName: "Ananya Kar", phone: "+91 98327 37610", role: "member", monthlyPledge: 20, avatarColor: "sage", paid: false, pin: "7610" },
   { id: uid(1, 18), fullName: "Joydev Adhikary", phone: null, role: "member", monthlyPledge: 20, avatarColor: "blue", paid: false, pin: "2418" },
   { id: uid(1, 19), fullName: "Anowar Hossain", phone: null, role: "member", monthlyPledge: 20, avatarColor: "sand", paid: false, pin: "2419" },
   { id: uid(1, 20), fullName: "Member (+91 95316 26335)", phone: "+91 95316 26335", role: "member", monthlyPledge: 20, avatarColor: "lavender", paid: false, pin: "6335" },
