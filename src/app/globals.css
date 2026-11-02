@@ -599,15 +599,15 @@ body{background-color:var(--paper);background-image:url("data:image/svg+xml;utf8
     gap: 3px;
     background: none;
     border: none;
-    padding: 6px 12px;
+    padding: 6px 10px;
     color: var(--ink-3, #717d66);
     font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     position: relative;
-    min-width: 60px;
-    border-radius: 8px;
-    transition: color 0.15s, opacity 0.1s;
+    min-width: 58px;
+    border-radius: 12px;
+    transition: color 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.1s ease;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -618,7 +618,13 @@ body{background-color:var(--paper);background-image:url("data:image/svg+xml;utf8
 
   .bottom-nav-active {
     color: var(--rust, #c7563a) !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
+    background: rgba(199, 86, 58, 0.08) !important;
+  }
+
+  .bottom-nav-active svg {
+    transform: translateY(-1px);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .bottom-nav-badge {
@@ -1791,4 +1797,92 @@ textarea,
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+/* 5. Silk-Smooth View Stage Glide (Apple iOS standard deceleration) */
+.view-stage {
+  animation: viewStageGlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes viewStageGlide {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 6. Smooth Overlay Crossfade for Drawer */
+.sidebar-overlay {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(20, 28, 16, 0.5) !important;
+  z-index: 65 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.sidebar-overlay-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+@media (max-width: 1000px) {
+  .sidebar {
+    transform: translate3d(-100%, 0, 0) !important;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+  }
+  .sidebar-open {
+    transform: translate3d(0, 0, 0) !important;
+    box-shadow: 12px 0 36px rgba(18, 25, 14, 0.18) !important;
+  }
+}
+
+/* 7. Bottom Sheet Modal Glide */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    animation: backdropSmoothFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  }
+  .modal {
+    animation: sheetSmoothGlide 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  }
+}
+
+@keyframes backdropSmoothFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes sheetSmoothGlide {
+  0% {
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* 8. Smooth Elevation Transitions for Cards and Interactive Controls */
+.stat-card,
+.event-card,
+.procurement-card,
+.circular-card,
+.resource-card,
+.panel {
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.button,
+.nav-item,
+.table-action {
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.12s ease;
 }

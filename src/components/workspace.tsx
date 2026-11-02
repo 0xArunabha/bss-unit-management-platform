@@ -250,7 +250,13 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
   }
 
   return <div className="workspace-app">
-    {sidebarOpen && <button className="sidebar-overlay" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
+    <button
+      className={`sidebar-overlay ${sidebarOpen ? "sidebar-overlay-visible" : ""}`}
+      onClick={() => setSidebarOpen(false)}
+      aria-label="Close navigation"
+      aria-hidden={!sidebarOpen}
+      tabIndex={sidebarOpen ? 0 : -1}
+    />
     <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
       <button className="brand" onClick={() => navigate("overview")} aria-label={`${identity.name} home`}><img src="/images/bss-logo.svg" alt="" /><span><strong>{identity.name}<span className="brand-period">.</span></strong><small>{identity.organisation.toUpperCase()}</small></span></button>
       <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{identity.unit}</strong><small>{identity.state}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">YOUR UNIT WORKSPACE</span><button onClick={() => setPopover(null)}><span>{identity.unit}<small>{identity.state} chapter</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />Unit settings<ArrowUpRight size={13} /></button></div>}</div>
@@ -299,7 +305,19 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
           </button>
         </div>
       )}
-      <main className="workspace-main" id="main-content">{view === "overview" && <Overview data={data} navigate={navigate} open={open} />}{view === "members" && <MembersView data={data} open={open} perform={perform} />}{view === "dues" && <DuesView data={data} open={open} />}{view === "donations" && <DonationsView data={data} open={open} />}{view === "events" && <EventsView data={data} open={open} navigate={navigate} />}{view === "procurement" && <ProcurementView data={data} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}{view === "circulars" && <CircularsView data={data} open={open} navigate={navigate} />}{view === "resources" && <ResourcesView open={open} />}{view === "settings" && <SettingsView data={data} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} />}</main>
+      <main className="workspace-main" id="main-content">
+        <div key={view} className="view-stage">
+          {view === "overview" && <Overview data={data} navigate={navigate} open={open} />}
+          {view === "members" && <MembersView data={data} open={open} perform={perform} />}
+          {view === "dues" && <DuesView data={data} open={open} />}
+          {view === "donations" && <DonationsView data={data} open={open} />}
+          {view === "events" && <EventsView data={data} open={open} navigate={navigate} />}
+          {view === "procurement" && <ProcurementView data={data} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}
+          {view === "circulars" && <CircularsView data={data} open={open} navigate={navigate} />}
+          {view === "resources" && <ResourcesView open={open} />}
+          {view === "settings" && <SettingsView data={data} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} />}
+        </div>
+      </main>
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         <button
           className={`bottom-nav-item ${view === "overview" ? "bottom-nav-active" : ""}`}
