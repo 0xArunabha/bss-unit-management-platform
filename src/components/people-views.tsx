@@ -207,7 +207,7 @@ export function MembersView({ data, open, perform }: Props) {
                           onClick={() => open("idCard", { member: p, memberCode })}
                           title="View & print official digital member ID card"
                         >
-                          <IdCard size={13} />
+                          <IdCard size={14} />
                           {t("viewIdCard", "ID Card")}
                         </button>
                         <button
@@ -216,13 +216,13 @@ export function MembersView({ data, open, perform }: Props) {
                           onClick={() => shareViaWhatsApp(formatDuesReminderBroadcast(p, locale))}
                           title="Share member contribution status via WhatsApp"
                         >
-                          <MessageCircle size={13} />
+                          <MessageCircle size={14} />
                           WhatsApp
                         </button>
                         {canCollect && (
                           <button className="table-action" onClick={() => open("dues", { memberId: p.id })}>
                             {t("collectDues", "Collect dues")}
-                            <ArrowUpRight size={13} />
+                            <ArrowUpRight size={14} />
                           </button>
                         )}
                         {isExecutive && (
@@ -235,7 +235,7 @@ export function MembersView({ data, open, perform }: Props) {
                               }
                             }}
                           >
-                            <KeyRound size={12} />
+                            <KeyRound size={14} />
                             New PIN
                           </button>
                         )}
