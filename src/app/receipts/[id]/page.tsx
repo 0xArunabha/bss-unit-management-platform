@@ -1,4 +1,5 @@
 import { identity } from "@/lib/identity";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db, isDatabaseConfigured } from "@/db";
 import { donations, events, profiles } from "@/db/schema";
@@ -64,10 +65,10 @@ export default async function ReceiptPage({
 
   return (
     <main className="public-receipt-page" id="main-content">
-      <a href="/" className="receipt-home-link">
+      <Link href="/" className="receipt-home-link">
         <img src="/images/bss-logo.svg" alt="" />
         {identity.name.toUpperCase()} · UNIT WORKSPACE
-      </a>
+      </Link>
 
       <article className="public-receipt print-tech-slip">
         {/* Registration marks at 4 corners */}

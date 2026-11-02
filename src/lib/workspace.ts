@@ -40,7 +40,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       hasGoogleLinked: Boolean(person.googleEmail),
       googleEmail: person.id === userId ? person.googleEmail : person.googleEmail ? "Linked" : null,
       needsPinChange: Boolean(person.needsPinChange),
-      assignedPin: person.id === userId || userIsAdmin ? person.pin : undefined,
+      assignedPin: person.id === userId ? person.pin : undefined,
     };
     delete sanitized.pin;
     return sanitized as unknown as Profile;

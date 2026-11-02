@@ -262,13 +262,12 @@ const demoGoogle = new Map<string, string>();
 
 export function getDemoWorkspace(userId?: string): WorkspaceData {
   const state = getInMemoryState();
-  const userIsAdmin = userId === DEMO_ADMIN_ID;
   const people = state.profiles.map((p) => ({
     ...p,
     hasGoogleLinked: Boolean(demoGoogle.get(p.id) || p.googleEmail),
     googleEmail: p.id === userId ? (demoGoogle.get(p.id) || p.googleEmail || null) : (demoGoogle.get(p.id) || p.googleEmail) ? "Linked" : null,
     needsPinChange: Boolean(p.needsPinChange),
-    assignedPin: p.id === userId || userIsAdmin ? (demoPins.get(p.id) || "2400") : undefined,
+    assignedPin: p.id === userId ? (demoPins.get(p.id) || "2400") : undefined,
   }));
   const currentUserId = people.some((p) => p.id === userId) ? (userId as string) : "";
   return JSON.parse(JSON.stringify({
@@ -281,10 +280,15 @@ export function getDemoWorkspace(userId?: string): WorkspaceData {
 
 export async function executeDemoAction(action: string, body: any, currentUserId: string): Promise<{ message: string; receiptId?: string; nextUser?: string }> {
   const state = getInMemoryState();
-  const user = state.profiles.find((p) => p.id === currentUserId) || state.profiles[0];
+  const isPublicAction = action === "login" || action === "resetPinWithGoogle";
+  const foundUser = state.profiles.find((p) => p.id === currentUserId);
+  if (!isPublicAction && !foundUser) {
+    throw new Error("Please log in to the workspace with your 4-digit PIN.");
+  }
+  const user = foundUser || state.profiles[0];
   let message = "Action completed.";
   let receiptId: string | undefined;
-  let nextUser = user.id;
+  let nextUser = foundUser ? foundUser.id : "";
 
   switch (action) {
     case "login": {
@@ -352,11 +356,11 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       break;
     }
     case "switchUser": {
+      if (!user || user.role !== "admin") throw new Error("Only unit executives can switch preview accounts.");
       const selected = state.profiles.find((p) => p.id === body.userId);
-      if (selected) {
-        nextUser = selected.id;
-        message = `Now previewing as ${selected.fullName}.`;
-      }
+      if (!selected) throw new Error("Member not found.");
+      nextUser = selected.id;
+      message = `Now previewing as ${selected.fullName}.`;
       break;
     }
     case "collectDues": {
@@ -436,7 +440,6 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       const donation = state.donations.find((d) => d.id === body.id);
       if (donation) {
         if (body.phone) donation.donorPhone = String(body.phone).trim();
-        donation.smsSent = true;
         try {
           const res = await sendDonationSms({
             donorName: donation.donorName,
@@ -445,6 +448,9 @@ export async function executeDemoAction(action: string, body: any, currentUserId
             receiptNo: donation.receiptNo,
             receiptId: donation.id,
           });
+          if (res.success) {
+            donation.smsSent = true;
+          }
           message = res.message;
         } catch (err) {
           message = err instanceof Error ? err.message : `SMS dispatch recorded for ${donation.receiptNo}.`;
@@ -506,16 +512,19 @@ export async function executeDemoAction(action: string, body: any, currentUserId
     case "verify": {
       const item = state.procurements.find((p) => p.id === body.id);
       if (item) {
+        if (item.purchasedBy === user!.id) {
+          throw new Error("A different volunteer must verify your purchase.");
+        }
         item.status = "verified";
-        item.verifiedBy = user.id;
+        item.verifiedBy = user!.id;
         item.verifiedAt = new Date().toISOString();
         message = "Item verified and closed by peer.";
         state.activities.unshift({
           id: uid(7, state.activities.length + 1),
           type: "verified",
           title: `${item.itemName} verified`,
-          description: `${user.fullName} peer-verified the purchase at venue.`,
-          actorId: user.id,
+          description: `${user!.fullName} peer-verified the purchase at venue.`,
+          actorId: user!.id,
           targetId: item.id,
           amount: item.actualCost,
           createdAt: new Date().toISOString(),

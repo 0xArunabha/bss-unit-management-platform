@@ -12,7 +12,7 @@ const db = drizzle(pool);
 const browser = await chromium.launch({
   headless: true,
   args: ['--no-sandbox'],
-  executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
 });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();

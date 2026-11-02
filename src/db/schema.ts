@@ -60,6 +60,7 @@ export const procurements = pgTable("event_procurements", {
   verifiedBy: uuid("verified_by").references(() => profiles.id),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   createdBy: uuid("created_by").references(() => profiles.id),
+  receiptPhotoUrl: text("receipt_photo_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check("different_verifier", sql`${t.verifiedBy} is null or ${t.verifiedBy} != ${t.purchasedBy}`),

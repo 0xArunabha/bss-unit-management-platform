@@ -38,3 +38,6 @@ Thumbs.db
 *.pem
 .vscode/
 .idea/
+
+# Agent transcripts & teamwork internal logs
+.agents/

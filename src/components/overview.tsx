@@ -13,9 +13,11 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const [period, setPeriod] = useState("This month");
   const [periodOpen, setPeriodOpen] = useState(false);
   const [activityFilter, setActivityFilter] = useState<"all" | "dues" | "procurement" | "donation">("all");
-  const now = new Date();
-  const currentUser = data.profiles.find((p) => p.id === data.currentUserId)!;
-  const canCollect = ["admin", "organizer", "volunteer"].includes(currentUser.role);
+  const [currentTime] = useState(() => Date.now());
+  const now = new Date(currentTime);
+  const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
+  const userRole = currentUser?.role || "guest";
+  const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
 
   const inPeriod = (date: string) =>
@@ -37,13 +39,13 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
     .sort((a, b) => ({ needed: 0, purchased: 1, verified: 2 }[a.status] - { needed: 0, purchased: 1, verified: 2 }[b.status]))
     .slice(0, 4);
 
-  const upcoming = data.events.filter((e) => new Date(e.startsAt).getTime() >= Date.now() - 86400000).slice(0, 3);
+  const upcoming = data.events.filter((e) => new Date(e.startsAt).getTime() >= currentTime - 86400000).slice(0, 3);
 
   const urgentItems = data.procurements.filter((p) => {
     if (p.status !== "needed") return false;
     const ev = data.events.find((e) => e.id === p.eventId);
     if (!ev) return false;
-    const ms = new Date(ev.startsAt).getTime() - Date.now();
+    const ms = new Date(ev.startsAt).getTime() - currentTime;
     return ms >= -86400000 && ms <= 48 * 3600000;
   });
 

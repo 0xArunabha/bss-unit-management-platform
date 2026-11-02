@@ -274,8 +274,8 @@ Breakthrough Science Society · Jalpaiguri Unit
               <div className="id-card-back-right">
                 {/* Motto */}
                 <div className="id-card-back-motto">
-                  <p className="id-card-back-motto-bn">"{identity.bengaliMotto}"</p>
-                  <p className="id-card-back-motto-en">"{identity.motto}"</p>
+                  <p className="id-card-back-motto-bn">&ldquo;{identity.bengaliMotto}&rdquo;</p>
+                  <p className="id-card-back-motto-en">&ldquo;{identity.motto}&rdquo;</p>
                 </div>
 
                 {/* Compact detail rows */}

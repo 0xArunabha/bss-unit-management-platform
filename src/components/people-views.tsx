@@ -8,6 +8,7 @@ import { Badge, Button, EmptyState, ExportButton, PageHeading, SearchInput, Sele
 import { useI18n } from "@/lib/i18n";
 import { getMemberDesignations } from "@/lib/teams";
 import { formatDuesReminderBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
+import { hapticTap } from "@/lib/haptics";
 import type { OpenModal } from "@/components/overview";
 
 type Props = { data: WorkspaceData; open: OpenModal; perform?: PerformAction };
@@ -115,7 +116,7 @@ export function MembersView({ data, open, perform }: Props) {
                       p.monthlyPledge,
                       p.unpaidMonths,
                       new Date(p.createdAt).toLocaleDateString("en-IN"),
-                      ...(isExecutive ? [p.assignedPin || "—"] : []),
+                      ...(isExecutive ? [p.id === current.id && p.assignedPin ? p.assignedPin : "—"] : []),
                     ]),
                   ]
                 )
@@ -124,7 +125,7 @@ export function MembersView({ data, open, perform }: Props) {
           </div>
         </div>
 
-        <div className="table-scroll">
+        <div className="table-scroll desktop-only-table">
           <table className="data-table member-table">
             <thead>
               <tr>
@@ -164,7 +165,7 @@ export function MembersView({ data, open, perform }: Props) {
                           )}
                           <small>
                             {p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}
-                            {isExecutive && p.assignedPin && (
+                            {p.id === current.id && p.assignedPin && (
                               <span className="admin-pin-chip" title="Unique Member PIN">
                                 PIN: <code>{p.assignedPin}</code>
                               </span>
@@ -248,6 +249,123 @@ export function MembersView({ data, open, perform }: Props) {
           </table>
         </div>
 
+        <div className="mobile-member-cards">
+          {shown.map((p, index) => {
+            const memberCode = `JPG-${String(page * 12 + index + 1).padStart(3, "0")}`;
+            const isOverdue = p.status === "inactive" || p.unpaidMonths >= 6;
+            const designations = getMemberDesignations(p.fullName);
+
+            return (
+              <article className="mobile-member-card" key={p.id}>
+                <div className="mobile-member-card-header">
+                  <div className="mobile-member-identity">
+                    <button
+                      type="button"
+                      className="member-code-tag cursor-pointer"
+                      onClick={() => open("idCard", { member: p, memberCode })}
+                      title="Click to view Official ID Card"
+                    >
+                      {memberCode}
+                    </button>
+                    <div className="mobile-member-name-block">
+                      <strong>{p.fullName}</strong>
+                      {designations.primaryTitleEn !== "Unit Member & Field Advocate" && (
+                        <span className="id-card-team-pill">
+                          {locale === "bn" ? designations.primaryTitleBn : designations.primaryTitleEn}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`role-label role-${p.role}`}>
+                    {roleNameDisplay[p.role] || p.role}
+                  </span>
+                </div>
+
+                <div className="mobile-member-meta-grid">
+                  <div className="mobile-member-meta-item">
+                    <span className="mobile-meta-label">{t("monthlyPledgeCol", "PLEDGE")}</span>
+                    <strong className="mobile-meta-value">{money(p.monthlyPledge)}<span className="muted-small">/mo</span></strong>
+                  </div>
+                  <div className="mobile-member-meta-item">
+                    <span className="mobile-meta-label">{t("duesAuditStatusCol", "STATUS")}</span>
+                    <div className="mobile-meta-value">
+                      {isOverdue ? (
+                        <span className="status-stamp-pending">
+                          <CircleAlert size={11} />
+                          {t("flaggedInactive", "FLAGGED")}
+                        </span>
+                      ) : p.unpaidMonths > 0 ? (
+                        <Badge tone="yellow">{p.unpaidMonths} mo</Badge>
+                      ) : (
+                        <span className="status-stamp-ok">
+                          <Check size={11} />
+                          {t("upToDate", "UP TO DATE")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mobile-member-meta-item">
+                    <span className="mobile-meta-label">PHONE / PIN</span>
+                    <span className="mobile-meta-value mono text-xs">
+                      {p.phone ? `+91 ${p.phone}` : `${identity.city} Unit`}
+                      {p.id === current.id && p.assignedPin && (
+                        <span className="admin-pin-chip" title="Unique Member PIN" style={{ marginLeft: "4px" }}>
+                          PIN: <code>{p.assignedPin}</code>
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mobile-member-meta-item">
+                    <span className="mobile-meta-label">{t("enrolledCol", "ENROLLED")}</span>
+                    <span className="mobile-meta-value text-xs muted-cell">
+                      {new Date(p.createdAt).toLocaleDateString(locale === "bn" ? "bn-IN" : "en-IN", { month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mobile-member-card-actions">
+                  {canCollect && (
+                    <button className="mobile-card-action-btn primary" onClick={() => { hapticTap(); open("dues", { memberId: p.id }); }}>
+                      <IndianRupee size={13} />
+                      {t("collectDues", "Collect dues")}
+                    </button>
+                  )}
+                  <button
+                    className="mobile-card-action-btn whatsapp"
+                    onClick={() => { hapticTap(); shareViaWhatsApp(formatDuesReminderBroadcast(p, locale)); }}
+                    title="Share member contribution status via WhatsApp"
+                  >
+                    <MessageCircle size={13} />
+                    WhatsApp
+                  </button>
+                  <button
+                    className="mobile-card-action-btn"
+                    onClick={() => { hapticTap(); open("idCard", { member: p, memberCode }); }}
+                    title="View & print official digital member ID card"
+                  >
+                    <IdCard size={13} />
+                    {t("viewIdCard", "ID Card")}
+                  </button>
+                  {isExecutive && (
+                    <button
+                      className="mobile-card-action-btn muted"
+                      title="Generate a new unique 4-digit PIN for this member"
+                      onClick={async () => {
+                        if (confirm(`Generate a new unique 4-digit PIN for ${p.fullName}?`)) {
+                          if (perform) await perform("adminResetPin", { memberId: p.id });
+                        }
+                      }}
+                    >
+                      <KeyRound size={13} />
+                      PIN
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
         {!people.length && (
           <EmptyState icon={Search} title="No members match this filter" description="Try clearing your search query or switching tabs." />
         )}
@@ -271,14 +389,14 @@ export function DuesView({ data, open }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(0);
-  const user = data.profiles.find((p) => p.id === data.currentUserId)!;
-  const canCollect = user.role !== "member";
+  const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const canCollect = user ? user.role !== "member" : false;
 
   const payments = data.dues.filter((d) => d.year === Number(year));
   const lookup = new Map(payments.map((p) => [`${p.memberId}-${p.month}`, p]));
 
   const people = data.profiles.filter((p) => {
-    if (!canCollect && p.id !== user.id) return false;
+    if (!canCollect && p.id !== user?.id) return false;
     const matchesSearch = p.fullName.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     if (filter === "pending") return !lookup.has(`${p.id}-${now.getMonth() + 1}`);
@@ -452,8 +570,8 @@ export function DonationsView({ data, open }: Props) {
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState("all");
   const [page, setPage] = useState(0);
-  const user = data.profiles.find((p) => p.id === data.currentUserId)!;
-  const canManage = user.role !== "member";
+  const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const canManage = user ? user.role !== "member" : false;
   const now = new Date();
 
   const total = data.donations.reduce((s, d) => s + d.amount, 0);
@@ -500,7 +618,7 @@ export function DonationsView({ data, open }: Props) {
           </div>
         </div>
 
-        <div className="table-scroll">
+        <div className="table-scroll desktop-only-table">
           <table className="data-table donation-table">
             <thead>
               <tr>
@@ -561,6 +679,59 @@ export function DonationsView({ data, open }: Props) {
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="mobile-donation-cards">
+          {list.slice(page * 10, page * 10 + 10).map((d) => {
+            const badge = getDonorBadge(d);
+            return (
+              <article className="mobile-donation-card" key={d.id}>
+                <div className="mobile-donation-card-header">
+                  <div className="mobile-donor-identity">
+                    <span className={`donor-category-pill badge-${badge.tone}`}>{badge.label}</span>
+                    <div className="mobile-donor-name-block">
+                      <strong>{d.donorName}</strong>
+                      <small className="mono text-muted block text-[10.5px] leading-tight">{d.receiptNo}</small>
+                    </div>
+                  </div>
+                  <strong className="mobile-donation-amount">{money(d.amount)}</strong>
+                </div>
+
+                <div className="mobile-donation-meta-grid">
+                  <div className="mobile-donation-meta-item">
+                    <span className="mobile-meta-label">DATE & INSTRUMENT</span>
+                    <span className="mobile-meta-value">
+                      {new Date(d.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {" · "}
+                      <span className="payment-label">{d.paymentMode === "bank_transfer" ? "Bank Transfer" : d.paymentMode === "upi" ? "UPI" : "Cash"}</span>
+                    </span>
+                  </div>
+                  <div className="mobile-donation-meta-item">
+                    <span className="mobile-meta-label">ALLOCATION PURPOSE</span>
+                    <span className="mobile-meta-value text-muted truncate">
+                      {data.events.find((e) => e.id === d.eventId)?.title || "General Science Outreach"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mobile-donation-card-actions">
+                  <button className="mobile-card-action-btn primary" onClick={() => { hapticTap(); open("receipt", d); }}>
+                    <ReceiptText size={13} />
+                    View digital slip
+                    <ArrowUpRight size={13} />
+                  </button>
+                  <button
+                    className={`mobile-card-action-btn ${d.smsSent ? "whatsapp" : ""}`}
+                    onClick={() => { hapticTap(); open("smsPreview", d); }}
+                    title="View SMS notification gateway copy"
+                  >
+                    <MessageSquare size={13} />
+                    {d.smsSent ? "SMS Dispatched" : "SMS Ready (View)"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
 
         {!list.length && (

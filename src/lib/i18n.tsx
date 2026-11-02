@@ -106,18 +106,17 @@ const I18nContext = createContext<I18nContextType>({
 });
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bss-locale") as Locale | null;
-      if (saved === "bn" || saved === "en") {
-        setLocaleState(saved);
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("bss-locale") as Locale | null;
+        if (saved === "bn" || saved === "en") return saved;
+      } catch {
+        // localStorage may fail in restricted environments
       }
-    } catch {
-      // localStorage may fail in restricted environments
     }
-  }, []);
+    return "en";
+  });
 
   const setLocale = (l: Locale) => {
     setLocaleState(l);

@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FlaskConical, HeartHandshake, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, money } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
 import type { Navigate, OpenModal } from "@/components/overview";
@@ -16,9 +16,11 @@ export function EventsView({ data, open }: Props) {
   const { locale } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Upcoming");
-  const user = data.profiles.find((p) => p.id === data.currentUserId)!;
+  const [nowMs] = useState(() => Date.now());
+  const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const userRole = user?.role || "guest";
   const list = data.events.filter(
-    (e) => (filter === "All events" || new Date(e.startsAt).getTime() >= Date.now() - 86400000) && `${e.title} ${e.location}`.toLowerCase().includes(search.toLowerCase())
+    (e) => (filter === "All events" || new Date(e.startsAt).getTime() >= nowMs - 86400000) && `${e.title} ${e.location}`.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -28,7 +30,7 @@ export function EventsView({ data, open }: Props) {
         title="Field programmes & science conventions."
         description={`Scheduled outreach programmes, school demonstration camps, and cadre meetings for ${identity.fullName}.`}
       >
-        {["admin", "organizer"].includes(user.role) && <Button icon={Plus} onClick={() => open("createEvent")}>Create event</Button>}
+        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>Create event</Button>}
       </PageHeading>
 
       <div className="standalone-toolbar">
@@ -36,7 +38,7 @@ export function EventsView({ data, open }: Props) {
           {["Upcoming", "All events"].map((t) => (
             <button key={t} className={t === filter ? "active" : ""} onClick={() => setFilter(t)}>
               {t}
-              <span>{t === "All events" ? data.events.length : data.events.filter((e) => new Date(e.startsAt).getTime() >= Date.now() - 86400000).length}</span>
+              <span>{t === "All events" ? data.events.length : data.events.filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000).length}</span>
             </button>
           ))}
         </div>
@@ -48,7 +50,7 @@ export function EventsView({ data, open }: Props) {
           const date = new Date(event.startsAt);
           const needed = data.procurements.filter((p) => p.eventId === event.id && p.status === "needed").length;
           const verified = data.procurements.filter((p) => p.eventId === event.id && p.status === "verified").length;
-          const isNear = date.getTime() - Date.now() <= 48 * 3600000 && date.getTime() >= Date.now() - 86400000;
+          const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
 
           return (
             <article className="event-card panel print-tech-slip" key={event.id}>
@@ -127,8 +129,9 @@ export function ProcurementView({
 }: Props & { eventFilter: string; setEventFilter: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
-  const user = data.profiles.find((p) => p.id === data.currentUserId)!;
-  const canWork = user.role !== "member";
+  const [nowMs] = useState(() => Date.now());
+  const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const canWork = user ? user.role !== "member" : false;
 
   const allItems = data.procurements.filter(
     (p) => (eventFilter === "all" || p.eventId === eventFilter) && p.itemName.toLowerCase().includes(search.toLowerCase())
@@ -138,7 +141,7 @@ export function ProcurementView({
     if (stageFilter === "urgent") {
       const ev = data.events.find((e) => e.id === p.eventId);
       if (!ev) return false;
-      const ms = new Date(ev.startsAt).getTime() - Date.now();
+      const ms = new Date(ev.startsAt).getTime() - nowMs;
       return p.status === "needed" && ms >= -86400000 && ms <= 48 * 3600000;
     }
     if (stageFilter === "ready") return p.status === "purchased";
@@ -151,7 +154,7 @@ export function ProcurementView({
   const urgentCount = allItems.filter((p) => {
     const ev = data.events.find((e) => e.id === p.eventId);
     if (!ev) return false;
-    const ms = new Date(ev.startsAt).getTime() - Date.now();
+    const ms = new Date(ev.startsAt).getTime() - nowMs;
     return p.status === "needed" && ms >= -86400000 && ms <= 48 * 3600000;
   }).length;
 
@@ -306,10 +309,11 @@ function ProcurementCard({
   const verifier = data.profiles.find((p) => p.id === item.verifiedBy);
   const isOwn = item.purchasedBy === data.currentUserId;
 
+  const [nowMs] = useState(() => Date.now());
   const isUrgent =
     event &&
-    new Date(event.startsAt).getTime() - Date.now() <= 48 * 3600000 &&
-    new Date(event.startsAt).getTime() >= Date.now() - 86400000;
+    new Date(event.startsAt).getTime() - nowMs <= 48 * 3600000 &&
+    new Date(event.startsAt).getTime() >= nowMs - 86400000;
 
   const costDelta = item.actualCost !== null ? item.actualCost - item.estimatedCost : null;
   const voucherCode = `REQ-26-${String(index).padStart(2, "0")}`;
@@ -422,7 +426,8 @@ export function CircularsView({ data, open }: Props) {
   const { locale } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All notices");
-  const user = data.profiles.find((p) => p.id === data.currentUserId)!;
+  const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const userRole = user?.role || "guest";
   const notices = data.circulars.filter(
     (c) => (filter !== "Pinned" || c.pinned) && `${c.title} ${c.content}`.toLowerCase().includes(search.toLowerCase())
   );
@@ -434,7 +439,7 @@ export function CircularsView({ data, open }: Props) {
         title="Official unit notice board."
         description={`Formal circulars, meeting agendas, and campaign resolutions published by ${identity.fullName}.`}
       >
-        {["admin", "organizer"].includes(user.role) && <Button icon={Plus} onClick={() => open("publishCircular")}>Publish circular</Button>}
+        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("publishCircular")}>Publish circular</Button>}
       </PageHeading>
 
       <div className="standalone-toolbar">
@@ -552,7 +557,7 @@ export function ResourcesView({ open }: Pick<Props, "open">) {
             <span className="bengali-mark text-rust mr-2">{identity.bengali}</span>
             <span>ARTICLE 51A(h) · CONSTITUTION OF INDIA</span>
           </div>
-          <h2>"To develop the scientific temper, humanism and the spirit of inquiry and reform."</h2>
+          <h2>&ldquo;To develop the scientific temper, humanism and the spirit of inquiry and reform.&rdquo;</h2>
           <p>
             Breakthrough Science Society was established in 1995 as a voluntary movement to take the method of science directly to the common masses, question entrenched dogmas, and demand equitable public funding for basic research.
           </p>
@@ -714,6 +719,11 @@ export function ResourcesView({ open }: Pick<Props, "open">) {
   );
 }
 
+function subscribeStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
 export function SettingsView({
   data,
   perform,
@@ -730,8 +740,20 @@ export function SettingsView({
   busy: boolean;
 }) {
   const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0];
-  const [sound, setSound] = useState(false);
-  const [duesReminder, setDuesReminder] = useState(true);
+  const [soundOverride, setSoundOverride] = useState<boolean | null>(null);
+  const [duesReminderOverride, setDuesReminderOverride] = useState<boolean | null>(null);
+  const storedSound = useSyncExternalStore(
+    subscribeStorage,
+    () => localStorage.getItem("bss-sound") === "true",
+    () => false
+  );
+  const storedDuesReminder = useSyncExternalStore(
+    subscribeStorage,
+    () => localStorage.getItem("bss-dues-reminder") !== "false",
+    () => true
+  );
+  const sound = soundOverride !== null ? soundOverride : storedSound;
+  const duesReminder = duesReminderOverride !== null ? duesReminderOverride : storedDuesReminder;
 
   // PIN Change State
   const [oldPin, setOldPin] = useState("");
@@ -744,11 +766,6 @@ export function SettingsView({
   const [googleEmail, setGoogleEmail] = useState(current.googleEmail || "");
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleMsg, setGoogleMsg] = useState<{ text: string; error?: boolean } | null>(null);
-
-  useEffect(() => {
-    setSound(localStorage.getItem("bss-sound") === "true");
-    setDuesReminder(localStorage.getItem("bss-dues-reminder") !== "false");
-  }, []);
 
   const handleUpdatePin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -950,8 +967,9 @@ export function SettingsView({
                 type="checkbox"
                 checked={sound}
                 onChange={(e) => {
-                  setSound(e.target.checked);
+                  setSoundOverride(e.target.checked);
                   localStorage.setItem("bss-sound", String(e.target.checked));
+                  window.dispatchEvent(new Event("storage"));
                 }}
                 aria-label="Notification sound"
               />
@@ -969,8 +987,9 @@ export function SettingsView({
                 type="checkbox"
                 checked={duesReminder}
                 onChange={(e) => {
-                  setDuesReminder(e.target.checked);
+                  setDuesReminderOverride(e.target.checked);
                   localStorage.setItem("bss-dues-reminder", String(e.target.checked));
+                  window.dispatchEvent(new Event("storage"));
                 }}
                 aria-label="Show dues reminder"
               />

@@ -42,27 +42,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const userId = request.cookies.get("bss_demo_user")?.value || ADMIN_ID;
+    const userId = request.cookies.get("bss_demo_user")?.value;
+    const isPublicAction = body.action === "login" || body.action === "resetPinWithGoogle";
 
     if (!isDatabaseConfigured) {
-      const demoResult = await executeDemoAction(body.action, body, userId);
-      const nextUser = demoResult.nextUser || userId;
+      if (!isPublicAction && !userId) {
+        return NextResponse.json({ error: "Please log in to the workspace with your 4-digit PIN." }, { status: 401 });
+      }
+      const demoResult = await executeDemoAction(body.action, body, userId || "");
+      const nextUser = demoResult.nextUser !== undefined ? demoResult.nextUser : (userId || "");
       const response = NextResponse.json({
         data: await getWorkspace(nextUser),
         message: `${demoResult.message} (Preview Mode: connect Supabase in .env.local for permanent database persistence)`,
         receiptId: demoResult.receiptId,
       });
-      response.cookies.set("bss_demo_user", nextUser, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 86400 * 7,
-      });
+      if (nextUser) {
+        response.cookies.set("bss_demo_user", nextUser, {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          maxAge: 86400 * 7,
+        });
+      } else {
+        response.cookies.delete("bss_demo_user");
+      }
       return response;
     }
 
     await ensureSeed();
-    const isPublicAction = body.action === "login" || body.action === "resetPinWithGoogle";
     let foundUser: typeof profiles.$inferSelect | undefined;
     if (userId) {
       try {
@@ -187,7 +194,20 @@ export async function POST(request: NextRequest) {
           if (remaining > 0) throw new Error("That contribution covers too many months. Please split the payment.");
           count = allocations.length;
           await tx.insert(dues).values(allocations);
-          await tx.update(profiles).set({ status: "active", unpaidMonths: 0 }).where(eq(profiles.id, memberId));
+          const allMemberPayments = await tx.select().from(dues).where(eq(dues.memberId, memberId));
+          const memPaymentSet = new Set(allMemberPayments.map((p) => `${p.year}-${p.month}`));
+          let remainingUnpaid = 0;
+          const now = new Date();
+          for (let i = 0; i < 24; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            if (d < new Date(member.createdAt.getFullYear(), member.createdAt.getMonth(), 1)) break;
+            if (memPaymentSet.has(`${d.getFullYear()}-${d.getMonth() + 1}`)) break;
+            remainingUnpaid++;
+          }
+          await tx.update(profiles).set({
+            status: remainingUnpaid >= 6 ? "inactive" : "active",
+            unpaidMonths: remainingUnpaid,
+          }).where(eq(profiles.id, memberId));
         });
         message = `₹${total.toLocaleString("en-IN")} recorded across ${count} ${count === 1 ? "month" : "months"}.`;
         await log("dues", "Membership contribution recorded", `${member.fullName} contributed via ${paymentMode.replace("_", " ")}. Collected by ${user.fullName}.`, memberId, total);
@@ -221,7 +241,11 @@ export async function POST(request: NextRequest) {
           receiptId: donation.id,
           origin,
         });
-        await db.update(donations).set({ smsSent: true, donorPhone: phone }).where(eq(donations.id, donationId));
+        const updateData: { donorPhone: string; smsSent?: boolean } = { donorPhone: phone };
+        if (smsResult.success) {
+          updateData.smsSent = true;
+        }
+        await db.update(donations).set(updateData).where(eq(donations.id, donationId));
         await log("sms", "SMS receipt dispatched", `${smsResult.message} (${donation.receiptNo})`, donation.id, donation.amount);
         message = smsResult.message;
         break;
@@ -295,6 +319,7 @@ export async function POST(request: NextRequest) {
         break;
       }
       case "switchUser": {
+        requireRole(["admin"]);
         const selectedId = id(body.userId);
         const [selected] = await db.select().from(profiles).where(eq(profiles.id, selectedId));
         if (!selected) throw new Error("Member not found.");

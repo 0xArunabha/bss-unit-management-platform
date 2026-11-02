@@ -15,6 +15,96 @@ import type { Navigate, OpenModal } from "@/components/overview";
 export type ModalState = { type: string; record?: unknown } | null;
 type Props = { modal: ModalState; data: WorkspaceData; close: () => void; open: OpenModal; perform: PerformAction; busy: boolean; error: string; navigate: Navigate; notify: (message: string) => void };
 
+function SmsPreviewModal({
+  donation,
+  close,
+  notify,
+  save,
+  busy,
+}: {
+  donation: Donation;
+  close: () => void;
+  notify: (msg: string) => void;
+  save: (action: string, values: Record<string, unknown>) => Promise<void>;
+  busy: boolean;
+}) {
+  const [recipientPhone, setRecipientPhone] = useState(donation.donorPhone || "");
+  const receiptUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/receipts/${donation.id}`;
+  const smsMessage = `[${identity.name.toUpperCase()} · ${identity.organisationShort}] Received with thanks ₹${donation.amount.toLocaleString("en-IN")} from ${donation.donorName} on ${new Date(donation.createdAt).toLocaleDateString("en-IN")}. Official Receipt No: ${donation.receiptNo}. Digital verification slip: ${receiptUrl} — Breakthrough Science Society, ${identity.unit}.`;
+
+  const copySms = async () => {
+    try {
+      await navigator.clipboard.writeText(smsMessage);
+      notify("SMS text copied to clipboard.");
+    } catch {
+      notify("Please copy the text manually from the screen.");
+    }
+  };
+
+  return (
+    <Modal title="SMS Notification Gateway" subtitle="DLT-compliant automated SMS receipt dispatched to donor mobile" onClose={close}>
+      <div className="sms-handset-preview">
+        <div className="sms-header">
+          <MessageSquare size={16} />
+          <span>OUTBOUND CARRIER GATEWAY (FAST2SMS / MSG91)</span>
+          <Badge tone={donation.smsSent ? "green" : "yellow"}>
+            {donation.smsSent ? "Dispatched" : "Ready to Send"}
+          </Badge>
+        </div>
+
+        <div className="sms-recipient-line" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <span>To (Indian Mobile):</span>
+          <input
+            type="tel"
+            placeholder="+91 98320 XXXXX"
+            value={recipientPhone}
+            onChange={(e) => setRecipientPhone(e.target.value)}
+            disabled={donation.smsSent}
+            style={{
+              fontFamily: "var(--font-mono, monospace)",
+              fontWeight: "bold",
+              padding: "4px 8px",
+              border: "1px solid var(--rule-soft, #ddd)",
+              borderRadius: "4px",
+              fontSize: "13px",
+              minWidth: "180px",
+            }}
+          />
+          <small>· DLT Header: <strong>BSSJPG</strong></small>
+        </div>
+
+        <div className="sms-bubble">
+          <p>{smsMessage}</p>
+          <time className="sms-timestamp">
+            {new Date(donation.createdAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+          </time>
+        </div>
+
+        <div className="sms-meta-strip">
+          <ShieldCheck size={14} />
+          <span>Sender ID: <strong>BSSJPG</strong> · Length: {smsMessage.length} chars · DLT Transactional Route</span>
+        </div>
+      </div>
+
+      <div className="modal-actions">
+        <Button variant="secondary" icon={Copy} onClick={() => void copySms()}>Copy SMS text</Button>
+        {!donation.smsSent && (
+          <Button
+            icon={Send}
+            onClick={() => {
+              void save("sendSms", { id: donation.id, phone: recipientPhone });
+            }}
+            disabled={busy}
+          >
+            Dispatch SMS receipt
+          </Button>
+        )}
+        <Button variant="secondary" onClick={close}>Close</Button>
+      </div>
+    </Modal>
+  );
+}
+
 export function WorkspaceModals(props: Props) {
   const { modal, data, close, open, perform, busy, error, navigate, notify } = props;
   if (!modal) return null;
@@ -74,7 +164,7 @@ export function WorkspaceModals(props: Props) {
 
           <div className="soft-info mt-4">
             <ShieldCheck size={16} />
-            <span>This contribution is locked in the unit's persistent ledger. Minimum ₹20 baseline with voluntary higher pledges.</span>
+            <span>This contribution is locked in the unit&apos;s persistent ledger. Minimum ₹20 baseline with voluntary higher pledges.</span>
           </div>
         </div>
         <div className="modal-actions">
@@ -130,81 +220,14 @@ export function WorkspaceModals(props: Props) {
   }
 
   if (modal.type === "smsPreview") {
-    const donation = modal.record as Donation;
-    const [recipientPhone, setRecipientPhone] = useState(donation.donorPhone || "");
-    const receiptUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/receipts/${donation.id}`;
-    const smsMessage = `[${identity.name.toUpperCase()} · ${identity.organisationShort}] Received with thanks ₹${donation.amount.toLocaleString("en-IN")} from ${donation.donorName} on ${new Date(donation.createdAt).toLocaleDateString("en-IN")}. Official Receipt No: ${donation.receiptNo}. Digital verification slip: ${receiptUrl} — Breakthrough Science Society, ${identity.unit}.`;
-
-    const copySms = async () => {
-      try {
-        await navigator.clipboard.writeText(smsMessage);
-        notify("SMS text copied to clipboard.");
-      } catch {
-        notify("Please copy the text manually from the screen.");
-      }
-    };
-
     return (
-      <Modal title="SMS Notification Gateway" subtitle="DLT-compliant automated SMS receipt dispatched to donor mobile" onClose={close}>
-        <div className="sms-handset-preview">
-          <div className="sms-header">
-            <MessageSquare size={16} />
-            <span>OUTBOUND CARRIER GATEWAY (FAST2SMS / MSG91)</span>
-            <Badge tone={donation.smsSent ? "green" : "yellow"}>
-              {donation.smsSent ? "Dispatched" : "Ready to Send"}
-            </Badge>
-          </div>
-
-          <div className="sms-recipient-line" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-            <span>To (Indian Mobile):</span>
-            <input
-              type="tel"
-              placeholder="+91 98320 XXXXX"
-              value={recipientPhone}
-              onChange={(e) => setRecipientPhone(e.target.value)}
-              disabled={donation.smsSent}
-              style={{
-                fontFamily: "var(--font-mono, monospace)",
-                fontWeight: "bold",
-                padding: "4px 8px",
-                border: "1px solid var(--rule-soft, #ddd)",
-                borderRadius: "4px",
-                fontSize: "13px",
-                minWidth: "180px",
-              }}
-            />
-            <small>· DLT Header: <strong>BSSJPG</strong></small>
-          </div>
-
-          <div className="sms-bubble">
-            <p>{smsMessage}</p>
-            <time className="sms-timestamp">
-              {new Date(donation.createdAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
-            </time>
-          </div>
-
-          <div className="sms-meta-strip">
-            <ShieldCheck size={14} />
-            <span>Sender ID: <strong>BSSJPG</strong> · Length: {smsMessage.length} chars · DLT Transactional Route</span>
-          </div>
-        </div>
-
-        <div className="modal-actions">
-          <Button variant="secondary" icon={Copy} onClick={() => void copySms()}>Copy SMS text</Button>
-          {!donation.smsSent && (
-            <Button
-              icon={Send}
-              onClick={() => {
-                void save("sendSms", { id: donation.id, phone: recipientPhone });
-              }}
-              disabled={busy}
-            >
-              Dispatch SMS receipt
-            </Button>
-          )}
-          <Button variant="secondary" onClick={close}>Close</Button>
-        </div>
-      </Modal>
+      <SmsPreviewModal
+        donation={modal.record as Donation}
+        close={close}
+        notify={notify}
+        save={save}
+        busy={busy}
+      />
     );
   }
 
@@ -311,7 +334,7 @@ export function WorkspaceModals(props: Props) {
           </FormField>
           <div className="soft-info">
             <Users size={17} />
-            <span>Status changes to 'Ready to verify'. A second volunteer must physically inspect the item at the venue to close it.</span>
+            <span>Status changes to &apos;Ready to verify&apos;. A second volunteer must physically inspect the item at the venue to close it.</span>
           </div>
         </ActionForm>
       </Modal>

@@ -1,13 +1,13 @@
 import { chromium, devices } from 'playwright';
 import assert from 'node:assert/strict';
 
-const artifactDir = 'C:/Users/risho/.gemini/antigravity/brain/c006547a-552c-4d48-b30e-7c07cf0bf33a';
+const artifactDir = process.env.ARTIFACT_DIR || '.artifacts';
 const base = 'http://localhost:3000';
 
 async function run() {
   const browser = await chromium.launch({
     headless: true,
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
   });
   // iPhone 14 viewport simulation
   const iPhone = devices['iPhone 14'];
@@ -15,6 +15,15 @@ async function run() {
     ...iPhone,
     viewport: { width: 390, height: 844 },
   });
+
+  await context.addCookies([
+    {
+      name: 'bss_demo_user',
+      value: '10000000-0000-4000-8000-000000000001',
+      domain: 'localhost',
+      path: '/',
+    },
+  ]);
 
   const page = await context.newPage();
   console.log('Navigating to', base);
@@ -44,10 +53,51 @@ async function run() {
   await page.screenshot({ path: `${artifactDir}/mobile-dues-matrix.png`, fullPage: false });
   console.log('PASS: Dues matrix is compacted for mobile');
 
-  // 3. Test Bottom-Sheet Modal Opening
-  const quickCollectBtn = page.getByRole('button', { name: /Quick collect/i });
-  if (await quickCollectBtn.isVisible()) {
-    await quickCollectBtn.click();
+  // 3. Test Mobile Members View & Mobile Member Cards
+  await page.goto(`${base}/?view=members`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+
+  // Desktop table must be hidden on mobile
+  const desktopTable = page.locator('.desktop-only-table').first();
+  const isDesktopTableVisible = await desktopTable.isVisible();
+  assert.equal(isDesktopTableVisible, false, 'Desktop member table must be hidden on mobile <= 768px');
+
+  // Mobile cards must be visible
+  const mobileMemberCards = page.locator('.mobile-member-cards');
+  await mobileMemberCards.waitFor({ state: 'visible', timeout: 3000 });
+  const cardCount = await page.locator('.mobile-member-card').count();
+  console.log('Mobile Member Cards rendered:', cardCount);
+  assert.ok(cardCount > 0, 'Mobile member cards must be rendered on mobile view');
+
+  // Verify Mini-stats grid is 3-column compact chip row
+  const miniStats = page.locator('.mini-stats-grid').first();
+  const miniStatsBox = await miniStats.boundingBox();
+  console.log('Mini-stats Height on Mobile:', miniStatsBox?.height);
+  assert.ok(miniStatsBox && miniStatsBox.height < 140, 'Mini-stats should be compact <= 140px on mobile');
+
+  await page.screenshot({ path: `${artifactDir}/mobile-members.png`, fullPage: false });
+  console.log('PASS: Mobile member cards & compact mini-stats rendered');
+
+  // 4. Test Mobile Donations View & Mobile Donation Cards
+  await page.goto(`${base}/?view=donations`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+
+  const desktopDonationTable = page.locator('.desktop-only-table').first();
+  assert.equal(await desktopDonationTable.isVisible(), false, 'Desktop donation table must be hidden on mobile <= 768px');
+
+  const mobileDonationCards = page.locator('.mobile-donation-cards');
+  await mobileDonationCards.waitFor({ state: 'visible', timeout: 3000 });
+  const donationCardCount = await page.locator('.mobile-donation-card').count();
+  console.log('Mobile Donation Cards rendered:', donationCardCount);
+  assert.ok(donationCardCount > 0, 'Mobile donation cards must be rendered on mobile view');
+
+  await page.screenshot({ path: `${artifactDir}/mobile-donations.png`, fullPage: false });
+  console.log('PASS: Mobile donation cards rendered');
+
+  // 5. Test Bottom-Sheet Modal Opening
+  const recordDonationBtn = page.getByRole('button', { name: /Record donation/i });
+  if (await recordDonationBtn.isVisible()) {
+    await recordDonationBtn.click();
     const modal = page.locator('.modal');
     await modal.waitFor({ state: 'visible' });
 
@@ -64,7 +114,7 @@ async function run() {
     await modal.waitFor({ state: 'hidden' });
   }
 
-  // 4. Navigate to Procurement via Bottom Nav
+  // 6. Navigate to Procurement via Bottom Nav
   await page.locator('.mobile-bottom-nav button').filter({ hasText: 'Procure' }).click();
   await page.waitForTimeout(500);
   assert.ok(page.url().includes('view=procurement'), 'URL should switch to procurement');

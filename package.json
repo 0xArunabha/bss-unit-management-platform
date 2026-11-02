@@ -7,6 +7,7 @@
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "test": "node scripts/verify-suite.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

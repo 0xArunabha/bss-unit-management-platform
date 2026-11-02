@@ -125,6 +125,30 @@ export async function clearOfflineQueue(): Promise<void> {
 }
 
 /**
+ * Update the retry count for an offline action.
+ */
+export async function updateOfflineActionRetry(id: number, retryCount: number): Promise<void> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const record = getReq.result as QueuedAction | undefined;
+      if (record) {
+        record.retryCount = retryCount;
+        const putReq = store.put(record);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      } else {
+        resolve();
+      }
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+
+/**
  * Flush and replay all queued actions sequentially to the backend.
  */
 export async function syncOfflineQueue(
@@ -133,6 +157,7 @@ export async function syncOfflineQueue(
   const queue = await getPendingOfflineActions();
   if (!queue.length) return { synced: 0, failed: 0, errors: [] };
 
+  const MAX_RETRIES = 3;
   let synced = 0;
   let failed = 0;
   const errors: string[] = [];
@@ -147,11 +172,33 @@ export async function syncOfflineQueue(
         synced++;
       } else {
         failed++;
-        errors.push(`${item.label}: ${res.error || "Sync rejected"}`);
+        const retries = (item.retryCount || 0) + 1;
+        if (item.id != null) {
+          if (retries >= MAX_RETRIES) {
+            await removeOfflineAction(item.id);
+            errors.push(`${item.label}: rejected permanently after ${retries} attempts (${res.error || "Sync rejected"})`);
+          } else {
+            await updateOfflineActionRetry(item.id, retries);
+            errors.push(`${item.label}: attempt ${retries}/${MAX_RETRIES} failed (${res.error || "Sync rejected"})`);
+          }
+        } else {
+          errors.push(`${item.label}: ${res.error || "Sync rejected"}`);
+        }
       }
     } catch (err) {
       failed++;
-      errors.push(`${item.label}: ${err instanceof Error ? err.message : String(err)}`);
+      const retries = (item.retryCount || 0) + 1;
+      if (item.id != null) {
+        if (retries >= MAX_RETRIES) {
+          await removeOfflineAction(item.id);
+          errors.push(`${item.label}: permanently dropped after ${retries} attempts (${err instanceof Error ? err.message : String(err)})`);
+        } else {
+          await updateOfflineActionRetry(item.id, retries);
+          errors.push(`${item.label}: attempt ${retries}/${MAX_RETRIES} network error (${err instanceof Error ? err.message : String(err)})`);
+        }
+      } else {
+        errors.push(`${item.label}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 

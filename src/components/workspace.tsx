@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type View, type ActionResult } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
 import { Avatar, Badge, Button, Modal, relativeTime } from "@/components/ui";
@@ -24,6 +24,28 @@ export default function Workspace({ initialData }: { initialData: WorkspaceData 
   );
 }
 
+function subscribeOnline(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return typeof navigator !== "undefined" ? navigator.onLine : true;
+}
+
+function getOnlineServerSnapshot() {
+  return true;
+}
+
+function subscribeStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
 function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
   const { locale, setLocale, t } = useI18n();
   const identityRef = identity;
@@ -37,8 +59,16 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
-  const [online, setOnline] = useState(true);
-  const [unread, setUnread] = useState(true);
+  const online = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, getOnlineServerSnapshot);
+  const duesReminderPref = useSyncExternalStore(subscribeStorage, () => localStorage.getItem("bss-dues-reminder") !== "false", () => true);
+  const latestActivityId = data.activities[0]?.id;
+  const [dismissedActivityId, setDismissedActivityId] = useState<string | null>(null);
+  const isUnreadInStorage = useSyncExternalStore(
+    subscribeStorage,
+    () => (latestActivityId ? localStorage.getItem("bss-seen-activity") !== latestActivityId : false),
+    () => false
+  );
+  const unread = Boolean(latestActivityId && isUnreadInStorage && dismissedActivityId !== latestActivityId);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [offlineCount, setOfflineCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -145,14 +175,10 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
     const readLocation = () => { const params = new URLSearchParams(window.location.search); const target = params.get("view"); setView(target && target in labels ? target as View : "overview"); setEventFilter(params.get("event") || "all"); };
     readLocation();
     window.addEventListener("popstate", readLocation);
-    setOnline(navigator.onLine);
-    setUnread(localStorage.getItem("bss-seen-activity") !== initialData.activities[0]?.id);
     const connected = () => {
-      setOnline(true);
       void triggerSync();
     };
-    const disconnected = () => setOnline(false);
-    window.addEventListener("online", connected); window.addEventListener("offline", disconnected);
+    window.addEventListener("online", connected);
     const onInstall = (e: Event) => { e.preventDefault(); installPrompt.current = e as InstallPrompt; };
     window.addEventListener("beforeinstallprompt", onInstall);
     const onSwMessage = (e: MessageEvent) => {
@@ -163,11 +189,10 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
     return () => {
       window.removeEventListener("popstate", readLocation);
       window.removeEventListener("online", connected);
-      window.removeEventListener("offline", disconnected);
       window.removeEventListener("beforeinstallprompt", onInstall);
       navigator.serviceWorker?.removeEventListener("message", onSwMessage);
     };
-  }, [initialData.activities, triggerSync]);
+  }, [triggerSync, labels]);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setSearchOpen((v) => !v); setPopover(null); } if (e.key === "Escape") { setPopover(null); setSidebarOpen(false); } };
     const click = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest("[data-popover]")) setPopover(null); };
@@ -187,7 +212,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
           if (lastActivity.current !== updated.activities[0]?.id || updated.profiles.length !== data.profiles.length) {
             setData(updated);
             if (lastActivity.current && updated.activities[0]?.id !== lastActivity.current) {
-              setUnread(true);
+              setDismissedActivityId(null);
               if (localStorage.getItem("bss-sound") === "true") {
                 try { const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); gain.gain.value = .035; oscillator.frequency.value = 660; oscillator.start(); oscillator.stop(context.currentTime + .12); oscillator.onended = () => void context.close(); } catch { /* Browser may require a user gesture. */ }
               }
@@ -223,7 +248,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
       const response = await fetch("/api/workspace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Unable to save this record.");
-      setData(result.data); lastActivity.current = result.data.activities[0]?.id; setUnread(true); notify(result.message);
+      setData(result.data); lastActivity.current = result.data.activities[0]?.id; setDismissedActivityId(null); notify(result.message);
       hapticSuccess();
       return result as ActionResult;
     } catch (error) {
@@ -264,8 +289,14 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
     if (installPrompt.current) { await installPrompt.current.prompt(); const choice = await installPrompt.current.userChoice; if (choice.outcome === "accepted") notify("The unit workspace has been added to your device."); installPrompt.current = null; }
     else notify("Use your browser menu → Install app or Add to Home Screen. On iPhone, use Share → Add to Home Screen.");
   }, [notify]);
-  const markRead = () => { setUnread(false); localStorage.setItem("bss-seen-activity", data.activities[0]?.id || ""); };
-  const showReminder = typeof window !== "undefined" && localStorage.getItem("bss-dues-reminder") !== "false" && user.unpaidMonths > 0;
+  const markRead = () => {
+    if (latestActivityId) {
+      setDismissedActivityId(latestActivityId);
+      localStorage.setItem("bss-seen-activity", latestActivityId);
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+  const showReminder = duesReminderPref && user.unpaidMonths > 0;
   const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => <button key={item.view} className={`nav-item ${view === item.view ? "nav-item-active" : ""}`} aria-current={view === item.view ? "page" : undefined} onClick={() => navigate(item.view)}><item.icon size={18} strokeWidth={1.65} /><span>{item.label}</span>{item.view === "procurement" && needed > 0 && <span className="nav-count">{needed}</span>}{item.view === "members" && <span className="nav-member-count">{data.profiles.length}</span>}{item.view === "circulars" && <span className="nav-new-dot" />}</button>;
 
   if (!isAuthorized && !guestMode) {
@@ -466,24 +497,24 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
           onClick={() => navigate("overview")}
           aria-current={view === "overview" ? "page" : undefined}
         >
-          <LayoutDashboard size={20} strokeWidth={view === "overview" ? 2.2 : 1.7} />
-          <span>{t("overview")}</span>
+          <LayoutDashboard size={19} strokeWidth={view === "overview" ? 2.2 : 1.7} />
+          <span>{locale === "bn" ? "সারসংক্ষেপ" : "Overview"}</span>
         </button>
         <button
           className={`bottom-nav-item ${view === "members" ? "bottom-nav-active" : ""}`}
           onClick={() => navigate("members")}
           aria-current={view === "members" ? "page" : undefined}
         >
-          <Users size={20} strokeWidth={view === "members" ? 2.2 : 1.7} />
-          <span>{t("members")}</span>
+          <Users size={19} strokeWidth={view === "members" ? 2.2 : 1.7} />
+          <span>{locale === "bn" ? "সদস্য" : "Members"}</span>
         </button>
         <button
           className={`bottom-nav-item ${view === "dues" ? "bottom-nav-active" : ""}`}
           onClick={() => navigate("dues")}
           aria-current={view === "dues" ? "page" : undefined}
         >
-          <Wallet size={20} strokeWidth={view === "dues" ? 2.2 : 1.7} />
-          <span>{t("dues")}</span>
+          <Wallet size={19} strokeWidth={view === "dues" ? 2.2 : 1.7} />
+          <span>{locale === "bn" ? "চাঁদা" : "Dues"}</span>
           {user.unpaidMonths > 0 && <span className="bottom-nav-dot" />}
         </button>
         <button
@@ -491,8 +522,8 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
           onClick={() => navigate("procurement")}
           aria-current={view === "procurement" ? "page" : undefined}
         >
-          <ClipboardList size={20} strokeWidth={view === "procurement" ? 2.2 : 1.7} />
-          <span>{t("procurement")}</span>
+          <ClipboardList size={19} strokeWidth={view === "procurement" ? 2.2 : 1.7} />
+          <span>{locale === "bn" ? "কেনাকাটা" : "Procure"}</span>
           {needed > 0 && <span className="bottom-nav-badge">{needed}</span>}
         </button>
         <button
@@ -500,7 +531,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
           onClick={() => setSidebarOpen(true)}
           aria-label="Open navigation drawer"
         >
-          <Menu size={20} strokeWidth={1.7} />
+          <Menu size={19} strokeWidth={1.7} />
           <span>{locale === "bn" ? "অন্যান্য" : "More"}</span>
         </button>
       </nav>

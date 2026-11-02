@@ -8,7 +8,7 @@ const svgContent = fs.readFileSync(svgPath, 'utf8');
 async function generate() {
   const browser = await chromium.launch({
     headless: true,
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
   });
 
   const page = await browser.newPage();

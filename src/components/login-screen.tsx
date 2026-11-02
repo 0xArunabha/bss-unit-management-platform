@@ -379,7 +379,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
             <div className="recovery-help-box">
               <HelpCircle size={15} />
               <p>
-                Haven't linked a Google account yet? Ask Unit Secretary <strong>Arunabha Ghosh</strong> to view or issue your unique PIN.
+                Haven&apos;t linked a Google account yet? Ask Unit Secretary <strong>Arunabha Ghosh</strong> to view or issue your unique PIN.
               </p>
             </div>
 
