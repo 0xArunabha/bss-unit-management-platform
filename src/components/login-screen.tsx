@@ -248,22 +248,21 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
                 <span>{loading ? "Signing in..." : "Member Login with Google"}</span>
               </button>
 
-              <div className="login-links-row">
+              <div className="login-alt-actions">
                 <button
                   type="button"
-                  className="text-link-btn"
+                  className="login-chip-btn"
                   onClick={() => setMode("claimCode")}
                 >
-                  <KeyRound size={14} />
-                  <span>I have a single-use member code</span>
+                  <KeyRound size={13} />
+                  <span>I have a member code</span>
                 </button>
-                <span className="dot-sep">·</span>
                 <button
                   type="button"
-                  className="text-link-btn"
+                  className="login-chip-btn"
                   onClick={() => setMode("apply")}
                 >
-                  <Sparkles size={14} />
+                  <Sparkles size={13} />
                   <span>Apply to join unit</span>
                 </button>
               </div>
@@ -275,16 +274,20 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
 
             {/* Public Entry */}
             <div className="public-access-card">
-              <div className="public-access-info">
-                <strong>Public Visitor or Science Advocate?</strong>
-                <p>Browse open science outreach notices, anti-superstition demo guides, verify donation receipts, or submit a membership request.</p>
+              <div className="public-access-header">
+                <div className="public-access-badge">
+                  <Compass size={17} />
+                </div>
+                <div className="public-access-info">
+                  <strong>Public Visitor or Science Advocate?</strong>
+                  <p>Browse open science outreach notices, anti-superstition demo guides, verify donation receipts, or submit a membership request.</p>
+                </div>
               </div>
               <button
                 type="button"
                 className="guest-action-btn"
                 onClick={onContinueAsGuest}
               >
-                <Compass size={16} />
                 <span>Explore Public Unit Portal</span>
                 <ArrowRight size={15} />
               </button>
@@ -439,7 +442,8 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
 
         {/* Footer info */}
         <div className="login-footer">
-          <span>Zero-Knowledge Server Projection · Zero Plaintext Storage · DPDP Act Compliant</span>
+          <ShieldCheck size={14} className="security-icon" />
+          <span>Zero-Knowledge Server Projection · Zero Plaintext Storage · DPDP Act 2023 Compliant</span>
         </div>
       </div>
     </div>
