@@ -10,8 +10,9 @@ import { executeDemoAction } from "@/lib/demo-data";
 import { SESSION_COOKIE_NAME, createSession, verifySession, verifySessionToken, destroySession } from "@/lib/session";
 import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rate-limit";
 import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, resetClaimRateLimit } from "@/lib/claim-codes";
-import { and, eq, isNull, gt } from "drizzle-orm";
+import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 const text = (value: unknown, label: string, max = 300) => {
@@ -41,7 +42,18 @@ const mode = (value: unknown) => {
 export async function GET(request: NextRequest) {
   try {
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
-    const userId = await verifySessionToken(rawCookie);
+    let userId = await verifySessionToken(rawCookie);
+    if (!userId && isDatabaseConfigured) {
+      try {
+        const session = await auth.api.getSession({ headers: request.headers });
+        if (session?.user) {
+          const [matched] = await db.select().from(profiles).where(
+            or(eq(profiles.googleSub, session.user.id), eq(profiles.googleEmail, session.user.email.toLowerCase()))
+          );
+          if (matched) userId = matched.id;
+        }
+      } catch {}
+    }
     return NextResponse.json(await getWorkspace(userId || undefined));
   } catch (error) {
     console.error("[Workspace GET Error]", error);
@@ -54,7 +66,18 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
-    const userId = await verifySessionToken(rawCookie);
+    let userId = await verifySessionToken(rawCookie);
+    if (!userId && isDatabaseConfigured) {
+      try {
+        const session = await auth.api.getSession({ headers: request.headers });
+        if (session?.user) {
+          const [matched] = await db.select().from(profiles).where(
+            or(eq(profiles.googleSub, session.user.id), eq(profiles.googleEmail, session.user.email.toLowerCase()))
+          );
+          if (matched) userId = matched.id;
+        }
+      } catch {}
+    }
     const isPublicAction = ["login", "claimInviteCode", "applyToJoin", "addDonation"].includes(body.action);
 
     if (body.action === "login") {

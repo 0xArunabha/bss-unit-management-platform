@@ -32,6 +32,9 @@ export default async function HomePage() {
 
         if (matchedProfile) {
           authenticatedUserId = matchedProfile.id;
+          if (!matchedProfile.googleSub && userSub) {
+            await db.update(profiles).set({ googleSub: userSub }).where(eq(profiles.id, matchedProfile.id));
+          }
         } else {
           pendingGoogleEmail = userEmail;
         }

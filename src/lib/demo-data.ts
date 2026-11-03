@@ -262,7 +262,9 @@ const demoPins = new Map<string, string>();
 if (process.env.INITIAL_ADMIN_PIN) {
   demoPins.set(DEMO_ADMIN_ID, hashPin(process.env.INITIAL_ADMIN_PIN, DEMO_ADMIN_ID));
 }
-const demoGoogle = new Map<string, string>();
+const demoGoogle = new Map<string, string>([
+  [DEMO_ADMIN_ID, "amimitaghosh99@gmail.com"],
+]);
 const demoIdempotency = new Map<string, { action: string; message: string; receiptId?: string; createdAt: number }>();
 
 export function getDemoWorkspace(userId?: string): WorkspaceData {

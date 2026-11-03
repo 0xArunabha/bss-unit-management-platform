@@ -316,6 +316,11 @@ async function seed() {
         NOW() + INTERVAL '30 days'
       )
       ON CONFLICT (code_hash) DO NOTHING;
+
+      -- Pre-bind Unit Secretary Arunabha Ghosh directly to amimitaghosh99@gmail.com
+      UPDATE profiles
+      SET google_email = 'amimitaghosh99@gmail.com'
+      WHERE id = '10000000-0000-4000-8000-000000000001';
     `);
     if ((await tx.select({ id: profiles.id }).from(profiles).limit(1)).length) {
       // Localize only untouched, fixed-ID sample records. Never reset user data or ledger history.
