@@ -252,18 +252,10 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
                 <button
                   type="button"
                   className="login-chip-btn"
-                  onClick={() => setMode("claimCode")}
-                >
-                  <KeyRound size={13} />
-                  <span>I have a member code</span>
-                </button>
-                <button
-                  type="button"
-                  className="login-chip-btn"
                   onClick={() => setMode("apply")}
                 >
                   <Sparkles size={13} />
-                  <span>Apply to join unit</span>
+                  <span>New to the unit? Apply to join</span>
                 </button>
               </div>
             </div>
