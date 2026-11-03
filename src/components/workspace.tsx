@@ -16,10 +16,10 @@ import { I18nProvider, useI18n } from "@/lib/i18n";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-export default function Workspace({ initialData }: { initialData: WorkspaceData }) {
+export default function Workspace({ initialData, initialGoogleEmail }: { initialData: WorkspaceData; initialGoogleEmail?: string | null }) {
   return (
     <I18nProvider>
-      <WorkspaceInner initialData={initialData} />
+      <WorkspaceInner initialData={initialData} initialGoogleEmail={initialGoogleEmail} />
     </I18nProvider>
   );
 }
@@ -46,7 +46,7 @@ function subscribeStorage(callback: () => void) {
   return () => window.removeEventListener("storage", callback);
 }
 
-function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
+function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: WorkspaceData; initialGoogleEmail?: string | null }) {
   const { locale, setLocale, t } = useI18n();
   const identityRef = identity;
   const [data, setData] = useState(initialData);
@@ -333,7 +333,7 @@ function WorkspaceInner({ initialData }: { initialData: WorkspaceData }) {
   const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => <button key={item.view} className={`nav-item ${view === item.view ? "nav-item-active" : ""}`} aria-current={view === item.view ? "page" : undefined} onClick={() => navigate(item.view)}><item.icon size={18} strokeWidth={1.65} /><span>{item.label}</span>{item.view === "procurement" && needed > 0 && <span className="nav-count">{needed}</span>}{item.view === "members" && <span className="nav-member-count">{data.profiles.length}</span>}{item.view === "circulars" && <span className="nav-new-dot" />}</button>;
 
   if (!isAuthorized && !guestMode) {
-    return <LoginScreen data={data} perform={perform} onContinueAsGuest={() => setGuestMode(true)} />;
+    return <LoginScreen data={data} perform={perform} onContinueAsGuest={() => setGuestMode(true)} initialGoogleEmail={initialGoogleEmail} />;
   }
 
   return <div className="workspace-app">

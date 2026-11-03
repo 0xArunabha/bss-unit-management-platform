@@ -13,13 +13,16 @@ interface LoginScreenProps {
   data: WorkspaceData;
   perform: PerformAction;
   onContinueAsGuest: () => void;
+  initialGoogleEmail?: string | null;
 }
 
-export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenProps) {
-  const [mode, setMode] = useState<"login" | "claimCode" | "apply">("login");
+export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEmail }: LoginScreenProps) {
+  const [mode, setMode] = useState<"login" | "claimCode" | "apply">(() => initialGoogleEmail ? "claimCode" : "login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
+  const [success, setSuccess] = useState<string>(() =>
+    initialGoogleEmail ? `Signed in with Google as ${initialGoogleEmail}. Link your member code below, or submit an application.` : ""
+  );
 
   // In-app browser detection (Google OAuth blocks webviews)
   const [isInAppBrowser] = useState(() => {
@@ -32,7 +35,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
 
   // Claim code state
   const [claimCodeInput, setClaimCodeInput] = useState("");
-  const [simulatedGoogleEmail, setSimulatedGoogleEmail] = useState("");
+  const [simulatedGoogleEmail, setSimulatedGoogleEmail] = useState(initialGoogleEmail || "");
 
   // Application form state
   const [appFullName, setAppFullName] = useState("");
@@ -59,47 +62,15 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
     setError("");
 
     try {
-      // If Better Auth has configured social providers and we are on a real domain with Google keys
-      if (process.env.NEXT_PUBLIC_USE_REAL_GOOGLE === "true") {
-        await authClient.signIn.social({
-          provider: "google",
-          callbackURL: window.location.origin,
-        });
-        return;
-      }
-
-      // Preview / demo authentication: prompt user for demo Google account or auto-match
-      // If already linked, straight into the workspace!
-      const email = prompt("Enter your Google Account email for sign-in (or leave default for Secretary Arunabha Ghosh):", "arunabha.science@gmail.com");
-      if (!email) {
-        setLoading(false);
-        return;
-      }
-
-      setSimulatedGoogleEmail(email.trim().toLowerCase());
-
-      // Check if this Google account is already linked to a profile
-      const matchingProfile = data.profiles.find(
-        (p) => p.googleEmail?.toLowerCase() === email.trim().toLowerCase()
-      );
-
-      if (matchingProfile) {
-        // Straight into workspace!
-        const res = await perform("login", { memberId: matchingProfile.id });
-        if (res) {
-          hapticSuccess();
-          return;
-        }
-      }
-
-      // If unlinked, direct user to onboarding step (Enter invite code or Apply to join)
-      setMode("claimCode");
-      setError("");
-      setSuccess(`Signed in with Google as ${email.trim().toLowerCase()}. Link your member code below, or submit an application.`);
+      // Direct integration with Better Auth social sign-in (Google OAuth 2.0)
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: window.location.origin,
+      });
+      return;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in could not be completed.");
-      hapticWarning();
-    } finally {
+      console.error("[Google OAuth Error]", err);
+      setError(err instanceof Error ? err.message : "Google sign-in could not be initiated. Please check your network.");
       setLoading(false);
     }
   };
