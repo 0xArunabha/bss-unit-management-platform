@@ -116,7 +116,7 @@ export function MembersView({ data, open, perform }: Props) {
                   `${identity.filePrefix}-members.csv`,
                   [
                     isExecutive
-                      ? ["Member Code", "Name", "Role", "Status", "Monthly pledge", "Unpaid months", "Joined", "Access PIN"]
+                      ? ["Member Code", "Name", "Role", "Status", "Monthly pledge", "Unpaid months", "Joined", "Google Account"]
                       : ["Member Code", "Name", "Role", "Status", "Monthly pledge", "Unpaid months", "Joined"],
                     ...people.map((p, idx) => [
                       `JPG-${String(idx + 1).padStart(3, "0")}`,
@@ -126,6 +126,7 @@ export function MembersView({ data, open, perform }: Props) {
                       p.monthlyPledge,
                       p.unpaidMonths || 0,
                       new Date(p.createdAt).toLocaleDateString("en-IN"),
+                      ...(isExecutive ? [p.googleEmail || "Not linked"] : []),
                     ]),
                   ]
                 )

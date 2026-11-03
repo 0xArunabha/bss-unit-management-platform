@@ -459,7 +459,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                 </button>
                 <button onClick={() => navigate("settings")}>
                   <Settings size={15} />
-                  {locale === "bn" ? "অ্যাকাউন্ট ও নিরাপত্তা" : "Account & PIN security"}
+                  {locale === "bn" ? "অ্যাকাউন্ট ও নিরাপত্তা" : "Account & Security"}
                   <ArrowUpRight size={13} />
                 </button>
                 <button onClick={() => guestMode ? setGuestMode(false) : void perform("logout", {})}>

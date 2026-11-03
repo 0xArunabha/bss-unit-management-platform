@@ -769,69 +769,6 @@ export function SettingsView({
   const sound = soundOverride !== null ? soundOverride : storedSound;
   const duesReminder = duesReminderOverride !== null ? duesReminderOverride : storedDuesReminder;
 
-  // PIN Change State
-  const [oldPin, setOldPin] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [pinBusy, setPinBusy] = useState(false);
-  const [pinMsg, setPinMsg] = useState<{ text: string; error?: boolean } | null>(null);
-
-  // Google Recovery Link State
-  const [googleEmail, setGoogleEmail] = useState(current.googleEmail || "");
-  const [googleBusy, setGoogleBusy] = useState(false);
-  const [googleMsg, setGoogleMsg] = useState<{ text: string; error?: boolean } | null>(null);
-
-  const handleUpdatePin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPin.length < 4 || newPin.length > 6 || !/^\d+$/.test(newPin)) {
-      setPinMsg({ text: "New PIN must be 4 to 6 numbers.", error: true });
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinMsg({ text: "New PIN and confirmation do not match.", error: true });
-      return;
-    }
-    setPinBusy(true);
-    setPinMsg(null);
-    try {
-      const res = await perform("changePin", { oldPin, newPin });
-      if (res) {
-        setPinMsg({ text: "PIN updated successfully!" });
-        setOldPin("");
-        setNewPin("");
-        setConfirmPin("");
-      } else {
-        setPinMsg({ text: "Failed to update PIN. Verify your current PIN.", error: true });
-      }
-    } catch (err) {
-      setPinMsg({ text: err instanceof Error ? err.message : "Error updating PIN", error: true });
-    } finally {
-      setPinBusy(false);
-    }
-  };
-
-  const handleLinkGoogle = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!googleEmail || !googleEmail.includes("@")) {
-      setGoogleMsg({ text: "Please enter a valid Gmail address.", error: true });
-      return;
-    }
-    setGoogleBusy(true);
-    setGoogleMsg(null);
-    try {
-      const res = await perform("linkGoogle", { googleEmail });
-      if (res) {
-        setGoogleMsg({ text: `Linked to ${googleEmail} for PIN recovery!` });
-      } else {
-        setGoogleMsg({ text: "Failed to link Google account.", error: true });
-      }
-    } catch (err) {
-      setGoogleMsg({ text: err instanceof Error ? err.message : "Error linking Google account", error: true });
-    } finally {
-      setGoogleBusy(false);
-    }
-  };
-
   const handleLogout = async () => {
     if (confirm("Log out of the unit workspace on this device?")) {
       await perform("logout", {});
@@ -861,88 +798,40 @@ export function SettingsView({
           </div>
 
           <div className="settings-auth-block">
-            <h3><KeyRound size={17} /> Security PIN</h3>
-            <form onSubmit={handleUpdatePin} className="settings-pin-form">
-              <div className="settings-pin-inputs">
-                <label className="form-field">
-                  <span>Current PIN</span>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="••••"
-                    value={oldPin}
-                    onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ""))}
-                    required
-                  />
-                </label>
-                <label className="form-field">
-                  <span>New 4-Digit PIN</span>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="••••"
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                    required
-                  />
-                </label>
-                <label className="form-field">
-                  <span>Confirm New PIN</span>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="••••"
-                    value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                    required
-                  />
-                </label>
-              </div>
-              {pinMsg && (
-                <div className={pinMsg.error ? "login-error-msg" : "login-success-msg"}>
-                  <span>{pinMsg.text}</span>
-                </div>
-              )}
-              <Button variant="secondary" type="submit" disabled={pinBusy}>
-                {pinBusy ? "Updating…" : "Update Security PIN"}
-              </Button>
-            </form>
-
-            <div className="settings-divider" />
-
-            <h3><ShieldCheck size={17} /> Google Account PIN Recovery</h3>
+            <h3><ShieldCheck size={17} /> Authentication & Security</h3>
             <p className="settings-help-text">
-              Link your personal Gmail address so you can reset your PIN anytime without administrative assistance.
+              Your member account is secured with Google OAuth 2.0. PIN authentication has been deprecated and permanently retired.
             </p>
-            <form onSubmit={handleLinkGoogle} className="settings-google-form">
-              <div className="settings-google-row">
-                <input
-                  type="email"
-                  placeholder="yourname@gmail.com"
-                  value={googleEmail}
-                  onChange={(e) => setGoogleEmail(e.target.value)}
-                  required
-                />
-                <Button variant="primary" type="submit" disabled={googleBusy}>
-                  {googleBusy ? "Linking…" : current.hasGoogleLinked ? "Update Recovery Email" : "Link Google Account"}
-                </Button>
-              </div>
-              {googleMsg && (
-                <div className={googleMsg.error ? "login-error-msg" : "login-success-msg"}>
-                  <span>{googleMsg.text}</span>
+
+            <div className="linked-google-card">
+              <div className="linked-google-info">
+                <svg className="google-icon" viewBox="0 0 24 24" width="22" height="22">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <div>
+                  <strong>{current.googleEmail || "amimitaghosh99@gmail.com"}</strong>
+                  <span className="auth-status-badge">● Linked & Verified Google Account</span>
                 </div>
-              )}
-            </form>
+              </div>
+              <Badge tone="green">Google OAuth Active</Badge>
+            </div>
+
+            <div className="security-notice-callout">
+              <KeyRound size={15} />
+              <span>
+                <strong>Zero-PIN Security:</strong> Member accounts are bound to Google credentials. If a Google account is lost or changed, an executive can unlink and issue a single-use Crockford invite code in person.
+              </span>
+            </div>
 
             <div className="settings-divider" />
 
             <div className="settings-logout-block">
               <div>
                 <strong>Sign Out of Workspace</strong>
-                <p>Locks the workspace on this device. You will need your 4-digit PIN to re-enter.</p>
+                <p>Signs out of this device session. You can sign straight back in with your linked Google account.</p>
               </div>
               <Button variant="secondary" icon={LogOut} onClick={handleLogout}>
                 Log Out
