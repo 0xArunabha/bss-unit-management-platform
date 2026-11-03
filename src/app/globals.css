@@ -3711,6 +3711,25 @@ textarea,
   color: var(--charcoal-muted, #6d7663);
   text-align: center;
 }
+.executive-code-hint-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 8px 14px;
+  background: rgba(191, 80, 41, 0.08);
+  border: 1px dashed var(--rust, #bf5029);
+  border-radius: 6px;
+  color: var(--rust, #bf5029);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.executive-code-hint-chip:hover {
+  background: rgba(191, 80, 41, 0.14);
+  transform: translateY(-1px);
+}
 .onboarding-actions {
   display: flex;
   flex-direction: column;

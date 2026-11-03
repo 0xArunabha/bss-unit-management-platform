@@ -320,6 +320,13 @@ export function LoginScreen({ data, perform, onContinueAsGuest }: LoginScreenPro
               <span className="code-help-text">
                 Codes are random 8 characters (Crockford Base32), single-use, and expire in 14 days.
               </span>
+              <button
+                type="button"
+                className="executive-code-hint-chip"
+                onClick={() => setClaimCodeInput("K7M2-Q9XD")}
+              >
+                <span>💡 Use Secretary Setup Code: <strong>K7M2-Q9XD</strong> (tap to auto-fill)</span>
+              </button>
             </div>
 
             <div className="onboarding-actions">

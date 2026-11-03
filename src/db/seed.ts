@@ -305,6 +305,17 @@ async function seed() {
         reviewed_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      -- Bootstrap initial executive setup code: K7M2-Q9XD (links to Executive Arunabha Ghosh)
+      INSERT INTO claim_codes (id, code_hash, member_id, created_by, expires_at)
+      VALUES (
+        '90000000-0000-4000-8000-000000000001',
+        '293672d5bac17faaedab18d894dfa18b62f987ffef09a05c1cf8bebbeb7da6b5',
+        '10000000-0000-4000-8000-000000000001',
+        '10000000-0000-4000-8000-000000000001',
+        NOW() + INTERVAL '30 days'
+      )
+      ON CONFLICT (code_hash) DO NOTHING;
     `);
     if ((await tx.select({ id: profiles.id }).from(profiles).limit(1)).length) {
       // Localize only untouched, fixed-ID sample records. Never reset user data or ledger history.

@@ -67,3 +67,14 @@ interface DemoClaimCode {
   createdAt: Date;
 }
 export const demoClaimCodesStore = new Map<string, DemoClaimCode>();
+
+// Bootstrap initial executive setup code: K7M2-Q9XD (links to Executive Arunabha Ghosh)
+const BOOTSTRAP_HASH = "293672d5bac17faaedab18d894dfa18b62f987ffef09a05c1cf8bebbeb7da6b5";
+demoClaimCodesStore.set(BOOTSTRAP_HASH, {
+  id: "90000000-0000-4000-8000-000000000001",
+  codeHash: BOOTSTRAP_HASH,
+  memberId: "10000000-0000-4000-8000-000000000001", // Arunabha Ghosh
+  issuedBy: "10000000-0000-4000-8000-000000000001",
+  expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  createdAt: new Date(),
+});
