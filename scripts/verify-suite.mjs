@@ -63,19 +63,21 @@ await test('BUG-SEC-01: route.ts and page.tsx verify cryptographically signed HM
   assert.equal(userId.split('.').length, 1, 'Raw UUID must fail 3-part token validation');
 });
 
-// 2. BUG-SEC-02: switchUser requires admin role
-await test('BUG-SEC-02: switchUser enforces executive authorization', () => {
+// 2. BUG-SEC-02: no credential-less sign-in and no impersonation
+// These are tripwires for two holes that existed once. They only read source text, so they cannot prove
+// the handlers are safe: run the behaviour scenarios in verification/ for that.
+await test('BUG-SEC-02: no public "login" action and no "switchUser" impersonation exist', () => {
   const content = fs.readFileSync(resolveApp('src/app/api/workspace/route.ts'), 'utf8');
-  const switchIdx = content.indexOf('case "switchUser":');
-  assert.ok(switchIdx >= 0, 'switchUser case must exist in route.ts');
-  const block = content.slice(switchIdx, switchIdx + 300);
-  assert.ok(block.includes('requireRole(["admin"])'), 'switchUser in route.ts must require admin role');
+  assert.ok(!content.includes('case "login":'), 'route.ts must not contain a credential-less login action');
+  assert.ok(!content.includes('case "switchUser":'), 'route.ts must not contain switchUser impersonation');
+  assert.ok(!/isPublicAction\s*=\s*\[[^\]]*"login"/.test(content), '"login" must not be a public action');
 
   const demoContent = fs.readFileSync(resolveApp('src/lib/demo-data.ts'), 'utf8');
-  const demoSwitchIdx = demoContent.indexOf('case "switchUser":');
-  assert.ok(demoSwitchIdx >= 0, 'switchUser case must exist in demo-data.ts');
-  const demoBlock = demoContent.slice(demoSwitchIdx, demoSwitchIdx + 300);
-  assert.ok(demoBlock.includes('user.role !== "admin"'), 'switchUser in demo-data.ts must restrict to admin');
+  assert.ok(!demoContent.includes('case "switchUser":'), 'demo-data.ts must not contain switchUser');
+  const loginIdx = demoContent.indexOf('case "login":');
+  if (loginIdx >= 0) {
+    assert.ok(demoContent.slice(loginIdx, loginIdx + 400).includes('NODE_ENV === "production"'), 'demo login must be disabled in production');
+  }
 });
 
 // 3. BUG-SEC-03: Zero PIN storage; single-use Crockford Base32 claim codes are hashed with SHA-256
@@ -129,15 +131,14 @@ await test('BUG-SEC-04: Strict server-side projection: zero leaks for Public and
   assert.ok(demoContent.includes('circulars: []'), 'demo-data.ts must return empty circulars for unauthenticated visitors');
 });
 
-// 5. BUG-SEC-05: Rate limiting on login attempts
-await test('BUG-SEC-05: Rate limiting defends against brute-force attacks on PINs', () => {
+// 5. BUG-SEC-05: Rate limiting on member-code claim attempts (PIN login no longer exists)
+await test('BUG-SEC-05: member-code claim attempts are rate limited', () => {
   const routeContent = fs.readFileSync(resolveApp('src/app/api/workspace/route.ts'), 'utf8');
-  assert.ok(routeContent.includes('checkLoginRateLimit'), 'route.ts must enforce checkLoginRateLimit on login');
+  assert.ok(routeContent.includes('checkClaimRateLimit'), 'route.ts must rate limit claim attempts');
   assert.ok(routeContent.includes('status: 429'), 'route.ts must return HTTP 429 when rate limit exceeded');
 
-  const rateLimitFile = fs.readFileSync(resolveApp('src/lib/rate-limit.ts'), 'utf8');
-  assert.ok(rateLimitFile.includes('MAX_FAILED_ATTEMPTS = 5'), 'rate-limit.ts must enforce max 5 failed attempts');
-  assert.ok(rateLimitFile.includes('LOCKOUT_DURATION_MS = 5 * 60 * 1000'), 'rate-limit.ts must enforce 5-minute lockout');
+  const claimFile = fs.readFileSync(resolveApp('src/lib/claim-codes.ts'), 'utf8');
+  assert.ok(claimFile.includes('record.attempts >= 5'), 'claim-codes.ts must cap attempts at 5 per window');
 });
 
 // 6. BUG-DB-01: Engine-level check constraints in PostgreSQL seed

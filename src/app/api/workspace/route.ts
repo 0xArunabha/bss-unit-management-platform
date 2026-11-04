@@ -8,7 +8,6 @@ import { sendPush } from "@/lib/push";
 import { sendDonationSms } from "@/lib/sms";
 import { executeDemoAction } from "@/lib/demo-data";
 import { SESSION_COOKIE_NAME, createSession, verifySession, verifySessionToken, destroySession } from "@/lib/session";
-import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rate-limit";
 import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, resetClaimRateLimit } from "@/lib/claim-codes";
 import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -62,7 +61,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let rateLimitKey: string | null = null;
   try {
     const body = await request.json();
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
@@ -78,20 +76,9 @@ export async function POST(request: NextRequest) {
         }
       } catch {}
     }
-    const isPublicAction = ["login", "claimInviteCode", "applyToJoin", "addDonation"].includes(body.action);
-
-    if (body.action === "login") {
-      const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
-      rateLimitKey = `${clientIp}:${body.memberId || "unknown"}`;
-      const rateCheck = checkLoginRateLimit(rateLimitKey);
-      if (!rateCheck.allowed) {
-        return NextResponse.json(
-          { error: rateCheck.message },
-          { status: 429, headers: { "Retry-After": String(rateCheck.retryAfterSeconds) } }
-        );
-      }
-      await new Promise((r) => setTimeout(r, 100));
-    }
+    // Actions that do not need an existing member session. Signing in is NOT one of them:
+    // the only way in is a Google session linked to a member profile (see page.tsx / getWorkspace).
+    const isPublicAction = ["claimInviteCode", "applyToJoin", "addDonation"].includes(body.action);
 
     if (body.action === "claimInviteCode") {
       const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "127.0.0.1";
@@ -109,9 +96,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Please log in to the workspace with your member account." }, { status: 401 });
       }
       const demoResult = await executeDemoAction(body.action, body, userId || "");
-      if (rateLimitKey && body.action === "login") {
-        resetLoginRateLimit(rateLimitKey);
-      }
       const nextUser = demoResult.nextUser !== undefined ? demoResult.nextUser : (userId || "");
       const response = NextResponse.json({
         data: await getWorkspace(nextUser),
@@ -147,7 +131,7 @@ export async function POST(request: NextRequest) {
       }
     }
     if (!isPublicAction && !foundUser) {
-      return NextResponse.json({ error: "Please log in to the workspace with your 4-digit PIN." }, { status: 401 });
+      return NextResponse.json({ error: "Please sign in with your member account." }, { status: 401 });
     }
     const user = foundUser!;
 
@@ -177,15 +161,6 @@ export async function POST(request: NextRequest) {
     let receiptId: string | undefined;
     let nextUser = foundUser ? foundUser.id : "";
     switch (body.action) {
-      case "login": {
-        const memberId = id(body.memberId);
-        const [target] = await db.select().from(profiles).where(eq(profiles.id, memberId));
-        if (!target) throw new Error("Member profile not found.");
-        if (rateLimitKey) resetLoginRateLimit(rateLimitKey);
-        nextUser = target.id;
-        message = `Welcome back, ${target.fullName}!`;
-        break;
-      }
       case "logout": {
         nextUser = "";
         if (rawCookie) await destroySession(rawCookie);
@@ -523,15 +498,6 @@ export async function POST(request: NextRequest) {
         message = "Your notice is on the board.";
         break;
       }
-      case "switchUser": {
-        requireRole(["admin"]);
-        const selectedId = id(body.userId);
-        const [selected] = await db.select().from(profiles).where(eq(profiles.id, selectedId));
-        if (!selected) throw new Error("Member not found.");
-        nextUser = selected.id;
-        message = `Now previewing as ${selected.fullName}.`;
-        break;
-      }
       default: throw new Error("Unknown workspace action.");
     }
 
@@ -562,9 +528,6 @@ export async function POST(request: NextRequest) {
     response.cookies.delete("bss_demo_user");
     return response;
   } catch (error) {
-    if (rateLimitKey) {
-      recordFailedLogin(rateLimitKey);
-    }
     const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
     console.error("Workspace action:", message);
     const safe = message.includes("violates") || message.includes("query:") || message.includes("invalid input") ? "Unable to save. Please check the details and try again." : message;

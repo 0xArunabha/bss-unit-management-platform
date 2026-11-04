@@ -394,6 +394,8 @@ export async function executeDemoAction(action: string, body: any, currentUserId
 
   switch (action) {
     case "login": {
+      // Local-development convenience only: it has no credential check, so it must never run in production.
+      if (process.env.NODE_ENV === "production") throw new Error("Demo sign-in is disabled in production.");
       const selected = state.profiles.find((p) => p.id === body.memberId);
       if (!selected) throw new Error("Member profile not found.");
       nextUser = selected.id;
@@ -537,14 +539,6 @@ export async function executeDemoAction(action: string, body: any, currentUserId
         message: `Status for ${target.fullName}: Pledge ₹${target.monthlyPledge}/mo, ${target.unpaidMonths} months unpaid.`,
         nextUser: user.id,
       };
-    }
-    case "switchUser": {
-      if (!user || user.role !== "admin") throw new Error("Only unit executives can switch preview accounts.");
-      const selected = state.profiles.find((p) => p.id === body.userId);
-      if (!selected) throw new Error("Member not found.");
-      nextUser = selected.id;
-      message = `Now previewing as ${selected.fullName}.`;
-      break;
     }
     case "collectDues": {
       const member = state.profiles.find((p) => p.id === body.memberId);
