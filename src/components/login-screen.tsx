@@ -78,7 +78,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
     e.preventDefault();
     const normalized = normalizeCode(claimCodeInput);
     if (normalized.length !== 8) {
-      setError("Please enter a complete 8-character code (e.g. K7M2-Q9XD).");
+      setError("Please enter your complete 8-character member code (like XXXX-XXXX).");
       hapticWarning();
       return;
     }
@@ -267,7 +267,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               <input
                 type="text"
                 className="claim-code-input"
-                placeholder="K7M2-Q9XD"
+                placeholder="XXXX-XXXX"
                 value={claimCodeInput}
                 onChange={handleCodeChange}
                 maxLength={9}
@@ -277,13 +277,6 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               <span className="code-help-text">
                 Codes are random 8 characters (Crockford Base32), single-use, and expire in 14 days.
               </span>
-              <button
-                type="button"
-                className="executive-code-hint-chip"
-                onClick={() => setClaimCodeInput("K7M2-Q9XD")}
-              >
-                <span>💡 Use Secretary Setup Code: <strong>K7M2-Q9XD</strong> (tap to auto-fill)</span>
-              </button>
             </div>
 
             <div className="onboarding-actions">

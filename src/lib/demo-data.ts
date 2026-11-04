@@ -263,7 +263,7 @@ if (process.env.INITIAL_ADMIN_PIN) {
   demoPins.set(DEMO_ADMIN_ID, hashPin(process.env.INITIAL_ADMIN_PIN, DEMO_ADMIN_ID));
 }
 const demoGoogle = new Map<string, string>([
-  [DEMO_ADMIN_ID, "amimitaghosh99@gmail.com"],
+  [DEMO_ADMIN_ID, "demo.admin@example.org"],
 ]);
 const demoIdempotency = new Map<string, { action: string; message: string; receiptId?: string; createdAt: number }>();
 
@@ -430,7 +430,7 @@ export async function executeDemoAction(action: string, body: any, currentUserId
     case "claimInviteCode": {
       const codeInput = String(body.code || "").trim();
       const normalized = normalizeCode(codeInput);
-      if (normalized.length !== 8) throw new Error("Please enter a valid 8-character invite code (e.g. K7M2-Q9XD).");
+      if (normalized.length !== 8) throw new Error("Please enter a valid 8-character member code (like XXXX-XXXX).");
       const hash = hashClaimCode(normalized);
       const record = demoClaimCodesStore.get(hash);
       if (!record) {

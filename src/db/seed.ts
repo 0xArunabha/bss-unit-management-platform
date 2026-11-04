@@ -282,45 +282,34 @@ async function seed() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      -- The column names of claim_codes and membership_applications must match src/db/schema.ts exactly.
+      -- A database that already has these tables keeps the columns it was created with (see the patch README).
+      -- Nothing is seeded into claim_codes and no profile is bound to an e-mail address here: the first executive
+      -- is created with "npm run setup:admin", which prints a random one-time code that is never stored in the source.
       CREATE TABLE IF NOT EXISTS claim_codes (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code_hash TEXT NOT NULL UNIQUE,
         member_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        created_by UUID REFERENCES profiles(id),
+        issued_by UUID NOT NULL REFERENCES profiles(id),
+        claimed_by_google_sub TEXT,
         claimed_at TIMESTAMPTZ,
-        claimed_by_sub TEXT,
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS membership_applications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        google_sub TEXT NOT NULL,
+        google_email TEXT NOT NULL,
         full_name TEXT NOT NULL,
         phone TEXT NOT NULL,
-        email TEXT,
-        google_sub TEXT,
+        is_minor BOOLEAN NOT NULL DEFAULT FALSE,
+        guardian_name TEXT,
         reason TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
         reviewed_by UUID REFERENCES profiles(id),
-        reviewed_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-
-      -- Bootstrap initial executive setup code: K7M2-Q9XD (links to Executive Arunabha Ghosh)
-      INSERT INTO claim_codes (id, code_hash, member_id, created_by, expires_at)
-      VALUES (
-        '90000000-0000-4000-8000-000000000001',
-        '293672d5bac17faaedab18d894dfa18b62f987ffef09a05c1cf8bebbeb7da6b5',
-        '10000000-0000-4000-8000-000000000001',
-        '10000000-0000-4000-8000-000000000001',
-        NOW() + INTERVAL '30 days'
-      )
-      ON CONFLICT (code_hash) DO NOTHING;
-
-      -- Pre-bind Unit Secretary Arunabha Ghosh directly to amimitaghosh99@gmail.com
-      UPDATE profiles
-      SET google_email = 'amimitaghosh99@gmail.com'
-      WHERE id = '10000000-0000-4000-8000-000000000001';
     `);
     if ((await tx.select({ id: profiles.id }).from(profiles).limit(1)).length) {
       // Localize only untouched, fixed-ID sample records. Never reset user data or ledger history.

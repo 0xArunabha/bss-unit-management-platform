@@ -374,6 +374,26 @@ await test('BUG-SEC-13: ID card QR payload omits phone number for verified priva
   assert.ok(payloadBlock.includes('Validity: Active'), 'QR verification payload must include validity');
 });
 
+// 29. BUG-SEC-14: no public bootstrap secret and no hardcoded executive e-mail anywhere in the source.
+// A tripwire for one value that has already leaked. The first executive is created with `npm run setup:admin`.
+await test('BUG-SEC-14: no public bootstrap code or hardcoded executive e-mail in the source', () => {
+  const burned = ['293672d5bac17faaedab18d894dfa18b62f987ffef09a05c1cf8bebbeb7da6b5', 'K7M2-Q9XD', 'K7M2Q9XD'];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) return e.name === 'node_modules' || e.name === '.next' ? [] : walk(p);
+    return /\.(ts|tsx|mjs|js|json|md|sql)$/.test(e.name) ? [p] : [];
+  });
+  for (const root of ['src', 'scripts']) {
+    for (const file of walk(resolveApp(root))) {
+      if (file.endsWith('verify-suite.mjs')) continue; // this file names the values it forbids
+      const text = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(ROOT_DIR, file);
+      for (const secret of burned) assert.ok(!text.includes(secret), `${rel} must not contain the leaked bootstrap code`);
+      assert.ok(!/SET\s+google_email\s*=\s*'/i.test(text), `${rel} must not hard-bind an e-mail address to a profile`);
+    }
+  }
+});
+
 console.log(`\n${CYAN}════════════════════════════════════════════════════════════════════════════${RESET}`);
 if (passed === total) {
   console.log(`${GREEN}${BOLD}  RESULT: ${passed}/${total} VERIFICATION CHECKS PASSED (100%)${RESET}`);
