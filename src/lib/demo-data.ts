@@ -368,7 +368,7 @@ export const demoApplicationsStore: MembershipApplication[] = [];
 
 export async function executeDemoAction(action: string, body: any, currentUserId: string): Promise<{ message: string; receiptId?: string; nextUser?: string; claimCode?: string }> {
   const state = getInMemoryState();
-  const isPublicAction = ["login", "claimInviteCode", "applyToJoin", "checkMemberDues"].includes(action);
+  const isPublicAction = ["claimInviteCode", "applyToJoin", "checkMemberDues"].includes(action);
   const foundUser = state.profiles.find((p) => p.id === currentUserId);
   if (!isPublicAction && !foundUser) {
     throw new Error("Please log in to the workspace with your member account.");
@@ -393,15 +393,6 @@ export async function executeDemoAction(action: string, body: any, currentUserId
   let generatedCode: string | undefined;
 
   switch (action) {
-    case "login": {
-      // Local-development convenience only: it has no credential check, so it must never run in production.
-      if (process.env.NODE_ENV === "production") throw new Error("Demo sign-in is disabled in production.");
-      const selected = state.profiles.find((p) => p.id === body.memberId);
-      if (!selected) throw new Error("Member profile not found.");
-      nextUser = selected.id;
-      message = `Welcome back, ${selected.fullName}!`;
-      break;
-    }
     case "logout": {
       nextUser = "";
       message = "You have logged out of the unit workspace.";

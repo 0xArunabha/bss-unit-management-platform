@@ -1,16 +1,24 @@
 import { db, isDatabaseConfigured } from "@/db";
 import { sql } from "drizzle-orm";
+import { isProductionRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   if (!isDatabaseConfigured) {
-    return Response.json({
-      ok: true,
-      mode: "preview",
-      database: "not_configured",
-      message: "Light of Science platform running in Preview Mode. Set DATABASE_URL in .env.local for persistent Supabase storage.",
-    });
+    // In production a missing database is a broken deployment, not a preview, so a monitor must see a failure.
+    const production = isProductionRuntime();
+    return Response.json(
+      {
+        ok: !production,
+        mode: production ? "misconfigured" : "preview",
+        database: "not_configured",
+        message: production
+          ? "DATABASE_URL is not set. The service is refusing requests."
+          : "Light of Science platform running in Preview Mode. Set DATABASE_URL in .env.local for persistent Supabase storage.",
+      },
+      { status: production ? 503 : 200 }
+    );
   }
 
   try {

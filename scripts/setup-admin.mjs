@@ -34,7 +34,8 @@ async function main() {
   const connStr = process.env.POSTGRES_URL || process.env.DATABASE_URL;
   if (!connStr) {
     console.log("  No DATABASE_URL (or POSTGRES_URL) found in .env.local, so there is no database to set up.");
-    console.log("  Without a database the app runs in local demo mode, which has its own development-only sign-in.\n");
+    console.log("  Without a database the app runs in local demo mode, which shows the public site only.");
+    console.log("  Put DATABASE_URL in .env.local (a throwaway Neon branch is fine for development), then run this again.\n");
     return;
   }
 

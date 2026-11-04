@@ -13,6 +13,7 @@ import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
 import { getVerifiedGoogleIdentity } from "@/lib/google-identity";
+import { isProductionRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 const text = (value: unknown, label: string, max = 300) => {
@@ -39,7 +40,16 @@ const mode = (value: unknown) => {
   return String(value);
 };
 
+// Demo mode (in-memory data and a development-only sign-in) must never answer a production request.
+// A production server without a database refuses every request instead of falling back to demo data.
+const demoModeRefused = () => !isDatabaseConfigured && isProductionRuntime();
+const notConfigured = () => {
+  console.error("[Workspace] DATABASE_URL (or POSTGRES_URL) is not set; refusing to serve demo data in production.");
+  return NextResponse.json({ error: "This service is not configured yet. Please try again later." }, { status: 503 });
+};
+
 export async function GET(request: NextRequest) {
+  if (demoModeRefused()) return notConfigured();
   try {
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;
     let userId = await verifySessionToken(rawCookie);
@@ -62,6 +72,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (demoModeRefused()) return notConfigured();
   try {
     const body = await request.json();
     const rawCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value || request.cookies.get("bss_demo_user")?.value;

@@ -74,10 +74,8 @@ await test('BUG-SEC-02: no public "login" action and no "switchUser" impersonati
 
   const demoContent = fs.readFileSync(resolveApp('src/lib/demo-data.ts'), 'utf8');
   assert.ok(!demoContent.includes('case "switchUser":'), 'demo-data.ts must not contain switchUser');
-  const loginIdx = demoContent.indexOf('case "login":');
-  if (loginIdx >= 0) {
-    assert.ok(demoContent.slice(loginIdx, loginIdx + 400).includes('NODE_ENV === "production"'), 'demo login must be disabled in production');
-  }
+  assert.ok(!demoContent.includes('case "login":'), 'demo mode must not have a credential-less login either');
+  assert.ok(!/isPublicAction\s*=\s*\[[^\]]*"login"/.test(demoContent), '"login" must not be a public demo action');
 });
 
 // 3. BUG-SEC-03: Zero PIN storage; single-use Crockford Base32 claim codes are hashed with SHA-256
@@ -392,6 +390,35 @@ await test('BUG-SEC-14: no public bootstrap code or hardcoded executive e-mail i
       assert.ok(!/SET\s+google_email\s*=\s*'/i.test(text), `${rel} must not hard-bind an e-mail address to a profile`);
     }
   }
+});
+
+// 30. BUG-SEC-15: authentication fails closed in production. These are tripwires on the source;
+// the behaviour itself (start / refuse to start under each environment) is exercised by the verification harness.
+await test('BUG-SEC-15: auth.ts has no built-in secret and refuses to start without its settings in production', () => {
+  const authSrc = fs.readFileSync(resolveApp('src/lib/auth.ts'), 'utf8');
+  assert.ok(!/[0-9a-f]{40,}/i.test(authSrc), 'auth.ts must not contain a hard-coded key');
+  assert.ok(!/BETTER_AUTH_SECRET\s*\|\|/.test(authSrc), 'BETTER_AUTH_SECRET must not have a fallback value');
+  assert.ok(!/demo-google-client/.test(authSrc), 'Google credentials must not fall back to placeholders');
+  assert.ok(!/VERCEL_URL/.test(authSrc), 'the public URL must be configured explicitly, not guessed');
+  assert.ok(authSrc.includes('isProductionRuntime()'), 'auth.ts must know whether it is running in production');
+  assert.ok(/setting\("BETTER_AUTH_SECRET"\)/.test(authSrc) && /setting\("BETTER_AUTH_URL"\)/.test(authSrc), 'the secret and the URL must both be required in production');
+  const env = fs.readFileSync(resolveApp('.env.example'), 'utf8');
+  for (const key of ['BETTER_AUTH_SECRET', 'BETTER_AUTH_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']) {
+    assert.ok(env.includes(`${key}=`), `.env.example must document ${key}`);
+  }
+});
+
+// 31. BUG-SEC-16: demo mode (in-memory data, development-only sign-in) never answers production traffic.
+await test('BUG-SEC-16: demo mode, demo receipts and a healthy health check are refused in production', () => {
+  const route = fs.readFileSync(resolveApp('src/app/api/workspace/route.ts'), 'utf8');
+  assert.ok((route.match(/if \(demoModeRefused\(\)\) return notConfigured\(\);/g) || []).length >= 2, 'both GET and POST must refuse demo mode in production');
+  assert.ok(/status: 503/.test(route), 'a production server without a database must answer 503');
+  const ws = fs.readFileSync(resolveApp('src/lib/workspace.ts'), 'utf8');
+  assert.ok(/isProductionRuntime\(\)[\s\S]{0,200}getDemoWorkspace/.test(ws), 'getWorkspace must not return demo data in production');
+  const receipt = fs.readFileSync(resolveApp('src/app/receipts/[id]/page.tsx'), 'utf8');
+  assert.ok(/!isDatabaseConfigured && isProductionRuntime\(\)/.test(receipt), 'demo receipts must not be served in production');
+  const health = fs.readFileSync(resolveApp('src/app/api/health/route.ts'), 'utf8');
+  assert.ok(/status: production \? 503 : 200/.test(health), 'the health check must fail when production has no database');
 });
 
 console.log(`\n${CYAN}════════════════════════════════════════════════════════════════════════════${RESET}`);

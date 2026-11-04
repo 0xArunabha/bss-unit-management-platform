@@ -10,6 +10,7 @@ import { money } from "@/lib/types";
 import ReceiptActions from "@/components/receipt-actions";
 import { TreasurerSignatureBlock, UnitOfficialSeal } from "@/components/unit-seal";
 import { getInMemoryState } from "@/lib/demo-data";
+import { isProductionRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: `Donation receipt · ${identity.name} · ${identity.unit}` };
@@ -24,6 +25,8 @@ export default async function ReceiptPage({
   const { id } = await params;
   const query = await searchParams;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
+  // Demo receipts exist only in development. A production server without a database must not show one.
+  if (!isDatabaseConfigured && isProductionRuntime()) notFound();
 
   let donation: any;
   let event: { title: string } | undefined;

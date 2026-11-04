@@ -4,9 +4,12 @@ import { ensureSeed, ADMIN_ID, OPENING_BALANCE } from "@/db/seed";
 import { asc, desc } from "drizzle-orm";
 import type { WorkspaceData, Profile, Role } from "@/lib/types";
 import { getDemoWorkspace } from "@/lib/demo-data";
+import { isProductionRuntime } from "@/lib/runtime";
 
 export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   if (!isDatabaseConfigured) {
+    // Demo data is for local development only; a production server without a database must not serve it.
+    if (isProductionRuntime()) throw new Error("DATABASE_URL (or POSTGRES_URL) is not set; refusing to serve demo data in production.");
     return getDemoWorkspace(userId);
   }
 
