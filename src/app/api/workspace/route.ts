@@ -1,7 +1,7 @@
 import { identity } from "@/lib/identity";
 import { NextRequest, NextResponse } from "next/server";
 import { db, isDatabaseConfigured } from "@/db";
-import { profiles, dues, events, procurements, donations, circulars, activities, actionIdempotency, claimCodes, membershipApplications } from "@/db/schema";
+import { profiles, dues, events, procurements, donations, circulars, activities, actionIdempotency, claimCodes, membershipApplications, sessions, session as authSessions } from "@/db/schema";
 import { ADMIN_ID, ensureSeed } from "@/db/seed";
 import { getWorkspace } from "@/lib/workspace";
 import { sendPush } from "@/lib/push";
@@ -12,6 +12,7 @@ import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, r
 import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
+import { getVerifiedGoogleIdentity } from "@/lib/google-identity";
 
 export const dynamic = "force-dynamic";
 const text = (value: unknown, label: string, max = 300) => {
@@ -172,8 +173,13 @@ export async function POST(request: NextRequest) {
         const targetId = id(body.memberId);
         const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
         if (!target) throw new Error("Member not found.");
+        // A code can only link a member who has no Google account yet. To replace a linked account (lost phone,
+        // new Google account) an executive unlinks it first, which also ends that person's sessions.
+        if (target.googleSub) throw new Error(`${target.fullName} is already linked to a Google account. Unlink it first, then issue a new code.`);
         const { code, hash } = generateClaimCode();
         const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+        // One live code per member: a new code cancels any unused older one.
+        await db.delete(claimCodes).where(and(eq(claimCodes.memberId, target.id), isNull(claimCodes.claimedAt)));
         await db.insert(claimCodes).values({
           codeHash: hash,
           memberId: target.id,
@@ -190,60 +196,97 @@ export async function POST(request: NextRequest) {
         });
       }
       case "claimInviteCode": {
-        const codeInput = String(body.code || "").trim();
-        const normalized = normalizeCode(codeInput);
-        if (normalized.length !== 8) throw new Error("Please enter a valid 8-character invite code (e.g. K7M2-Q9XD).");
+        // Who is asking comes from the signed-in Google session on the server. Anything the browser sends in the
+        // body (googleSub, googleEmail) is ignored on purpose: a code only LINKS a verified Google account to a
+        // member profile. It is not a password and never signs anyone in by itself.
+        const google = await getVerifiedGoogleIdentity(request.headers);
+        if (!google) {
+          return NextResponse.json({ error: "Please sign in with Google first, then enter your member code." }, { status: 401 });
+        }
+        const perUser = checkClaimRateLimit(`user:${google.sub}`);
+        if (!perUser.allowed) {
+          return NextResponse.json(
+            { error: `Too many attempts. Please wait ${perUser.retryAfterSeconds} seconds.` },
+            { status: 429, headers: { "Retry-After": String(perUser.retryAfterSeconds) } }
+          );
+        }
+        const normalized = normalizeCode(String(body.code || ""));
+        if (normalized.length !== 8) throw new Error("Please enter your 8-character member code.");
         const hash = hashClaimCode(normalized);
+
+        const [alreadyLinked] = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.googleSub, google.sub));
+        if (alreadyLinked) throw new Error("This Google account is already linked to a member profile.");
+
+        // One message for every way a code can fail, so the form cannot be used to find out which codes exist.
+        const invalidCode = "This code is not valid, has already been used, or has expired. Please ask an executive for a new one.";
         const [record] = await db.select().from(claimCodes).where(eq(claimCodes.codeHash, hash));
-        if (!record) {
-          throw new Error("Invalid or unrecognised invite code. Please check with unit secretary Arunabha Ghosh.");
-        }
-        if (record.claimedAt || record.claimedByGoogleSub) {
-          throw new Error("This invite code has already been claimed and can no longer be used.");
-        }
-        if (record.expiresAt.getTime() < Date.now()) {
-          throw new Error("This invite code expired after 14 days. Please ask an executive for a new code.");
-        }
+        if (!record || record.claimedAt || record.expiresAt.getTime() < Date.now()) throw new Error(invalidCode);
         const [target] = await db.select().from(profiles).where(eq(profiles.id, record.memberId));
-        if (!target) throw new Error("Associated member profile not found.");
-        const googleSub = String(body.googleSub || randomUUID());
-        const googleEmail = body.googleEmail ? String(body.googleEmail).trim().toLowerCase() : null;
-        await db.update(claimCodes).set({
-          claimedAt: new Date(),
-          claimedByGoogleSub: googleSub,
-        }).where(eq(claimCodes.id, record.id));
-        await db.update(profiles).set({
-          googleSub,
-          googleEmail,
-        }).where(eq(profiles.id, target.id));
-        await log("member", "Invite code claimed", `${target.fullName} linked their Google account.`, target.id);
-        nextUser = target.id;
-        message = `Welcome to Breakthrough Science Society, ${target.fullName}! Your Google account has been linked.`;
-        break;
+        if (!target) throw new Error(invalidCode);
+        if (target.googleSub) throw new Error("This member is already linked to a Google account. An executive must unlink it first.");
+
+        // Single use has to hold even when two requests arrive together: the UPDATE only succeeds while the code is
+        // still unused, and the profile link is written in the same transaction.
+        await db.transaction(async (tx) => {
+          const [won] = await tx.update(claimCodes)
+            .set({ claimedAt: new Date(), claimedByGoogleSub: google.sub })
+            .where(and(eq(claimCodes.id, record.id), isNull(claimCodes.claimedAt)))
+            .returning();
+          if (!won) throw new Error(invalidCode);
+          await tx.update(profiles).set({ googleSub: google.sub, googleEmail: google.email }).where(eq(profiles.id, target.id));
+        });
+        resetClaimRateLimit(`user:${google.sub}`);
+        await db.insert(activities).values({
+          type: "member",
+          title: "Member code claimed",
+          description: `${target.fullName} linked a Google account (${google.email}).`,
+          actorId: target.id,
+          targetId: target.id,
+        });
+        // The Google session is the login. No second cookie is created here.
+        return NextResponse.json({
+          data: await getWorkspace(target.id),
+          message: `Welcome to Breakthrough Science Society, ${target.fullName}! Your Google account has been linked.`,
+        });
       }
       case "unlinkGoogle": {
         requireRole(["admin"]);
         const targetId = id(body.memberId);
         const [target] = await db.select().from(profiles).where(eq(profiles.id, targetId));
         if (!target) throw new Error("Member not found.");
+        if (target.id === user.id) throw new Error("You cannot unlink your own account. Ask another executive, or run the setup script with --reset.");
+        const oldSub = target.googleSub;
         await db.update(profiles).set({ googleSub: null, googleEmail: null }).where(eq(profiles.id, target.id));
-        await db.delete(claimCodes).where(eq(claimCodes.memberId, target.id));
+        // Cancel unused codes, but keep the record of codes that were already claimed.
+        await db.delete(claimCodes).where(and(eq(claimCodes.memberId, target.id), isNull(claimCodes.claimedAt)));
+        // Unlinking must also sign the person out everywhere: old-style cookie sessions and Google sessions.
+        await db.delete(sessions).where(eq(sessions.userId, target.id));
+        if (oldSub) await db.delete(authSessions).where(eq(authSessions.userId, oldSub));
         await log("member", "Google account unlinked", `Executive unlinked Google account for ${target.fullName}.`, target.id);
         message = `Google account unlinked for ${target.fullName}. A fresh invite code can now be issued.`;
         nextUser = user.id;
         break;
       }
       case "applyToJoin": {
+        // Same rule as the claim: the applicant's Google identity comes from the server-side session only.
+        const google = await getVerifiedGoogleIdentity(request.headers);
+        if (!google) {
+          return NextResponse.json({ error: "Please sign in with Google before applying." }, { status: 401 });
+        }
+        const [linked] = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.googleSub, google.sub));
+        if (linked) throw new Error("This Google account is already linked to a member profile.");
+        const [waiting] = await db.select({ id: membershipApplications.id }).from(membershipApplications)
+          .where(and(eq(membershipApplications.googleSub, google.sub), eq(membershipApplications.status, "pending")));
+        if (waiting) throw new Error("You already have an application waiting for review.");
         const fullName = text(body.fullName, "full name", 150);
         const phone = text(body.phone, "phone number", 30);
         const reason = text(body.reason, "reason", 1000);
         const isMinor = Boolean(body.isMinor);
         const guardianName = body.guardianName ? text(body.guardianName, "guardian name", 150) : null;
-        const googleSub = String(body.googleSub || randomUUID());
-        const googleEmail = String(body.googleEmail || "applicant@example.com");
+        if (isMinor && !guardianName) throw new Error("Applicants under 18 must give a parent or guardian name.");
         await db.insert(membershipApplications).values({
-          googleSub,
-          googleEmail,
+          googleSub: google.sub,
+          googleEmail: google.email,
           fullName,
           phone,
           isMinor,

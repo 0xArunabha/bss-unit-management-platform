@@ -35,7 +35,6 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
 
   // Claim code state
   const [claimCodeInput, setClaimCodeInput] = useState("");
-  const [simulatedGoogleEmail, setSimulatedGoogleEmail] = useState(initialGoogleEmail || "");
 
   // Application form state
   const [appFullName, setAppFullName] = useState("");
@@ -89,11 +88,8 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
     setSuccess("");
 
     try {
-      const res = await perform("claimInviteCode", {
-        code: normalized,
-        googleEmail: simulatedGoogleEmail || "member@gmail.com",
-        googleSub: `sub_${Date.now()}`,
-      });
+      // The server reads which Google account is signed in from the session cookie; the browser never sends it.
+      const res = await perform("claimInviteCode", { code: normalized });
       if (res) {
         hapticSuccess();
         setSuccess("Success! Code verified. Entering unit workspace...");
@@ -132,8 +128,6 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         reason: appReason.trim() || "Passionate about scientific temper and anti-superstition advocacy in Jalpaiguri.",
         isMinor: !isAdult,
         guardianName: !isAdult ? guardianName.trim() : null,
-        googleEmail: simulatedGoogleEmail || "applicant@gmail.com",
-        googleSub: `sub_${Date.now()}`,
       });
       if (res) {
         hapticSuccess();
