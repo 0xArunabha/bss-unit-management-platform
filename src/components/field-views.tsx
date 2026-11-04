@@ -8,6 +8,7 @@ import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, re
 import type { Navigate, OpenModal } from "@/components/overview";
 import { resources, type Resource, getSanitizedResources } from "@/lib/resources";
 import { useI18n } from "@/lib/i18n";
+import { authClient } from "@/lib/auth-client";
 import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 
 type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
@@ -772,6 +773,10 @@ export function SettingsView({
   const handleLogout = async () => {
     if (confirm("Log out of the unit workspace on this device?")) {
       await perform("logout", {});
+      try {
+        await authClient.signOut();
+      } catch {}
+      window.location.href = "/";
     }
   };
 

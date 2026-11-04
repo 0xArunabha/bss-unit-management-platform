@@ -1,6 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
+import { authClient } from "@/lib/auth-client";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
@@ -462,7 +463,18 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                   {locale === "bn" ? "অ্যাকাউন্ট ও নিরাপত্তা" : "Account & Security"}
                   <ArrowUpRight size={13} />
                 </button>
-                <button onClick={() => guestMode ? setGuestMode(false) : void perform("logout", {})}>
+                <button onClick={async () => {
+                  setPopover(null);
+                  if (guestMode) {
+                    setGuestMode(false);
+                  } else {
+                    await perform("logout", {});
+                    try {
+                      await authClient.signOut();
+                    } catch {}
+                    window.location.href = "/";
+                  }
+                }}>
                   <LogOut size={15} />
                   {guestMode ? (locale === "bn" ? "লগ ইন করুন" : "Log In") : (locale === "bn" ? "সাইন আউট" : "Sign Out")}
                   <ArrowUpRight size={13} />

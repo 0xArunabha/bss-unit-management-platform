@@ -57,9 +57,18 @@ export async function GET(request: NextRequest) {
       try {
         const session = await auth.api.getSession({ headers: request.headers });
         if (session?.user) {
-          const [matched] = await db.select().from(profiles).where(
-            or(eq(profiles.googleSub, session.user.id), eq(profiles.googleEmail, session.user.email.toLowerCase()))
-          );
+          const userSub = session.user.id;
+          const userEmail = session.user.email.toLowerCase();
+          let [matched] = await db.select().from(profiles).where(eq(profiles.googleSub, userSub));
+          if (!matched && session.user.emailVerified) {
+            const [unbound] = await db.select().from(profiles).where(
+              and(eq(profiles.googleEmail, userEmail), isNull(profiles.googleSub))
+            );
+            if (unbound) {
+              await db.update(profiles).set({ googleSub: userSub }).where(eq(profiles.id, unbound.id));
+              matched = unbound;
+            }
+          }
           if (matched) userId = matched.id;
         }
       } catch {}
@@ -81,9 +90,18 @@ export async function POST(request: NextRequest) {
       try {
         const session = await auth.api.getSession({ headers: request.headers });
         if (session?.user) {
-          const [matched] = await db.select().from(profiles).where(
-            or(eq(profiles.googleSub, session.user.id), eq(profiles.googleEmail, session.user.email.toLowerCase()))
-          );
+          const userSub = session.user.id;
+          const userEmail = session.user.email.toLowerCase();
+          let [matched] = await db.select().from(profiles).where(eq(profiles.googleSub, userSub));
+          if (!matched && session.user.emailVerified) {
+            const [unbound] = await db.select().from(profiles).where(
+              and(eq(profiles.googleEmail, userEmail), isNull(profiles.googleSub))
+            );
+            if (unbound) {
+              await db.update(profiles).set({ googleSub: userSub }).where(eq(profiles.id, unbound.id));
+              matched = unbound;
+            }
+          }
           if (matched) userId = matched.id;
         }
       } catch {}
@@ -311,11 +329,18 @@ export async function POST(request: NextRequest) {
       case "reviewApplication": {
         requireRole(["admin"]);
         const appId = id(body.applicationId);
-        const [app] = await db.select().from(membershipApplications).where(eq(membershipApplications.id, appId));
-        if (!app) throw new Error("Application not found.");
         const status = body.status === "approved" ? "approved" : "rejected";
-        await db.update(membershipApplications).set({ status, reviewedBy: user.id }).where(eq(membershipApplications.id, appId));
+        const [app] = await db
+          .update(membershipApplications)
+          .set({ status, reviewedBy: user.id })
+          .where(and(eq(membershipApplications.id, appId), eq(membershipApplications.status, "pending")))
+          .returning();
+        if (!app) throw new Error("Application not found or has already been reviewed.");
         if (status === "approved") {
+          const [alreadyLinked] = await db.select().from(profiles).where(eq(profiles.googleSub, app.googleSub));
+          if (alreadyLinked) {
+            throw new Error(`This applicant's Google account is already linked to ${alreadyLinked.fullName}.`);
+          }
           const [newProfile] = await db.insert(profiles).values({
             fullName: app.fullName,
             phone: app.phone,
@@ -578,6 +603,8 @@ export async function POST(request: NextRequest) {
     } else {
       if (rawCookie) await destroySession(rawCookie);
       response.cookies.delete(SESSION_COOKIE_NAME);
+      response.cookies.delete("better-auth.session_token");
+      response.cookies.delete("__Secure-better-auth.session_token");
     }
     response.cookies.delete("bss_demo_user");
     return response;

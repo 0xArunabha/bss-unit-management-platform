@@ -1,6 +1,5 @@
 import { identity } from "@/lib/identity";
 import { sendDonationSms } from "@/lib/sms";
-import { hashPin, verifyPin } from "@/lib/pin-security";
 import type { WorkspaceData, Profile, Role, DuesRecord, UnitEvent, Procurement, Donation, Circular, Activity, ClaimCode, MembershipApplication } from "@/lib/types";
 import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, resetClaimRateLimit, demoClaimCodesStore } from "@/lib/claim-codes";
 
@@ -258,10 +257,6 @@ export function resetInMemoryState() {
   return inMemoryState;
 }
 
-const demoPins = new Map<string, string>();
-if (process.env.INITIAL_ADMIN_PIN) {
-  demoPins.set(DEMO_ADMIN_ID, hashPin(process.env.INITIAL_ADMIN_PIN, DEMO_ADMIN_ID));
-}
 const demoGoogle = new Map<string, string>([
   [DEMO_ADMIN_ID, "demo.admin@example.org"],
 ]);

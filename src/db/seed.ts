@@ -2,7 +2,6 @@ import { identity } from "@/lib/identity";
 import { db } from "@/db";
 import { profiles, dues, events, procurements, donations, circulars, activities } from "@/db/schema";
 import { REAL_MEMBERS } from "@/lib/demo-data";
-import { hashPin } from "@/lib/pin-security";
 import { and, eq, sql } from "drizzle-orm";
 
 export const ADMIN_ID = "10000000-0000-4000-8000-000000000001";
@@ -340,12 +339,9 @@ async function seed() {
       for (const member of REAL_MEMBERS) {
         // Members start unseeded from code: pin is null, needs_pin_change is true
         // Only if process.env.INITIAL_ADMIN_PIN is provided in server env, set admin initial hash
-        const adminPin = (member.id === ADMIN_ID && process.env.INITIAL_ADMIN_PIN)
-          ? hashPin(process.env.INITIAL_ADMIN_PIN, member.id)
-          : null;
-        await tx.execute(sql`
-          INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, pin, google_email, needs_pin_change, created_at)
-          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, ${adminPin}, NULL, TRUE, NOW())
+                await tx.execute(sql`
+          INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, google_email, created_at)
+          VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, NULL, NOW())
           ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, phone = EXCLUDED.phone
         `);
       }
@@ -358,10 +354,7 @@ async function seed() {
     const upcoming = (days: number, hour: number) => { const d = new Date(now); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return d; };
 
     const people = REAL_MEMBERS.map((m, idx) => {
-      const adminPin = (m.id === ADMIN_ID && process.env.INITIAL_ADMIN_PIN)
-        ? hashPin(process.env.INITIAL_ADMIN_PIN, m.id)
-        : null;
-      return {
+            return {
         id: m.id,
         fullName: m.fullName,
         phone: m.phone,
@@ -370,9 +363,7 @@ async function seed() {
         monthlyPledge: m.monthlyPledge,
         avatarColor: m.avatarColor,
         unpaidMonths: m.paid ? 0 : 1,
-        pin: adminPin,
         googleEmail: null,
-        needsPinChange: true,
         createdAt: new Date(year - 1, idx % 12, 10),
       };
     });

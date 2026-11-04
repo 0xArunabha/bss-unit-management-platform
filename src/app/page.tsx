@@ -5,7 +5,7 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 import { auth } from "@/lib/auth";
 import { db, isDatabaseConfigured } from "@/db";
 import { profiles } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -20,21 +20,34 @@ export default async function HomePage() {
       if (session && session.user) {
         const userEmail = session.user.email.toLowerCase();
         const userSub = session.user.id;
-        const [matchedProfile] = await db
+        // Primary match: strictly by unique immutable googleSub
+        let [matchedProfile] = await db
           .select()
           .from(profiles)
-          .where(
-            or(
-              eq(profiles.googleSub, userSub),
-              eq(profiles.googleEmail, userEmail)
-            )
-          );
+          .where(eq(profiles.googleSub, userSub));
+
+        // First-bind: match by e-mail ONLY if emailVerified and profile has no googleSub yet
+        if (!matchedProfile && session.user.emailVerified) {
+          const [unboundProfile] = await db
+            .select()
+            .from(profiles)
+            .where(
+              and(
+                eq(profiles.googleEmail, userEmail),
+                isNull(profiles.googleSub)
+              )
+            );
+          if (unboundProfile) {
+            await db
+              .update(profiles)
+              .set({ googleSub: userSub })
+              .where(eq(profiles.id, unboundProfile.id));
+            matchedProfile = unboundProfile;
+          }
+        }
 
         if (matchedProfile) {
           authenticatedUserId = matchedProfile.id;
-          if (!matchedProfile.googleSub && userSub) {
-            await db.update(profiles).set({ googleSub: userSub }).where(eq(profiles.id, matchedProfile.id));
-          }
         } else {
           pendingGoogleEmail = userEmail;
         }
