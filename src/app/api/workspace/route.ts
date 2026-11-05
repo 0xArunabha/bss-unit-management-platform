@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
 import { getVerifiedGoogleIdentity } from "@/lib/google-identity";
 import { isProductionRuntime } from "@/lib/runtime";
+import { isUniqueViolation } from "@/lib/db-errors";
 
 export const dynamic = "force-dynamic";
 const text = (value: unknown, label: string, max = 300) => {
@@ -256,14 +257,21 @@ export async function POST(request: NextRequest) {
 
         // Single use has to hold even when two requests arrive together: the UPDATE only succeeds while the code is
         // still unused, and the profile link is written in the same transaction.
-        await db.transaction(async (tx) => {
-          const [won] = await tx.update(claimCodes)
-            .set({ claimedAt: new Date(), claimedByGoogleSub: google.sub })
-            .where(and(eq(claimCodes.id, record.id), isNull(claimCodes.claimedAt)))
-            .returning();
-          if (!won) throw new Error(invalidCode);
-          await tx.update(profiles).set({ googleSub: google.sub, googleEmail: google.email }).where(eq(profiles.id, target.id));
-        });
+        try {
+          await db.transaction(async (tx) => {
+            const [won] = await tx.update(claimCodes)
+              .set({ claimedAt: new Date(), claimedByGoogleSub: google.sub })
+              .where(and(eq(claimCodes.id, record.id), isNull(claimCodes.claimedAt)))
+              .returning();
+            if (!won) throw new Error(invalidCode);
+            await tx.update(profiles).set({ googleSub: google.sub, googleEmail: google.email }).where(eq(profiles.id, target.id));
+          });
+        } catch (error) {
+          // The database allows one profile per Google account, even when two requests get past the check above
+          // together. The transaction has rolled back, so this code is still unused.
+          if (isUniqueViolation(error)) throw new Error("This Google account is already linked to a member profile.");
+          throw error;
+        }
         resetClaimRateLimit(`user:${google.sub}`);
         await db.insert(activities).values({
           type: "member",
@@ -330,32 +338,43 @@ export async function POST(request: NextRequest) {
         requireRole(["admin"]);
         const appId = id(body.applicationId);
         const status = body.status === "approved" ? "approved" : "rejected";
-        const [app] = await db
-          .update(membershipApplications)
-          .set({ status, reviewedBy: user.id })
-          .where(and(eq(membershipApplications.id, appId), eq(membershipApplications.status, "pending")))
-          .returning();
-        if (!app) throw new Error("Application not found or has already been reviewed.");
-        if (status === "approved") {
-          const [alreadyLinked] = await db.select().from(profiles).where(eq(profiles.googleSub, app.googleSub));
+        // One transaction: if anything below fails, the application goes back to "pending" instead of being left
+        // marked as approved with no member created.
+        const reviewed = await db.transaction(async (tx) => {
+          const [app] = await tx
+            .update(membershipApplications)
+            .set({ status, reviewedBy: user.id })
+            .where(and(eq(membershipApplications.id, appId), eq(membershipApplications.status, "pending")))
+            .returning();
+          if (!app) throw new Error("Application not found or has already been reviewed.");
+          if (status !== "approved") return { app, newProfile: null };
+          const [alreadyLinked] = await tx.select().from(profiles).where(eq(profiles.googleSub, app.googleSub));
           if (alreadyLinked) {
             throw new Error(`This applicant's Google account is already linked to ${alreadyLinked.fullName}.`);
           }
-          const [newProfile] = await db.insert(profiles).values({
-            fullName: app.fullName,
-            phone: app.phone,
-            role: "member",
-            status: "active",
-            monthlyPledge: 20,
-            avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
-            googleSub: app.googleSub,
-            googleEmail: app.googleEmail,
-            isMinor: app.isMinor,
-          }).returning();
-          await log("member", "Membership application approved", `${app.fullName} has joined as a unit member.`, newProfile.id);
-          message = `Application approved! ${app.fullName} has been enrolled as a member.`;
+          try {
+            const [newProfile] = await tx.insert(profiles).values({
+              fullName: app.fullName,
+              phone: app.phone,
+              role: "member",
+              status: "active",
+              monthlyPledge: 20,
+              avatarColor: ["peach", "sage", "blue", "lavender"][Math.floor(Math.random() * 4)],
+              googleSub: app.googleSub,
+              googleEmail: app.googleEmail,
+              isMinor: app.isMinor,
+            }).returning();
+            return { app, newProfile };
+          } catch (error) {
+            if (isUniqueViolation(error)) throw new Error("This applicant's Google account is already linked to a member profile.");
+            throw error;
+          }
+        });
+        if (reviewed.newProfile) {
+          await log("member", "Membership application approved", `${reviewed.app.fullName} has joined as a unit member.`, reviewed.newProfile.id);
+          message = `Application approved! ${reviewed.app.fullName} has been enrolled as a member.`;
         } else {
-          message = `Application from ${app.fullName} was rejected.`;
+          message = `Application from ${reviewed.app.fullName} was rejected.`;
         }
         nextUser = user.id;
         break;

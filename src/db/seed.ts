@@ -104,6 +104,15 @@ async function seed() {
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pin TEXT DEFAULT '1234';
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS google_email TEXT;
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS google_sub TEXT;
+      -- One Google account links to at most one profile (NULL, meaning "not linked", may repeat). Enforced here so
+      -- two requests racing each other cannot both win. The block keeps startup working if old data already holds
+      -- a duplicate: it raises a NOTICE and skips the index instead of failing. That notice may not reach the
+      -- application logs, so check the index exists after deploying (the patch README shows how to fix a duplicate).
+      DO $$ BEGIN
+        CREATE UNIQUE INDEX IF NOT EXISTS profiles_google_sub_key ON profiles (google_sub);
+      EXCEPTION WHEN unique_violation THEN
+        RAISE NOTICE 'profiles_google_sub_key was not created because duplicate google_sub values exist';
+      END $$;
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_minor BOOLEAN DEFAULT FALSE;
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS needs_pin_change BOOLEAN DEFAULT FALSE;
       UPDATE profiles SET pin = '1234' WHERE pin IS NULL;
