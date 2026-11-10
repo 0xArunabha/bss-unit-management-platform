@@ -3,10 +3,10 @@
 import { identity } from "@/lib/identity";
 import { authClient } from "@/lib/auth-client";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
-import { Avatar, Badge, Button, Modal, relativeTime } from "@/components/ui";
+import { Avatar, Badge, Button, Modal, ModalExiting, relativeTime, useModalExit } from "@/components/ui";
 import { Overview } from "@/components/overview";
 import { MembersView, DuesView, DonationsView } from "@/components/people-views";
 import { CircularsView, EventsView, ProcurementView, ResourcesView, SettingsView } from "@/components/field-views";
@@ -138,9 +138,45 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
         { view: "resources", label: t("resources"), icon: BookOpen },
       ];
   const needed = data.procurements.filter((p) => p.status === "needed").length;
+  // Five tabs and a top bar share ~390px, so the long sidebar names ("Membership dues") get short forms on phones.
+  const shortLabels: Partial<Record<View, string>> = { members: t("membersShort"), dues: t("duesShort"), events: t("eventsShort"), circulars: t("circularsShort"), resources: t("resourcesShort"), settings: t("settingsShort") };
   const notify = useCallback((message: string) => setToast({ message }), []);
-  const close = useCallback(() => { setModal(null); setActionError(""); }, []);
-  const open = useCallback((type: string, record?: unknown) => { setPopover(null); setActionError(""); setModal({ type, record }); }, []);
+  // Closing plays an exit animation first. Opening another modal while one is still leaving cancels that exit.
+  const { exiting: modalExiting, close, cancel: cancelModalExit } = useModalExit(() => { setModal(null); setActionError(""); });
+  const open = useCallback((type: string, record?: unknown) => { cancelModalExit(); setPopover(null); setActionError(""); setModal({ type, record }); }, [cancelModalExit]);
+
+  // Phones: stop the page scrolling behind the open drawer, and let the drawer be swiped shut.
+  // (A class on <html> rather than an inline body style, because Modal manages body.style.overflow itself.)
+  const sidebarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    document.documentElement.classList.toggle("nav-locked", sidebarOpen);
+    return () => document.documentElement.classList.remove("nav-locked");
+  }, [sidebarOpen]);
+  const drawerTouch = useRef<{ x: number; y: number; dx: number; horizontal: boolean | null } | null>(null);
+  const onDrawerTouchStart = (e: ReactTouchEvent<HTMLElement>) => {
+    const t = e.touches[0];
+    drawerTouch.current = { x: t.clientX, y: t.clientY, dx: 0, horizontal: null };
+  };
+  const onDrawerTouchMove = (e: ReactTouchEvent<HTMLElement>) => {
+    const d = drawerTouch.current, el = sidebarRef.current;
+    if (!d || !el) return;
+    const t = e.touches[0];
+    const dx = t.clientX - d.x, dy = t.clientY - d.y;
+    // Decide once whether this is a leftward swipe (close) or a vertical scroll of the menu.
+    if (d.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) d.horizontal = Math.abs(dx) > Math.abs(dy) && dx < 0;
+    if (!d.horizontal) return;
+    d.dx = Math.min(0, dx);
+    el.classList.add("sidebar-dragging");
+    el.style.setProperty("--drawer-drag", `${d.dx}px`);
+  };
+  const onDrawerTouchEnd = () => {
+    const d = drawerTouch.current, el = sidebarRef.current;
+    drawerTouch.current = null;
+    if (!el) return;
+    el.classList.remove("sidebar-dragging");
+    el.style.removeProperty("--drawer-drag");
+    if (d?.horizontal && d.dx < -70) setSidebarOpen(false);
+  };
 
   useEffect(() => {
     return subscribeOfflineQueue(setOfflineCount);
@@ -345,7 +381,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       aria-hidden={!sidebarOpen}
       tabIndex={sidebarOpen ? 0 : -1}
     />
-    <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+    <aside ref={sidebarRef} className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} onTouchStart={onDrawerTouchStart} onTouchMove={onDrawerTouchMove} onTouchEnd={onDrawerTouchEnd} onTouchCancel={onDrawerTouchEnd}>
       <button className="brand" onClick={() => navigate("overview")} aria-label={`${identity.name} home`}><img src="/images/bss-logo.svg" alt="" /><span><strong>{identity.name}<span className="brand-period">.</span></strong><small>{identity.organisation.toUpperCase()}</small></span></button>
       <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{identity.unit}</strong><small>{identity.state}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">YOUR UNIT WORKSPACE</span><button onClick={() => setPopover(null)}><span>{identity.unit}<small>{identity.state} chapter</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />Unit settings<ArrowUpRight size={13} /></button></div>}</div>
       <nav className="sidebar-nav" aria-label="Main navigation">
@@ -378,7 +414,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Open main navigation"><Menu size={21} /></button>
           <span className="breadcrumb-root">{identity.name}</span>
           <ChevronRight size={13} className="breadcrumb-chevron" />
-          <span className="breadcrumb-current">{labels[view]}</span>
+          <span className="breadcrumb-current"><span className="bc-full">{labels[view]}</span><span className="bc-short">{shortLabels[view] ?? labels[view]}</span></span>
         </div>
         <div className="topbar-right">
           {/* Language Switcher */}
@@ -542,10 +578,11 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
             key={item.view}
             className={`bottom-nav-item ${view === item.view ? "bottom-nav-active" : ""}`}
             onClick={() => navigate(item.view)}
+            aria-label={item.label}
             aria-current={view === item.view ? "page" : undefined}
           >
             <item.icon size={19} strokeWidth={view === item.view ? 2.2 : 1.7} />
-            <span>{item.label}</span>
+            <span>{shortLabels[item.view] ?? item.label}</span>
             {item.view === "dues" && (user?.unpaidMonths || 0) > 0 && <span className="bottom-nav-dot" />}
             {item.view === "procurement" && needed > 0 && <span className="bottom-nav-badge">{needed}</span>}
           </button>
@@ -560,12 +597,13 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
         </button>
       </nav>
     </div>
-    <WorkspaceModals modal={modal} data={data} close={close} open={open} perform={perform} busy={busy} error={actionError} navigate={navigate} notify={notify} />
+    <ModalExiting value={modalExiting}><WorkspaceModals modal={modal} data={data} close={close} open={open} perform={perform} busy={busy} error={actionError} navigate={navigate} notify={notify} /></ModalExiting>
     {searchOpen && <GlobalSearch data={data} close={() => setSearchOpen(false)} open={open} navigate={navigate} />}
     {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <InfoSymbol /> : <CircleCheck size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss message"><X size={15} /></button></div>}
   </div>;
 }
-function GlobalSearch({ data, close, open, navigate }: { data: WorkspaceData; close: () => void; open: (type: string, record?: unknown) => void; navigate: (view: View, eventId?: string) => void }) {
+function GlobalSearch({ data, close: removeSearch, open, navigate }: { data: WorkspaceData; close: () => void; open: (type: string, record?: unknown) => void; navigate: (view: View, eventId?: string) => void }) {
+  const { exiting, close } = useModalExit(removeSearch);
   const [query, setQuery] = useState("");
   const q = query.toLowerCase().trim();
   const matches = <T extends { id: string }>(records: T[], value: (record: T) => string) => records.filter((r) => value(r).toLowerCase().includes(q)).slice(0, 4);
@@ -575,6 +613,6 @@ function GlobalSearch({ data, close, open, navigate }: { data: WorkspaceData; cl
   const circulars = q ? matches(data.circulars, (c) => c.title) : [];
   const hasResults = people.length + events.length + items.length + circulars.length > 0;
   const choose = (fn: () => void) => { close(); fn(); };
-  return <Modal title="Find your way around the unit." subtitle="Members, events, checklist items, and circulars." onClose={close} wide><div className="global-search-field"><Search size={21} /><input placeholder="Start with a name, an event, or an idea…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search workspace" /><kbd>ESC</kbd></div><div className="global-search-results">{!q ? <div className="search-suggestions"><span className="eyebrow">QUICK DIRECTIONS</span>{[{ view: "dues" as View, label: "Membership dues & treasury", icon: Wallet }, { view: "procurement" as View, label: "Event procurement checklist", icon: ClipboardList }, { view: "resources" as View, label: "Science resource archive", icon: BookOpen }].map((item) => <button key={item.view} onClick={() => choose(() => navigate(item.view))}><item.icon size={17} /><span>{item.label}</span><ArrowUpRight size={15} /></button>)}</div> : !hasResults ? <div className="search-no-results"><Search size={27} /><h3>No results for “{query}”</h3><p>Try a member’s name, “science”, or a checklist item.</p></div> : <>{people.length > 0 && <div className="search-result-group"><span>MEMBERS</span>{people.map((p) => <button key={p.id} onClick={() => choose(() => { if (data.profiles.find((p) => p.id === data.currentUserId)?.role !== "member") open("dues", { memberId: p.id }); else navigate("members"); })}><Avatar person={p} size="small" /><span><strong>{p.fullName}</strong><small>{p.role} · {identity.unit}</small></span><ArrowUpRight size={14} /></button>)}</div>}{events.length > 0 && <div className="search-result-group"><span>EVENTS</span>{events.map((e) => <button key={e.id} onClick={() => choose(() => open("event", e))}><CalendarDays size={18} /><span><strong>{e.title}</strong><small>{e.location}</small></span><ArrowUpRight size={14} /></button>)}</div>}{items.length > 0 && <div className="search-result-group"><span>PROCUREMENT</span>{items.map((p) => <button key={p.id} onClick={() => choose(() => navigate("procurement", p.eventId))}><Package size={18} /><span><strong>{p.itemName}</strong><small>{p.quantity} · {p.status}</small></span><ArrowUpRight size={14} /></button>)}</div>}{circulars.length > 0 && <div className="search-result-group"><span>NOTICE BOARD</span>{circulars.map((c) => <button key={c.id} onClick={() => choose(() => open("circular", c))}><Megaphone size={18} /><span><strong>{c.title}</strong><small>{c.category}</small></span><ArrowUpRight size={14} /></button>)}</div>}</>}</div><div className="search-keyboard-hint"><Command size={12} /> K to open search from anywhere<span>Curiosity is a good place to start.</span></div></Modal>;
+  return <ModalExiting value={exiting}><Modal title="Find your way around the unit." subtitle="Members, events, checklist items, and circulars." onClose={close} wide><div className="global-search-field"><Search size={21} /><input placeholder="Start with a name, an event, or an idea…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search workspace" /><kbd>ESC</kbd></div><div className="global-search-results">{!q ? <div className="search-suggestions"><span className="eyebrow">QUICK DIRECTIONS</span>{[{ view: "dues" as View, label: "Membership dues & treasury", icon: Wallet }, { view: "procurement" as View, label: "Event procurement checklist", icon: ClipboardList }, { view: "resources" as View, label: "Science resource archive", icon: BookOpen }].map((item) => <button key={item.view} onClick={() => choose(() => navigate(item.view))}><item.icon size={17} /><span>{item.label}</span><ArrowUpRight size={15} /></button>)}</div> : !hasResults ? <div className="search-no-results"><Search size={27} /><h3>No results for “{query}”</h3><p>Try a member’s name, “science”, or a checklist item.</p></div> : <>{people.length > 0 && <div className="search-result-group"><span>MEMBERS</span>{people.map((p) => <button key={p.id} onClick={() => choose(() => { if (data.profiles.find((p) => p.id === data.currentUserId)?.role !== "member") open("dues", { memberId: p.id }); else navigate("members"); })}><Avatar person={p} size="small" /><span><strong>{p.fullName}</strong><small>{p.role} · {identity.unit}</small></span><ArrowUpRight size={14} /></button>)}</div>}{events.length > 0 && <div className="search-result-group"><span>EVENTS</span>{events.map((e) => <button key={e.id} onClick={() => choose(() => open("event", e))}><CalendarDays size={18} /><span><strong>{e.title}</strong><small>{e.location}</small></span><ArrowUpRight size={14} /></button>)}</div>}{items.length > 0 && <div className="search-result-group"><span>PROCUREMENT</span>{items.map((p) => <button key={p.id} onClick={() => choose(() => navigate("procurement", p.eventId))}><Package size={18} /><span><strong>{p.itemName}</strong><small>{p.quantity} · {p.status}</small></span><ArrowUpRight size={14} /></button>)}</div>}{circulars.length > 0 && <div className="search-result-group"><span>NOTICE BOARD</span>{circulars.map((c) => <button key={c.id} onClick={() => choose(() => open("circular", c))}><Megaphone size={18} /><span><strong>{c.title}</strong><small>{c.category}</small></span><ArrowUpRight size={14} /></button>)}</div>}</>}</div><div className="search-keyboard-hint"><Command size={12} /> K to open search from anywhere<span>Curiosity is a good place to start.</span></div></Modal></ModalExiting>;
 }
 function InfoSymbol() { return <CircleHelp size={19} />; }
