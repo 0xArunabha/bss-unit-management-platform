@@ -212,7 +212,8 @@ await test('BUG-UI-01: Views safely handle guest mode without throwing TypeError
 await test('BUG-UI-02: workspace-modals.tsx adheres strictly to Rules of Hooks', () => {
   const content = fs.readFileSync(resolveApp('src/components/workspace-modals.tsx'), 'utf8');
   const startIdx = content.indexOf('export function WorkspaceModals(');
-  const endIdx = content.indexOf('return null;\n}');
+  let endIdx = content.indexOf('return null;\n}');
+  if (endIdx < 0) endIdx = content.indexOf('return null;\r\n}');
   assert.ok(startIdx >= 0 && endIdx > startIdx, 'WorkspaceModals function bounds must be found');
   const modalsBody = content.slice(startIdx, endIdx);
   assert.ok(!modalsBody.includes('useState('), 'WorkspaceModals body must not declare conditional useState hooks');
@@ -258,7 +259,7 @@ await test('BUG-POL-01: Official receipt copy, verified signer Arunabha Ghosh, a
 
 // 17. Table scroll containers must not trap vertical scroll (overscroll-behavior-y)
 await test('Table scroll containers allow vertical wheel/touch scrolling', () => {
-  const css = fs.readFileSync(resolveApp('src/app/globals.css'), 'utf8');
+  const css = fs.readFileSync(resolveApp('src/app/globals.css'), 'utf8').replace(/\r\n/g, '\n');
   assert.ok(!css.includes('.table-scroll,\n.matrix-table-wrap,\n.login-card,\n.sidebar {\n  overscroll-behavior-y: contain;'), 'table-scroll must not be trapped with overscroll-behavior-y: contain');
   assert.ok(css.includes('.table-scroll,\n.matrix-table-wrap,\n.matrix-scroll {\n  overscroll-behavior-x: contain;\n  overscroll-behavior-y: auto !important;'), 'table-scroll must chain vertical scroll to page');
 });
@@ -269,7 +270,7 @@ await test('Mobile cards system and compact mini-stats defined for field users',
   assert.ok(peopleViews.includes('mobile-member-cards'), 'MembersView must render mobile-member-cards container');
   assert.ok(peopleViews.includes('mobile-donation-cards'), 'DonationsView must render mobile-donation-cards container');
 
-  const css = fs.readFileSync(resolveApp('src/app/globals.css'), 'utf8');
+  const css = fs.readFileSync(resolveApp('src/app/globals.css'), 'utf8').replace(/\r\n/g, '\n');
   assert.ok(css.includes('.mobile-member-cards,\n.mobile-donation-cards {\n  display: none;\n}'), 'Mobile cards must be hidden on desktop');
   assert.ok(css.includes('.desktop-only-table {\n    display: none !important;\n  }'), 'Desktop tables must be hidden on mobile screens');
   assert.ok(css.includes('.mobile-member-cards,\n  .mobile-donation-cards {\n    display: flex !important;'), 'Mobile cards must display on mobile screens');
