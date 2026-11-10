@@ -12,7 +12,7 @@ import { generateClaimCode, hashClaimCode, normalizeCode, checkClaimRateLimit, r
 import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
-import { getVerifiedGoogleIdentity } from "@/lib/google-identity";
+import { getVerifiedGoogleIdentity, resolveProfileFromGoogle } from "@/lib/google-identity";
 import { isProductionRuntime } from "@/lib/runtime";
 import { isUniqueViolation } from "@/lib/db-errors";
 
@@ -56,22 +56,7 @@ export async function GET(request: NextRequest) {
     let userId = await verifySessionToken(rawCookie);
     if (!userId && isDatabaseConfigured) {
       try {
-        const session = await auth.api.getSession({ headers: request.headers });
-        if (session?.user) {
-          const userSub = session.user.id;
-          const userEmail = session.user.email.toLowerCase();
-          let [matched] = await db.select().from(profiles).where(eq(profiles.googleSub, userSub));
-          if (!matched && session.user.emailVerified) {
-            const [unbound] = await db.select().from(profiles).where(
-              and(eq(profiles.googleEmail, userEmail), isNull(profiles.googleSub))
-            );
-            if (unbound) {
-              await db.update(profiles).set({ googleSub: userSub }).where(eq(profiles.id, unbound.id));
-              matched = unbound;
-            }
-          }
-          if (matched) userId = matched.id;
-        }
+        userId = await resolveProfileFromGoogle(request.headers, db, profiles, { eq, and, isNull });
       } catch {}
     }
     return NextResponse.json(await getWorkspace(userId || undefined));
@@ -89,22 +74,7 @@ export async function POST(request: NextRequest) {
     let userId = await verifySessionToken(rawCookie);
     if (!userId && isDatabaseConfigured) {
       try {
-        const session = await auth.api.getSession({ headers: request.headers });
-        if (session?.user) {
-          const userSub = session.user.id;
-          const userEmail = session.user.email.toLowerCase();
-          let [matched] = await db.select().from(profiles).where(eq(profiles.googleSub, userSub));
-          if (!matched && session.user.emailVerified) {
-            const [unbound] = await db.select().from(profiles).where(
-              and(eq(profiles.googleEmail, userEmail), isNull(profiles.googleSub))
-            );
-            if (unbound) {
-              await db.update(profiles).set({ googleSub: userSub }).where(eq(profiles.id, unbound.id));
-              matched = unbound;
-            }
-          }
-          if (matched) userId = matched.id;
-        }
+        userId = await resolveProfileFromGoogle(request.headers, db, profiles, { eq, and, isNull });
       } catch {}
     }
     // Actions that do not need an existing member session. Signing in is NOT one of them:
@@ -622,8 +592,11 @@ export async function POST(request: NextRequest) {
     } else {
       if (rawCookie) await destroySession(rawCookie);
       response.cookies.delete(SESSION_COOKIE_NAME);
-      response.cookies.delete("better-auth.session_token");
-      response.cookies.delete("__Secure-better-auth.session_token");
+      // Only clear Better Auth cookies on explicit logout (not on apply/donate where Google session should persist)
+      if (body.action === "logout") {
+        response.cookies.delete("better-auth.session_token");
+        response.cookies.delete("__Secure-better-auth.session_token");
+      }
     }
     response.cookies.delete("bss_demo_user");
     return response;

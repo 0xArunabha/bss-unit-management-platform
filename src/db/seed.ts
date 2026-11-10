@@ -95,13 +95,10 @@ async function seed() {
         monthly_pledge NUMERIC(12, 2) NOT NULL DEFAULT 20,
         avatar_color TEXT NOT NULL DEFAULT 'peach',
         unpaid_months INTEGER NOT NULL DEFAULT 0,
-        pin TEXT NOT NULL DEFAULT '1234',
         google_email TEXT,
-        needs_pin_change BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
-      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pin TEXT DEFAULT '1234';
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS google_email TEXT;
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS google_sub TEXT;
       -- One Google account links to at most one profile (NULL, meaning "not linked", may repeat). Enforced here so
@@ -114,8 +111,6 @@ async function seed() {
         RAISE NOTICE 'profiles_google_sub_key was not created because duplicate google_sub values exist';
       END $$;
       ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_minor BOOLEAN DEFAULT FALSE;
-      ALTER TABLE profiles ADD COLUMN IF NOT EXISTS needs_pin_change BOOLEAN DEFAULT FALSE;
-      UPDATE profiles SET pin = '1234' WHERE pin IS NULL;
 
       CREATE TABLE IF NOT EXISTS membership_dues (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -241,8 +236,13 @@ async function seed() {
 
       ALTER TABLE membership_dues ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE;
       ALTER TABLE donations ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE;
-      ALTER TABLE profiles ALTER COLUMN pin DROP DEFAULT;
-      ALTER TABLE profiles ALTER COLUMN pin DROP NOT NULL;
+      -- Guard: only touch the pin column if it still exists (legacy databases)
+      DO $ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'pin') THEN
+          ALTER TABLE profiles ALTER COLUMN pin DROP DEFAULT;
+          ALTER TABLE profiles ALTER COLUMN pin DROP NOT NULL;
+        END IF;
+      END $;
 
       CREATE TABLE IF NOT EXISTS "user" (
         id TEXT PRIMARY KEY,
@@ -346,9 +346,7 @@ async function seed() {
         ]).onConflictDoNothing();
       }
       for (const member of REAL_MEMBERS) {
-        // Members start unseeded from code: pin is null, needs_pin_change is true
-        // Only if process.env.INITIAL_ADMIN_PIN is provided in server env, set admin initial hash
-                await tx.execute(sql`
+        await tx.execute(sql`
           INSERT INTO profiles (id, full_name, phone, role, status, monthly_pledge, avatar_color, unpaid_months, google_email, created_at)
           VALUES (${member.id}, ${member.fullName}, ${member.phone}, ${member.role}, 'active', ${member.monthlyPledge}, ${member.avatarColor}, ${member.paid ? 0 : 1}, NULL, NOW())
           ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, full_name = EXCLUDED.full_name, phone = EXCLUDED.phone
@@ -363,7 +361,7 @@ async function seed() {
     const upcoming = (days: number, hour: number) => { const d = new Date(now); d.setDate(d.getDate() + days); d.setHours(hour, 0, 0, 0); return d; };
 
     const people = REAL_MEMBERS.map((m, idx) => {
-            return {
+      return {
         id: m.id,
         fullName: m.fullName,
         phone: m.phone,

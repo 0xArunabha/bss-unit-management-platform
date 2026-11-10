@@ -25,3 +25,38 @@ export async function getVerifiedGoogleIdentity(headers: Headers): Promise<Googl
     return null;
   }
 }
+
+/**
+ * Resolves a Google identity to a member profile id.
+ *
+ * Primary match: strictly by unique immutable googleSub.
+ * First-bind fallback: if no match and emailVerified, bind a profile that has
+ * googleEmail set but no googleSub. The update guards with isNull(googleSub)
+ * so a concurrent bind cannot overwrite.
+ *
+ * Returns the member profile id or null.
+ */
+export async function resolveProfileFromGoogle(
+  headers: Headers,
+  db: any,
+  profiles: any,
+  ops: { eq: any; and: any; isNull: any }
+): Promise<string | null> {
+  const identity = await getVerifiedGoogleIdentity(headers);
+  if (!identity) return null;
+  const { eq, and, isNull } = ops;
+  // Primary match: immutable googleSub
+  let [matched] = await db.select().from(profiles).where(eq(profiles.googleSub, identity.sub));
+  if (!matched) {
+    // First-bind: email match only if profile has no googleSub yet
+    const [unbound] = await db.select().from(profiles).where(
+      and(eq(profiles.googleEmail, identity.email), isNull(profiles.googleSub))
+    );
+    if (unbound) {
+      await db.update(profiles).set({ googleSub: identity.sub })
+        .where(and(eq(profiles.id, unbound.id), isNull(profiles.googleSub)));
+      matched = unbound;
+    }
+  }
+  return matched?.id || null;
+}
