@@ -237,12 +237,12 @@ async function seed() {
       ALTER TABLE membership_dues ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE;
       ALTER TABLE donations ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE;
       -- Guard: only touch the pin column if it still exists (legacy databases)
-      DO $ BEGIN
+      DO $$ BEGIN
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'pin') THEN
           ALTER TABLE profiles ALTER COLUMN pin DROP DEFAULT;
           ALTER TABLE profiles ALTER COLUMN pin DROP NOT NULL;
         END IF;
-      END $;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS "user" (
         id TEXT PRIMARY KEY,
