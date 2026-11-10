@@ -11,7 +11,8 @@ export const profiles = pgTable("profiles", {
   avatarColor: text("avatar_color").notNull().default("peach"),
   unpaidMonths: integer("unpaid_months").notNull().default(0),
   googleEmail: text("google_email"),
-  googleSub: text("google_sub"),
+  // One Google account links to at most one profile. NULL (not linked) may repeat. Created by seed.ts.
+  googleSub: text("google_sub").unique(),
   isMinor: boolean("is_minor").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

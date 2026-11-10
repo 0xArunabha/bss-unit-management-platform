@@ -1352,7 +1352,7 @@ body{background-color:var(--paper);}
 
 
 /* ==========================================================================
-   AUTHENTICATION & SECURITY PIN LOGIN
+   AUTHENTICATION & GOOGLE OAUTH LOGIN
    ========================================================================== */
 
 .login-screen-wrap {
@@ -1512,48 +1512,7 @@ body{background-color:var(--paper);}
   color: var(--charcoal-muted, #5f6854);
 }
 
-.login-pin-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  position: relative;
-}
-
-.login-pin-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--charcoal, #1e2418);
-}
-
-.login-pin-dots {
-  display: flex;
-  gap: 14px;
-  margin: 4px 0;
-}
-
-.login-pin-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--rule-hard, #968a6f);
-  background: transparent;
-  transition: all 0.15s ease;
-}
-
-.login-pin-dot.filled {
-  background: var(--charcoal, #1e2418);
-  border-color: var(--charcoal, #1e2418);
-  transform: none;
-}
-
-.login-pin-dot.error-dot {
-  border-color: var(--rust, #bf5029);
-  background: rgba(191, 80, 41, 0.2);
-}
+/* PIN login CSS removed — authentication is now Google OAuth only */
 
 .login-hidden-input {
   position: absolute;
@@ -1771,11 +1730,7 @@ body{background-color:var(--paper);}
   line-height: 1.45;
 }
 
-.recovery-pin-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
+/* recovery-pin-grid removed — PIN recovery no longer exists */
 
 .recovery-help-box {
   display: flex;
@@ -1947,24 +1902,7 @@ body{background-color:var(--paper);}
   color: var(--rust, #bf5029);
 }
 
-.admin-pin-chip {
-  display: inline-block;
-  margin-left: 6px;
-  background: rgba(107, 127, 80, 0.12);
-  color: var(--olive, #6b7f50);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 10.5px;
-  font-weight: 600;
-  border: 1px solid rgba(107, 127, 80, 0.25);
-}
-
-.admin-pin-chip code {
-  font-family: var(--font-mono, monospace);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--charcoal, #1e2418);
-}
+/* admin-pin-chip removed — PINs no longer displayed */
 
 /* ==========================================================================
    MOBILE SMOOTHNESS, VIEW TRANSITIONS & FLUID TOUCH PHYSICS

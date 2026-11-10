@@ -421,6 +421,19 @@ await test('BUG-SEC-16: demo mode, demo receipts and a healthy health check are 
   assert.ok(/status: production \? 503 : 200/.test(health), 'the health check must fail when production has no database');
 });
 
+// 32. BUG-SEC-17: one Google account, one profile, enforced by the database; application review is all-or-nothing.
+// Tripwires on the source. The behaviour (two simultaneous claims, a failed approval) is in verification/followups.mjs.
+await test('BUG-SEC-17: unique Google id in the database; claim and application review depend on it', () => {
+  const seed = fs.readFileSync(resolveApp('src/db/seed.ts'), 'utf8');
+  assert.ok(/CREATE UNIQUE INDEX IF NOT EXISTS profiles_google_sub_key ON profiles \(google_sub\)/.test(seed), 'seed.ts must create the unique index on profiles.google_sub');
+  const schema = fs.readFileSync(resolveApp('src/db/schema.ts'), 'utf8');
+  assert.ok(/googleSub: text\("google_sub"\)\.unique\(\)/.test(schema), 'schema.ts must declare profiles.google_sub as unique');
+  const route = fs.readFileSync(resolveApp('src/app/api/workspace/route.ts'), 'utf8');
+  assert.ok((route.match(/isUniqueViolation\(error\)/g) || []).length >= 2, 'claim and application approval must turn a unique violation into a clear message');
+  const at = route.indexOf('case "reviewApplication"');
+  assert.ok(at >= 0 && route.slice(at, at + 700).includes('db.transaction'), 'reviewApplication must run in one transaction');
+});
+
 console.log(`\n${CYAN}════════════════════════════════════════════════════════════════════════════${RESET}`);
 if (passed === total) {
   console.log(`${GREEN}${BOLD}  RESULT: ${passed}/${total} VERIFICATION CHECKS PASSED (100%)${RESET}`);
