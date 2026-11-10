@@ -23,6 +23,14 @@ export const DICTIONARY: Translations = {
   resources: { en: "Science resources", bn: "বিজ্ঞান উপাদান ও আর্কাইভ" },
   settings: { en: "Unit settings", bn: "সেটিংস" },
 
+  // Short labels for the mobile bottom navigation and top bar (the full names above are too long for five tabs)
+  membersShort: { en: "Members", bn: "সদস্য" },
+  duesShort: { en: "Dues", bn: "চাঁদা" },
+  eventsShort: { en: "Events", bn: "অনুষ্ঠান" },
+  circularsShort: { en: "Circulars", bn: "নোটিশ" },
+  resourcesShort: { en: "Resources", bn: "আর্কাইভ" },
+  settingsShort: { en: "Settings", bn: "সেটিংস" },
+
   // Group headers
   navWorkspace: { en: "WORKSPACE", bn: "কার্যক্ষেত্র" },
   navKnowledge: { en: "KNOWLEDGE & OUTREACH", bn: "বিজ্ঞান প্রচার ও আর্কাইভ" },

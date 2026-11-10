@@ -80,9 +80,9 @@ export function EventsView({ data, open }: Props) {
                 <div className="event-card-footer">
                   <span><Users size={14} />{event.volunteers} active volunteers</span>
                   {needed > 0 ? (
-                    <span className="stamp-needed font-bold text-[8px]">{needed} REQUISITIONS NEEDED</span>
+                    <span className="stamp-needed font-bold text-[length:max(8px,var(--fs-floor,0px))]">{needed} REQUISITIONS NEEDED</span>
                   ) : (
-                    <span className="stamp-verified font-bold text-[8px]">{verified} ITEMS PEER-VERIFIED</span>
+                    <span className="stamp-verified font-bold text-[length:max(8px,var(--fs-floor,0px))]">{verified} ITEMS PEER-VERIFIED</span>
                   )}
                 </div>
 
@@ -601,7 +601,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
               <FlaskConical size={18} className="text-rust" />
               Anti-Superstition Demonstration Lab — Chemical & Physical Protocols
             </h3>
-            <span className="mono text-[10px] text-muted">Busting Godmen Tricks with Laboratory Evidence</span>
+            <span className="mono text-[length:max(10px,var(--fs-floor,0px))] text-muted">Busting Godmen Tricks with Laboratory Evidence</span>
           </div>
 
           <div className="demo-protocols-list">
@@ -611,7 +611,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
                 <article className="demo-protocol-card panel print-tech-slip" key={r.id}>
                   <div className="protocol-card-head" onClick={() => setExpandedProtocol(isExpanded ? null : r.id)}>
                     <div className="protocol-title-group">
-                      <span className="stamp-verified stamp-needed text-[7px]">EXPOSING FRAUD</span>
+                      <span className="stamp-verified stamp-needed text-[length:max(7px,var(--fs-floor,0px))]">EXPOSING FRAUD</span>
                       <h4>{r.title}</h4>
                       <p>{r.description}</p>
                     </div>

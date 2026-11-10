@@ -139,7 +139,7 @@ export default async function ReceiptPage({
                 : donation.paymentMode === "upi"
                 ? "UPI"
                 : "Cash"}
-              {donation.transactionRef && <span className="block text-[10px] text-muted font-mono mt-1">Ref: {donation.transactionRef}</span>}
+              {donation.transactionRef && <span className="block text-[length:max(10px,var(--fs-floor,0px))] text-muted font-mono mt-1">Ref: {donation.transactionRef}</span>}
             </dd>
           </div>
           <div>

@@ -248,7 +248,7 @@ export function WorkspaceModals(props: Props) {
 
           <div className="payment-brand-row">
             <span className="stamp-verified">AUDITED ENTRY</span>
-            <span className="mono text-[10px] text-muted">{identity.unit}</span>
+            <span className="mono text-[length:max(10px,var(--fs-floor,0px))] text-muted">{identity.unit}</span>
           </div>
 
           <h3 className="mono">{money(payment.amount)}</h3>
@@ -942,7 +942,7 @@ function ReceiptModal({
               <strong>{identity.name}</strong>
               <span>{identity.organisation}</span>
               <span>{identity.unit} · {identity.state}</span>
-              <small className="mono text-[8.5px] text-muted block mt-0.5">Regd. No. {identity.registrationNo}</small>
+              <small className="mono text-[length:max(8.5px,var(--fs-floor,0px))] text-muted block mt-0.5">Regd. No. {identity.registrationNo}</small>
             </div>
           </div>
 
@@ -953,7 +953,7 @@ function ReceiptModal({
 
           <div className="receipt-amount-row my-2">
             <div>
-              <span className="mono text-[8px] text-muted block">CONTRIBUTION AMOUNT</span>
+              <span className="mono text-[length:max(8px,var(--fs-floor,0px))] text-muted block">CONTRIBUTION AMOUNT</span>
               <div className="receipt-amount mono">{money(donation.amount)}</div>
             </div>
             <UnitOfficialSeal size={84} />

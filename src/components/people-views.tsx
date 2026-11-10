@@ -833,7 +833,7 @@ export function DonationsView({ data, open }: Props) {
                         <span className={`donor-category-pill badge-${badge.tone}`}>{badge.label}</span>
                         <div className="flex flex-col gap-0.5 min-w-0">
                           <strong className="block leading-tight">{d.donorName}</strong>
-                          <small className="mono text-muted block text-[10px] leading-tight">{d.receiptNo}</small>
+                          <small className="mono text-muted block text-[length:max(10px,var(--fs-floor,0px))] leading-tight">{d.receiptNo}</small>
                         </div>
                       </div>
                     </td>
@@ -883,7 +883,7 @@ export function DonationsView({ data, open }: Props) {
                     <span className={`donor-category-pill badge-${badge.tone}`}>{badge.label}</span>
                     <div className="mobile-donor-name-block">
                       <strong>{d.donorName}</strong>
-                      <small className="mono text-muted block text-[10.5px] leading-tight">{d.receiptNo}</small>
+                      <small className="mono text-muted block text-[length:max(10.5px,var(--fs-floor,0px))] leading-tight">{d.receiptNo}</small>
                     </div>
                   </div>
                   <strong className="mobile-donation-amount">{money(d.amount)}</strong>

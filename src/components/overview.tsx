@@ -88,7 +88,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <span className="print-mark print-mark-tl slip-mark" />
           <span className="print-mark print-mark-tr slip-mark" />
           <div className="urgent-dispatch-left">
-            <span className="stamp-needed text-[7.5px] font-bold">
+            <span className="stamp-needed text-[length:max(7.5px,var(--fs-floor,0px))] font-bold">
               <ShieldAlert size={12} className="inline mr-1" />
               URGENT FIELD DISPATCH &lt;48H
             </span>
@@ -390,7 +390,7 @@ function AttentionRow({ item, data, index, onClick }: { item: Procurement; data:
         </span>
       </div>
       {item.status === "verified" ? (
-        <span className="stamp-verified text-[7px]">VERIFIED</span>
+        <span className="stamp-verified text-[length:max(7px,var(--fs-floor,0px))]">VERIFIED</span>
       ) : (
         <Badge tone={item.status === "needed" ? "orange" : "yellow"}>
           {item.status === "needed" ? "Needed" : "To verify"}
