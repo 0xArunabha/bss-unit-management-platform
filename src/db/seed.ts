@@ -80,6 +80,49 @@ Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (J
 
 এই প্রস্তাব বিষয়ক যেকোন সাজেশন স্বর্ণদ্বীপ সেনের কাছে ব্যক্তিগত ভাবে পাঠাবেন। সকলের মতামত কাম্য।`;
 
+const mashkalaibariReportTitle = "Field Investigation: Mashkalaibari Crematorium Mismanagement & Furnace Emissions";
+const mashkalaibariReportContent = `DATE OF ON-SITE INSPECTION: November 3, 2026
+LOCATION: Mashkalaibari Crematorium & Adjacent Neighbourhoods, Jalpaiguri
+INSPECTED BY: Field Delegation, Light of Science (Breakthrough Science Society, Jalpaiguri Unit)
+
+1. EXECUTIVE SUMMARY & FIELD FINDINGS
+Following distress calls and complaints from local residents, a representative delegation from Light of Science, Jalpaiguri visited the Mashkalaibari cremation ground and neighbouring residential lanes on the morning of November 3, 2026. The inspection revealed alarming public health, civic, and environmental hazards:
+
+• Toxic Furnace Emissions & Odour:
+Incomplete combustion inside the crematorium furnace releases dense, foul-smelling smoke directly into residential quarters. Residents face severe respiratory distress, burning eyes, chronic headaches, and acute psychological trauma.
+
+• Failure of Municipal "Patch-up" Maintenance:
+Local conscious citizen Babul Choudhury, along with neighbourhood residents, had previously protested and petitioned Jalpaiguri Municipality. However, the civic body performed only superficial, temporary patch-up repairs. Within days of restart, the furnace relapsed into severe malfunction, leaving residents unprotected.
+
+• Complete Absence of Waste Management:
+There are no designated disposal bins or incinerators for ritual remnants. Used clothes, plastic wrappings, and bio-waste are dumped indiscriminately across the open grounds and into the adjacent riverbed, severely degrading the aquatic ecosystem.
+
+• Jungle Overgrowth & Antisocial Activities:
+Due to chronic municipal neglect, the rear crematorium grounds and adjoining burial areas are overgrown with thick jungle, providing shelter for antisocial elements and compromising neighbourhood safety.
+
+2. UNIT ACTION PLAN & PROPOSED RESOLUTIONS
+In light of this critical environmental and civic breakdown, Light of Science, Jalpaiguri resolves:
+1. Convene an emergency meeting with local youth and resident representatives (Babul Choudhury and neighbours).
+2. Form a joint "Mashkalaibari Anti-Pollution & Civic Health Committee".
+3. Submit a technical deputation to Jalpaiguri Municipality & West Bengal Pollution Control Board demanding an automated Air Pollution Control System (APCS) with wet scrubber, proper chimney filtration, systematic solid waste management, and illumination of the premises.
+
+───────────────────────────────
+মূল বাংলা প্রতিবেদন (Original Bengali Field Report · 03/11/2026):
+মাষকলাইবাড়ি শ্মশানের অব্যবস্থা ও চুল্লির দূষণ: স্থানীয় বাসিন্দাদের চরম দুর্ভোগ এবং ক্ষোভ
+
+জলপাইগুড়ি: 
+আজ সকালে ‘লাইট অফ সায়েন্স, জলপাইগুড়ি’-র পক্ষ থেকে মাশকালীবাড়ি শ্মশান ও তার পার্শ্ববর্তী পাড়াগুলোতে পরিদর্শনে যাওয়া হয়। এই পরিদর্শনের সময় স্থানীয় কিছু যুবকের সঙ্গে কথা বলে এক গুরুতর চিত্র সামনে এসেছে। এলাকাবাসীর অভিযোগ, শ্মশানের চুল্লির তীব্র গন্ধ এবং দূষণের কারণে সেখানে টেকা দায় হয়ে পড়েছে। এর ফলে সাধারণ মানুষের মনে মারাত্মক মানসিক চাপ সৃষ্টি হচ্ছে এবং নানা ধরনের শারীরিক সমস্যাও দেখা দিচ্ছে।
+
+স্থানীয়দের জোরালো প্রতিবাদ ও পৌরসভার উদাসীনতা: 
+এখানকারই এক সচেতন বাসিন্দা বাবুল চৌধুরী এবং এলাকার অন্যান্য পাড়াপ্রতিবেশীরা একসঙ্গে মিলে এর আগেও এই মাষকলাইবাড়ি শ্মশানের নানা অনিয়ম ও সমস্যার বিরুদ্ধে প্রতিবাদ জানিয়েছেন এবং পৌরসভার দ্বারস্থ হয়েছেন। কিন্তু দুঃখের বিষয় হলো, স্থানীয় বাসিন্দাদের এই সম্মিলিত প্রচেষ্টার পরেও সম্প্রতি চুল্লিটিকে আবারও কেবল সাময়িক মেরামত করা হয়েছে, কিন্তু এর থেকে খুব একটা রেহাই পাননি এলাকাবাসী। জোড়াতালি দিয়ে কাজ চালানোর কিছুদিন পরেই চুল্লির সেই পুরনো সমস্যা আবার ফিরে আসছে।
+
+পরিদর্শনে উঠে আসা অন্যান্য গুরুতর সমস্যাগুলি: 
+• বর্জ্য ব্যবস্থাপনার অভাব: শ্মশান চত্বরে আবর্জনা ফেলার কোনো নির্দিষ্ট বা স্থায়ী জায়গা নেই। ফলে মৃত মানুষের শেষকৃত্যের পর তাঁদের ব্যবহৃত কাপড়-চোপড় ও অন্যান্য সামগ্রী যত্রতত্র শ্মশান চত্বরে ও নদীতে ফেলে দেওয়া হচ্ছে, যা পরিবেশকে মারাত্মকভাবে নোংরা করছে।
+• জঙ্গল ও ঝোপঝাড়: সঠিক রক্ষণাবেক্ষণ ও পরিচর্যার অভাবে শ্মশানের পেছনের চত্বর এবং কবরস্থান চত্বরটি আজ ঘন জঙ্গলে ও ঝোপঝাড়ে ভরে গেছে।
+• অসামাজিক কার্যকলাপ: স্থানীয় বাসিন্দাদের অভিযোগ, এই অবহেলার সুযোগ নিয়ে শ্মশান ও কবরস্থানের চত্বরে নানা ধরনের অসামাজিক কাজকর্মও মাথাচাড়া দিয়ে উঠছে, যা এলাকার সামগ্রিক নিরাপত্তার পরিবেশকে গুরুতরভাবে বিঘ্নিত করছে।
+
+এমতাবস্থায় আমরা কীভাবে বিষয়টা দেখবো? এবিষয়ে একটা মিটিং করলে ভালো হয়।`;
+
 async function seed() {
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(7428101)`);
@@ -333,6 +376,11 @@ async function seed() {
       await tx.update(circulars).set({ title: unitCircularTitle, content: unitCircularContent }).where(and(eq(circulars.id, uid(5, 1)), eq(circulars.title, "Let’s take science to every neighbourhood"), eq(circulars.content, originalCircularContent)));
       await tx.execute(sql`
         INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
+        VALUES (${uid(5, 5)}, ${mashkalaibariReportTitle}, ${mashkalaibariReportContent}, 'Campaign report', true, ${ADMIN_ID}, '2026-11-03 08:00:00+00')
+        ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, pinned = EXCLUDED.pinned
+      `);
+      await tx.execute(sql`
+        INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
         VALUES (${uid(5, 4)}, ${teamsCircularTitle}, ${teamsCircularContent}, 'Unit circular', true, ${uid(1, 3)}, NOW())
         ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, pinned = EXCLUDED.pinned
       `);
@@ -408,6 +456,7 @@ async function seed() {
     if (payments.length) await tx.insert(dues).values(payments);
 
     await tx.insert(events).values([
+      { id: uid(2, 5), title: "Emergency Meeting: Mashkalaibari Crematorium Pollution & Citizen Action", description: "Urgent citizen and volunteer gathering to address toxic furnace emissions, riverbed waste dumping, and civic apathy at Mashkalaibari cremation ground. Drafting our municipal deputation charter with conscious resident Babul Choudhury and local youth.", location: "Club Room / Mashkalaibari, Jalpaiguri", startsAt: upcoming(2, 18), category: "Campaign", volunteers: 16, image: "/images/field-reports/mashkalaibari/inspection-1.jpg" },
       { id: uid(2, 1), title: "National Science Day outreach", description: "Take science beyond the classroom. Join our hands-on demonstrations, a science quiz, and conversations on scientific temper. Volunteers meet one hour before the programme for setup.", location: sampleVenues[0].location, startsAt: upcoming(1, 10), category: "Outreach", volunteers: 18, image: "/images/science-outreach.jpg" },
       { id: uid(2, 2), title: "Unit volunteers’ meeting", description: "Our monthly gathering to review outreach plans, collect membership dues, and coordinate the next round of community programmes. All unit members are welcome.", location: sampleVenues[1].location, startsAt: upcoming(3, 17), category: "Unit meeting", volunteers: 24, image: "/images/conference.jpg" },
       { id: uid(2, 3), title: "A greener neighbourhood", description: "A community discussion on local environmental challenges, followed by a neighbourhood clean-up and awareness walk. Bring a reusable water bottle.", location: sampleVenues[2].location, startsAt: upcoming(6, 8), category: "Campaign", volunteers: 12, image: "/images/environment-campaign.jpg" },
@@ -433,6 +482,7 @@ async function seed() {
     ]);
 
     await tx.insert(circulars).values([
+      { id: uid(5, 5), title: mashkalaibariReportTitle, content: mashkalaibariReportContent, category: "Campaign report", pinned: true, authorId: ADMIN_ID, createdAt: new Date("2026-11-03T08:00:00.000Z") },
       { id: uid(5, 4), title: teamsCircularTitle, content: teamsCircularContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: ago(30) },
       { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: false, authorId: ADMIN_ID, createdAt: ago(180) },
       { id: uid(5, 2), title: "February unit meeting: agenda & updates", content: "The next unit meeting will cover:\n\n1. Review of recent outreach activities\n2. Membership dues and treasury report\n3. Procurement and volunteer coordination\n4. Upcoming environmental campaign\n\nMembers can pay dues by cash, UPI, or bank transfer during the meeting. Advance contributions are welcome, with a minimum of ₹20 per month.", category: "Meeting agenda", authorId: uid(1, 6), createdAt: ago(1560) },

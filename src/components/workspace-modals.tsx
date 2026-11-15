@@ -611,6 +611,36 @@ export function WorkspaceModals(props: Props) {
             </div>
           )}
           <div className="reader-content">{notice.content}</div>
+          {notice.title.includes("Mashkalaibari") && (
+            <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
+                  On-Site Photographic Evidence (03/11/2026)
+                </span>
+                <span className="text-[11px] text-ink-faint">6 Photographic Records</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[1, 2, 3, 4, 5, 6].map((num) => (
+                  <a
+                    key={num}
+                    href={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
+                  >
+                    <img
+                      src={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
+                      alt={`Mashkalaibari Crematorium Inspection Photo ${num}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
+                      FIG. 0{num}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="reader-signoff">
             In the cause of scientific temper and humanism,<br />
             <strong>{identity.name}<br />{identity.organisation} · {identity.unit}</strong>
