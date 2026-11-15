@@ -131,7 +131,60 @@ function createInitialState(): {
     }
   }
 
-  const unitEvents: UnitEvent[] = [];
+  const unitEvents: UnitEvent[] = [
+    {
+      id: uid(2, 5),
+      title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
+      description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.",
+      location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri",
+      startsAt: "2026-11-03T08:00:00.000Z",
+      category: "Campaign",
+      volunteers: 18,
+      image: "/images/field-reports/mashkalaibari/inspection-1.jpg",
+      createdAt: "2026-11-03T08:00:00.000Z",
+      isOngoing: true,
+      progressPercent: 40,
+      targetGoal: "Installation of automated Air Pollution Control System (APCS) & River Protection",
+      milestones: [
+        {
+          id: "m-1",
+          phase: 1,
+          title: "Field Inspection & Photographic Fact-Finding",
+          description: "On-site visit on 03/11/2026 with local youth; documented toxic emissions, resident distress, and 6 photographic evidence records.",
+          status: "completed",
+          completedDate: "03/11/2026",
+        },
+        {
+          id: "m-2",
+          phase: 2,
+          title: "Citizen Alignment & Joint Committee Formation",
+          description: "Convening neighbourhood meetings with conscious resident Babul Choudhury and local youth to formulate unity demands.",
+          status: "in_progress",
+        },
+        {
+          id: "m-3",
+          phase: 3,
+          title: "Technical Deputation to Municipality & SPCB",
+          description: "Formal submission of engineering charter demanding wet scrubbers, high-stack filtration, and river waste containment.",
+          status: "planned",
+        },
+        {
+          id: "m-4",
+          phase: 4,
+          title: "Mass Citizen Petition & 500+ Signature Drive",
+          description: "Neighbourhood awareness walk and mass signature collection across Jalpaiguri wards.",
+          status: "planned",
+        },
+        {
+          id: "m-5",
+          phase: 5,
+          title: "APCS Installation & Environmental Verification",
+          description: "Independent citizen verification of furnace emission levels and restored riverfront cleanliness.",
+          status: "planned",
+        },
+      ],
+    },
+  ];
 
   const procurementsList: Procurement[] = [
     { id: uid(3, 1), eventId: uid(2, 1), itemName: "Science demonstration kits", quantity: "4 kits", estimatedCost: 2400, actualCost: null, status: "needed", purchasedBy: null, purchasedAt: null, verifiedBy: null, verifiedAt: null, createdBy: uid(1, 6), createdAt: ago(35) },

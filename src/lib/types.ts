@@ -16,7 +16,30 @@ export type Profile = {
   isMinor?: boolean;
 };
 export type DuesRecord = { id: string; memberId: string; month: number; year: number; amount: number; paymentMode: string; collectedBy: string | null; paidAt: string; idempotencyKey?: string | null };
-export type UnitEvent = { id: string; title: string; description: string; location: string; startsAt: string; category: string; volunteers: number; image: string; createdAt: string };
+export type CampaignMilestone = {
+  id: string;
+  phase: number;
+  title: string;
+  description: string;
+  status: "completed" | "in_progress" | "planned";
+  completedDate?: string;
+};
+
+export type UnitEvent = {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  startsAt: string;
+  category: string;
+  volunteers: number;
+  image: string;
+  createdAt: string;
+  isOngoing?: boolean;
+  progressPercent?: number;
+  targetGoal?: string;
+  milestones?: CampaignMilestone[];
+};
 export type Procurement = { id: string; eventId: string; itemName: string; quantity: string; estimatedCost: number; actualCost: number | null; status: "needed" | "purchased" | "verified"; purchasedBy: string | null; purchasedAt: string | null; verifiedBy: string | null; verifiedAt: string | null; createdBy: string | null; createdAt: string; receiptPhotoUrl?: string | null };
 export type Donation = { id: string; donorName: string; donorPhone: string | null; amount: number; eventId: string | null; paymentMode: string; transactionRef: string | null; receiptNo: string; smsSent: boolean; receivedBy: string | null; createdAt: string; idempotencyKey?: string | null };
 export type Circular = { id: string; title: string; content: string; category: string; pinned: boolean; authorId: string | null; createdAt: string };

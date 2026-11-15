@@ -535,35 +535,163 @@ export function WorkspaceModals(props: Props) {
     const date = new Date(event.startsAt);
 
     return (
-      <Modal title={event.title} subtitle={`${event.category} · ${identity.unit}`} onClose={close} wide>
+      <Modal title={event.title} subtitle={`${event.isOngoing ? "Ongoing Civic Campaign" : event.category} · ${identity.unit}`} onClose={close} wide>
         <img className="event-detail-image" src={event.image} alt={event.title} />
         <div className="event-detail-body">
           <div className="event-detail-meta">
-            <span><CalendarDays size={17} />{date.toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}</span>
+            <span>
+              <CalendarDays size={17} />
+              {event.isOngoing
+                ? `Initiated: ${date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Active Campaign`
+                : date.toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}
+            </span>
             <span><MapPin size={17} />{event.location}</span>
-            <span><Users size={17} />{event.volunteers} active volunteers assigned</span>
+            <span><Users size={17} />{event.volunteers} active {event.isOngoing ? "advocates mobilizing" : "volunteers assigned"}</span>
           </div>
+
           <p className="event-detail-description">{event.description}</p>
-          <div className="event-checklist-summary">
-            <Package size={20} />
-            <div>
-              <strong>Field Requisition Status</strong>
-              <p>{eventItems.length} items logged · {eventItems.filter((p) => p.status === "needed").length} needed · {eventItems.filter((p) => p.status === "verified").length} verified</p>
+
+          {/* Campaign Progress Bar */}
+          {event.isOngoing && (
+            <div className="campaign-progress-box my-4">
+              <div className="campaign-progress-header">
+                <span className="campaign-progress-label mono">
+                  CAMPAIGN TARGET: <strong>{event.progressPercent || 0}% REACHED</strong>
+                </span>
+                <span className="campaign-phase-badge">
+                  PHASE {event.milestones?.find((m) => m.status === "in_progress")?.phase || 2} IN PROGRESS
+                </span>
+              </div>
+              <div className="campaign-progress-track">
+                <div
+                  className="campaign-progress-fill"
+                  style={{ width: `${event.progressPercent || 0}%` }}
+                />
+              </div>
+              {event.targetGoal && (
+                <div className="campaign-progress-footer">
+                  <span>Goal: {event.targetGoal}</span>
+                </div>
+              )}
             </div>
-            <ArrowRight size={17} />
-          </div>
+          )}
+
+          {/* Phased Action Plan & Milestones Roadmap */}
+          {event.isOngoing && event.milestones && event.milestones.length > 0 && (
+            <div className="campaign-milestones-section my-5 pt-4 border-t border-rule-soft">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="mono text-xs font-bold text-rust uppercase tracking-wider">
+                  Campaign Action Plan & Milestone Roadmap
+                </h4>
+                <span className="text-[11px] text-ink-faint mono">
+                  {event.milestones.filter((m) => m.status === "completed").length} of {event.milestones.length} Completed
+                </span>
+              </div>
+              <div className="space-y-2.5">
+                {event.milestones.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`p-3 rounded border text-left transition-colors ${
+                      m.status === "completed"
+                        ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
+                        : m.status === "in_progress"
+                        ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
+                        : "bg-paper-card border-rule-soft text-ink-mute opacity-85"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="mono text-[11px] font-bold">
+                        PHASE 0{m.phase} · {m.title}
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mono ${
+                          m.status === "completed"
+                            ? "bg-olive text-paper-card"
+                            : m.status === "in_progress"
+                            ? "bg-rust text-paper-card"
+                            : "bg-stone-200 text-stone-600"
+                        }`}
+                      >
+                        {m.status === "completed" ? "✓ Completed" : m.status === "in_progress" ? "● In Progress" : "○ Planned"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-ink-2 leading-relaxed">{m.description}</p>
+                    {m.completedDate && (
+                      <small className="text-[10px] text-ink-faint mono block mt-1">
+                        Completed: {m.completedDate}
+                      </small>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Shortcut to full investigation circular */}
+          {event.title.includes("Mashkalaibari") && (
+            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded my-4 flex items-center justify-between gap-3">
+              <div>
+                <strong className="text-xs text-ink block font-semibold">Evidence & Official Notice on Record</strong>
+                <span className="text-[11px] text-ink-mute">Field Investigation Report with 6 on-site photographic records</span>
+              </div>
+              <Button
+                variant="secondary"
+                icon={ArrowUpRight}
+                onClick={() => {
+                  const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
+                  if (c) {
+                    close();
+                    open("circular", c);
+                  }
+                }}
+              >
+                View Report & Photos
+              </Button>
+            </div>
+          )}
+
+          {!event.isOngoing && (
+            <div className="event-checklist-summary">
+              <Package size={20} />
+              <div>
+                <strong>Field Requisition Status</strong>
+                <p>{eventItems.length} items logged · {eventItems.filter((p) => p.status === "needed").length} needed · {eventItems.filter((p) => p.status === "verified").length} verified</p>
+              </div>
+              <ArrowRight size={17} />
+            </div>
+          )}
         </div>
         <div className="modal-actions">
           <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatEventBroadcast(event))}>
             <MessageCircle size={15} />
             Mobilize on WhatsApp
           </button>
-          <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify("iCal event file downloaded."); }}>
-            Add to calendar
-          </Button>
-          <Button icon={Package} onClick={() => { close(); navigate("procurement", event.id); }}>
-            Open procurement checklist
-          </Button>
+          {event.isOngoing ? (
+            <Button
+              variant="primary"
+              onClick={() => {
+                const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
+                if (c) {
+                  close();
+                  open("circular", c);
+                } else {
+                  close();
+                }
+              }}
+            >
+              Read Investigation Report
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify("iCal event file downloaded."); }}>
+                Add to calendar
+              </Button>
+              <Button icon={Package} onClick={() => { close(); navigate("procurement", event.id); }}>
+                Open procurement checklist
+              </Button>
+            </>
+          )}
+          <Button variant="secondary" onClick={close}>Close</Button>
         </div>
       </Modal>
     );

@@ -455,9 +455,9 @@ async function seed() {
     }
     if (payments.length) await tx.insert(dues).values(payments);
 
-    // Events & campaigns starts fresh and clean (no sample events)
-    // Procurements are linked to events, so none are pre-seeded
-    // await tx.insert(events).values([...]);
+    await tx.insert(events).values([
+      { id: uid(2, 5), title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping", description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.", location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri", startsAt: new Date("2026-11-03T08:00:00.000Z"), category: "Campaign", volunteers: 18, image: "/images/field-reports/mashkalaibari/inspection-1.jpg" },
+    ]);
     // await tx.insert(procurements).values([...]);
 
     await tx.insert(donations).values([
