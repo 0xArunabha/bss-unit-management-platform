@@ -108,10 +108,6 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
       {/* Two-ink poster banner */}
       <section className="campaign-banner" aria-label={`${identity.name}: science for society`}>
-        <span className="print-mark print-mark-tl" />
-        <span className="print-mark print-mark-tr" />
-        <span className="print-mark print-mark-bl" />
-        <span className="print-mark print-mark-br" />
         <div className="campaign-content">
           <div className="campaign-eyebrow"><span />{identity.volumeLine}</div>
           <h2>Science for society.<br />Progress, <em>together.</em></h2>
@@ -121,7 +117,25 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           </button>
         </div>
         <div className="campaign-image">
-          <img src="/images/science-march.jpg" alt="BSS members and scientists taking part in the All India Science Conference science march" />
+          <div className="campaign-image-fallback" aria-hidden="true">
+            <svg viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="campaign-vector-art">
+              <circle cx="280" cy="120" r="90" stroke="rgba(224,113,63,0.25)" strokeWidth="1" strokeDasharray="4 4" />
+              <circle cx="280" cy="120" r="140" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+              <circle cx="280" cy="120" r="45" stroke="rgba(224,113,63,0.4)" strokeWidth="1.5" />
+              <circle cx="280" cy="120" r="5" fill="#e0713f" />
+              <circle cx="345" cy="75" r="4" fill="#a8b691" />
+              <circle cx="190" cy="150" r="3.5" fill="#f4efdf" opacity="0.6" />
+              <path d="M160 200 L280 120 L380 180" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+              <path d="M220 50 L280 120 L350 40" stroke="rgba(224,113,63,0.22)" strokeWidth="1" />
+            </svg>
+          </div>
+          <img
+            src="/images/science-march.jpg"
+            alt="BSS members and scientists taking part in the All India Science Conference science march"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
+          />
           <div className="photo-caption">
             <span className="live-dot" />ON THE GROUND
             <span className="caption-divider" />All India Science Conference, 2025
