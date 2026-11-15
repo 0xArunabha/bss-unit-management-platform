@@ -131,12 +131,7 @@ function createInitialState(): {
     }
   }
 
-  const unitEvents: UnitEvent[] = [
-    { id: uid(2, 1), title: "National Science Day outreach", description: "Take science beyond the classroom. Hands-on demonstrations, science quiz, and conversations on scientific temper. All unit volunteers meet one hour before setup.", location: sampleVenues[0].location, startsAt: upcoming(1, 10), category: "Outreach", volunteers: 18, image: "/images/science-outreach.jpg", createdAt: ago(1000) },
-    { id: uid(2, 2), title: "Unit volunteers’ meeting", description: "Our monthly gathering to review outreach plans, collect membership dues, and coordinate the next round of community programmes. All unit members welcome.", location: sampleVenues[1].location, startsAt: upcoming(3, 17), category: "Unit meeting", volunteers: 24, image: "/images/conference.jpg", createdAt: ago(2000) },
-    { id: uid(2, 3), title: "A greener neighbourhood", description: "A community discussion on North Bengal ecological challenges, followed by a neighbourhood clean-up and awareness walk in Jalpaiguri.", location: sampleVenues[2].location, startsAt: upcoming(6, 8), category: "Campaign", volunteers: 12, image: "/images/environment-campaign.jpg", createdAt: ago(3000) },
-    { id: uid(2, 4), title: "Science, not superstition", description: "An open street demonstration and discussion exploring the science behind everyday ‘miracles’. Encouraging inquiry, evidence, and rational thought.", location: sampleVenues[3].location, startsAt: upcoming(10, 15), category: "Workshop", volunteers: 9, image: "/images/science-march.jpg", createdAt: ago(4000) },
-  ];
+  const unitEvents: UnitEvent[] = [];
 
   const procurementsList: Procurement[] = [
     { id: uid(3, 1), eventId: uid(2, 1), itemName: "Science demonstration kits", quantity: "4 kits", estimatedCost: 2400, actualCost: null, status: "needed", purchasedBy: null, purchasedAt: null, verifiedBy: null, verifiedAt: null, createdBy: uid(1, 6), createdAt: ago(35) },

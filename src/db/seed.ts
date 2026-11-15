@@ -455,29 +455,18 @@ async function seed() {
     }
     if (payments.length) await tx.insert(dues).values(payments);
 
-    await tx.insert(events).values([
-      { id: uid(2, 1), title: "National Science Day outreach", description: "Take science beyond the classroom. Join our hands-on demonstrations, a science quiz, and conversations on scientific temper. Volunteers meet one hour before the programme for setup.", location: sampleVenues[0].location, startsAt: upcoming(1, 10), category: "Outreach", volunteers: 18, image: "/images/science-outreach.jpg" },
-      { id: uid(2, 2), title: "Unit volunteers’ meeting", description: "Our monthly gathering to review outreach plans, collect membership dues, and coordinate the next round of community programmes. All unit members are welcome.", location: sampleVenues[1].location, startsAt: upcoming(3, 17), category: "Unit meeting", volunteers: 24, image: "/images/conference.jpg" },
-      { id: uid(2, 3), title: "A greener neighbourhood", description: "A community discussion on local environmental challenges, followed by a neighbourhood clean-up and awareness walk. Bring a reusable water bottle.", location: sampleVenues[2].location, startsAt: upcoming(6, 8), category: "Campaign", volunteers: 12, image: "/images/environment-campaign.jpg" },
-      { id: uid(2, 4), title: "Science, not superstition", description: "An open demonstration and discussion exploring the science behind everyday ‘miracles’. Help us encourage curiosity, evidence, and questions.", location: sampleVenues[3].location, startsAt: upcoming(10, 15), category: "Workshop", volunteers: 9, image: "/images/science-march.jpg" },
-    ]);
-
-    await tx.insert(procurements).values([
-      { id: uid(3, 1), eventId: uid(2, 1), itemName: "Science demonstration kits", quantity: "4 kits", estimatedCost: 2400, status: "needed", createdBy: uid(1, 6), createdAt: ago(35) },
-      { id: uid(3, 2), eventId: uid(2, 1), itemName: "Printed outreach leaflets", quantity: "500 copies", estimatedCost: 800, status: "needed", createdBy: ADMIN_ID, createdAt: ago(90) },
-      { id: uid(3, 3), eventId: uid(2, 1), itemName: "Extension boards & cables", quantity: "3 sets", estimatedCost: 1200, actualCost: 1080, status: "purchased", purchasedBy: uid(1, 3), purchasedAt: ago(75), createdBy: ADMIN_ID, createdAt: ago(200) },
-      { id: uid(3, 4), eventId: uid(2, 1), itemName: "Volunteer badges", quantity: "30 pieces", estimatedCost: 450, actualCost: 420, status: "verified", purchasedBy: uid(1, 6), purchasedAt: ago(300), verifiedBy: uid(1, 9), verifiedAt: ago(120), createdBy: ADMIN_ID, createdAt: ago(480) },
-      { id: uid(3, 5), eventId: uid(2, 3), itemName: "Reusable collection bags", quantity: "20 bags", estimatedCost: 600, status: "needed", createdBy: uid(1, 9), createdAt: ago(260) },
-      { id: uid(3, 6), eventId: uid(2, 1), itemName: "Drinking water canisters", quantity: "2 × 20 litres", estimatedCost: 200, actualCost: 180, status: "purchased", purchasedBy: ADMIN_ID, purchasedAt: ago(180), createdBy: uid(1, 3), createdAt: ago(400) },
-    ]);
+    // Events & campaigns starts fresh and clean (no sample events)
+    // Procurements are linked to events, so none are pre-seeded
+    // await tx.insert(events).values([...]);
+    // await tx.insert(procurements).values([...]);
 
     await tx.insert(donations).values([
-      { id: uid(4, 1), donorName: "Jalpaiguri Science Club Patrons", donorPhone: null, amount: 5000, eventId: uid(2, 1), paymentMode: "upi", receiptNo: `${identity.receiptPrefix}-${year}-001`, receivedBy: ADMIN_ID, createdAt: ago(25) },
-      { id: uid(4, 2), donorName: `${identity.city} community supporters`, donorPhone: null, amount: 3500, eventId: uid(2, 1), paymentMode: "bank_transfer", receiptNo: `${identity.receiptPrefix}-${year}-002`, receivedBy: uid(1, 6), createdAt: ago(1500) },
+      { id: uid(4, 1), donorName: "Jalpaiguri Science Club Patrons", donorPhone: null, amount: 5000, eventId: null, paymentMode: "upi", receiptNo: `${identity.receiptPrefix}-${year}-001`, receivedBy: ADMIN_ID, createdAt: ago(25) },
+      { id: uid(4, 2), donorName: `${identity.city} community supporters`, donorPhone: null, amount: 3500, eventId: null, paymentMode: "bank_transfer", receiptNo: `${identity.receiptPrefix}-${year}-002`, receivedBy: uid(1, 6), createdAt: ago(1500) },
       { id: uid(4, 3), donorName: "North Bengal Teachers Forum", donorPhone: null, amount: 1000, eventId: null, paymentMode: "cash", receiptNo: `${identity.receiptPrefix}-${year}-003`, receivedBy: ADMIN_ID, createdAt: ago(2800) },
-      { id: uid(4, 4), donorName: "Friends of Science Jalpaiguri", donorPhone: null, amount: 6000, eventId: uid(2, 3), paymentMode: "bank_transfer", receiptNo: `${identity.receiptPrefix}-${year}-004`, receivedBy: uid(1, 3), createdAt: ago(4200) },
+      { id: uid(4, 4), donorName: "Friends of Science Jalpaiguri", donorPhone: null, amount: 6000, eventId: null, paymentMode: "bank_transfer", receiptNo: `${identity.receiptPrefix}-${year}-004`, receivedBy: uid(1, 3), createdAt: ago(4200) },
       { id: uid(4, 5), donorName: "Town School Science Circle", donorPhone: null, amount: 2000, eventId: null, paymentMode: "upi", receiptNo: `${identity.receiptPrefix}-${year}-005`, receivedBy: ADMIN_ID, createdAt: ago(6000) },
-      { id: uid(4, 6), donorName: "Local community collection", donorPhone: null, amount: 1000, eventId: uid(2, 1), paymentMode: "cash", receiptNo: `${identity.receiptPrefix}-${year}-006`, receivedBy: uid(1, 9), createdAt: ago(7200) },
+      { id: uid(4, 6), donorName: "Local community collection", donorPhone: null, amount: 1000, eventId: null, paymentMode: "cash", receiptNo: `${identity.receiptPrefix}-${year}-006`, receivedBy: uid(1, 9), createdAt: ago(7200) },
     ]);
 
     await tx.insert(circulars).values([

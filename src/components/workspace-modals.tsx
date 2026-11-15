@@ -377,10 +377,13 @@ export function WorkspaceModals(props: Props) {
       <Modal title="New Requisition Voucher" subtitle="Post an item needed for an upcoming science programme" onClose={close}>
         <ActionForm action="addProcurement" save={save} {...formProps} submit="Post requisition voucher">
           <FormField label="Associated science event" required>
-            <select name="eventId" defaultValue={record?.eventId || data.events[0]?.id}>
+            <select name="eventId" defaultValue={record?.eventId || data.events[0]?.id || ""}>
               {data.events.map((e) => (
                 <option key={e.id} value={e.id}>{e.title}</option>
               ))}
+              {!data.events.length && (
+                <option value="" disabled>No events scheduled — create an event first</option>
+              )}
             </select>
           </FormField>
           <FormField label="Item description" required>
