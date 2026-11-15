@@ -41,7 +41,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       events: unitEvents,
       procurements: [],
       donations: [],
-      circulars: [],
+      circulars: notices.filter((c) => c.category === "Campaign report" || c.pinned),
       activities: [],
       currentUserId: "",
       currentUserRole: "guest",

@@ -143,7 +143,7 @@ function createInitialState(): {
       image: "/images/field-reports/mashkalaibari/inspection-1.jpg",
       createdAt: "2026-11-03T08:00:00.000Z",
       isOngoing: true,
-      progressPercent: 40,
+      progressPercent: 20,
       targetGoal: "Installation of automated Air Pollution Control System (APCS) & River Protection",
       milestones: [
         {
@@ -367,7 +367,7 @@ export function getDemoWorkspace(userId?: string): WorkspaceData {
       events: state.events,
       procurements: [],
       donations: [],
-      circulars: [],
+      circulars: state.circulars.filter((c) => c.category === "Campaign report" || c.pinned),
       activities: [],
       currentUserId: "",
       currentUserRole: "guest",

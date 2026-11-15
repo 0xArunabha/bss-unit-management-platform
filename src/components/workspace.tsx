@@ -367,7 +367,24 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     }
   };
   const showReminder = duesReminderPref && (user?.unpaidMonths || 0) > 0;
-  const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => <button key={item.view} className={`nav-item ${view === item.view ? "nav-item-active" : ""}`} aria-current={view === item.view ? "page" : undefined} onClick={() => navigate(item.view)}><item.icon size={18} strokeWidth={1.65} /><span>{item.label}</span>{item.view === "procurement" && needed > 0 && <span className="nav-count">{needed}</span>}{item.view === "members" && <span className="nav-member-count">{data.profiles.length}</span>}{item.view === "circulars" && <span className="nav-new-dot" />}</button>;
+  const hasActiveCampaign = data.events.some((e) => e.isOngoing);
+  const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => (
+    <button
+      key={item.view}
+      className={`nav-item ${view === item.view ? "nav-item-active" : ""}`}
+      aria-current={view === item.view ? "page" : undefined}
+      onClick={() => navigate(item.view)}
+    >
+      <item.icon size={18} strokeWidth={1.65} />
+      <span>{item.label}</span>
+      {item.view === "events" && hasActiveCampaign && (
+        <span className="nav-campaign-pill">1 Active</span>
+      )}
+      {item.view === "procurement" && needed > 0 && <span className="nav-count">{needed}</span>}
+      {item.view === "members" && <span className="nav-member-count">{data.profiles.length}</span>}
+      {item.view === "circulars" && <span className="nav-new-dot" />}
+    </button>
+  );
 
   if (!isAuthorized && !guestMode) {
     return <LoginScreen data={data} perform={perform} onContinueAsGuest={() => setGuestMode(true)} initialGoogleEmail={initialGoogleEmail} />;
@@ -405,8 +422,27 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     <div className="main-shell">
       {guestMode && (
         <div className="guest-banner">
-          <span>👀 Browsing public announcements & science calendar in <strong>read-only visitor mode</strong>.</span>
-          <button onClick={() => setGuestMode(false)} className="guest-login-btn">Member Login (Google)</button>
+          <div className="guest-banner-lead">
+            <span className="guest-banner-badge">🚨 ACTIVE CIVIC CAMPAIGN</span>
+            <span className="guest-banner-text">
+              <strong>Clean Mashkalaibari:</strong> Ending toxic crematorium furnace smoke & river dumping (Phase 2 · 20% Reached)
+            </span>
+          </div>
+          <div className="guest-banner-actions">
+            <button
+              onClick={() => {
+                const campaign = data.events.find((e) => e.isOngoing);
+                if (campaign) open("event", campaign);
+                else navigate("events");
+              }}
+              className="guest-banner-cta"
+            >
+              View Campaign Action Plan →
+            </button>
+            <button onClick={() => setGuestMode(false)} className="guest-login-btn">
+              Member Login (Google)
+            </button>
+          </div>
         </div>
       )}
       <header className="topbar">

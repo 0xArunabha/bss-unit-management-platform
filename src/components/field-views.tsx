@@ -16,194 +16,342 @@ type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
 export function EventsView({ data, open }: Props) {
   const { locale } = useI18n();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Upcoming");
   const [nowMs] = useState(() => Date.now());
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = user?.role || "guest";
   const ongoingCampaigns = data.events.filter((e) => e.isOngoing);
   const scheduledEvents = data.events.filter((e) => !e.isOngoing);
-  const list = scheduledEvents.filter(
-    (e) => (filter === "All events" || new Date(e.startsAt).getTime() >= nowMs - 86400000) && `${e.title} ${e.location}`.toLowerCase().includes(search.toLowerCase())
+  const upcomingScheduled = scheduledEvents.filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000);
+
+  type TabFilter = "campaigns" | "upcoming" | "all";
+  const [filter, setFilter] = useState<TabFilter>(
+    ongoingCampaigns.length > 0 ? "campaigns" : "upcoming"
+  );
+
+  const filteredCampaigns = ongoingCampaigns.filter((c) =>
+    `${c.title} ${c.location} ${c.description}`.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredUpcoming = upcomingScheduled.filter((e) =>
+    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredAll = data.events.filter((e) =>
+    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow="GRASSROOTS ADVOCACY · UNIT CALENDAR"
-        title="Field programmes & science conventions."
-        description={`Scheduled outreach programmes, school demonstration camps, and cadre meetings for ${identity.fullName}.`}
+        eyebrow="GRASSROOTS ADVOCACY · UNIT CAMPAIGNS & CALENDAR"
+        title="Field programmes & active campaigns."
+        description={`Scheduled outreach programmes, active environmental campaigns, and cadre meetings for ${identity.fullName}.`}
       >
         {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>Create event</Button>}
       </PageHeading>
 
-      {/* Ongoing Civic Campaigns Spotlight with Progress Bar */}
-      {ongoingCampaigns.map((campaign) => {
-        const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
-        const totalMilestones = campaign.milestones?.length || 0;
-        const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
-
-        return (
-          <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
-            <div className="campaign-hero-grid">
-              <div className="campaign-hero-image-wrap">
-                <img src={campaign.image} alt={campaign.title} />
-                <span className="campaign-live-tag">
-                  <span className="live-dot" />
-                  ONGOING CIVIC CAMPAIGN
-                </span>
-                <span className="campaign-location-pill">
-                  <MapPin size={12} />
-                  {campaign.location}
-                </span>
-              </div>
-
-              <div className="campaign-hero-content">
-                <div>
-                  <div className="campaign-meta-row">
-                    <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
-                    <span className="campaign-volunteers-tag">
-                      <Users size={13} />
-                      {campaign.volunteers} Active Advocates
-                    </span>
-                  </div>
-
-                  <h2>{campaign.title}</h2>
-                  <p className="campaign-hero-desc">{campaign.description}</p>
-                </div>
-
-                {/* Progress Bar Container */}
-                <div className="campaign-progress-box">
-                  <div className="campaign-progress-header">
-                    <span className="campaign-progress-label mono">
-                      CAMPAIGN TARGET: <strong>{campaign.progressPercent || 0}% REACHED</strong>
-                    </span>
-                    <span className="campaign-phase-badge">
-                      PHASE {currentMilestone?.phase || 1}: {currentMilestone?.title || "In Progress"}
-                    </span>
-                  </div>
-                  <div className="campaign-progress-track">
-                    <div
-                      className="campaign-progress-fill"
-                      style={{ width: `${campaign.progressPercent || 0}%` }}
-                    />
-                  </div>
-                  <div className="campaign-progress-footer">
-                    <span>
-                      ✓ {completedMilestones} of {totalMilestones} milestones achieved
-                    </span>
-                    {campaign.targetGoal && (
-                      <span className="campaign-target-goal" title={campaign.targetGoal}>
-                        Goal: {campaign.targetGoal}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="campaign-hero-actions">
-                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                    View Campaign Action Plan
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    icon={FileText}
-                    onClick={() => {
-                      const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
-                      if (mashCircular) open("circular", mashCircular);
-                    }}
-                  >
-                    Read Investigation Report & Photos
-                  </Button>
-                  <button
-                    className="button button-secondary button-whatsapp"
-                    onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
-                    title="Mobilize on WhatsApp"
-                  >
-                    <MessageCircle size={15} />
-                    Share Campaign
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        );
-      })}
-
       <div className="standalone-toolbar">
         <div className="tabs">
-          {["Upcoming", "All events"].map((t) => (
-            <button key={t} className={t === filter ? "active" : ""} onClick={() => setFilter(t)}>
-              {t}
-              <span>{t === "All events" ? scheduledEvents.length : scheduledEvents.filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000).length}</span>
-            </button>
-          ))}
+          <button className={filter === "campaigns" ? "active" : ""} onClick={() => setFilter("campaigns")}>
+            Active Campaigns
+            <span>{ongoingCampaigns.length}</span>
+          </button>
+          <button className={filter === "upcoming" ? "active" : ""} onClick={() => setFilter("upcoming")}>
+            Upcoming Events
+            <span>{upcomingScheduled.length}</span>
+          </button>
+          <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
+            All & Archive
+            <span>{data.events.length}</span>
+          </button>
         </div>
-        <SearchInput placeholder="Find an outreach programme or venue…" value={search} onChange={setSearch} />
+        <SearchInput placeholder="Find a campaign, programme or venue…" value={search} onChange={setSearch} />
       </div>
 
-      <div className="event-cards-grid">
-        {list.map((event) => {
-          const date = new Date(event.startsAt);
-          const needed = data.procurements.filter((p) => p.eventId === event.id && p.status === "needed").length;
-          const verified = data.procurements.filter((p) => p.eventId === event.id && p.status === "verified").length;
-          const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
+      {/* 1. ACTIVE CAMPAIGNS TAB */}
+      {filter === "campaigns" && (
+        <div>
+          {filteredCampaigns.map((campaign) => {
+            const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
+            const totalMilestones = campaign.milestones?.length || 0;
+            const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
 
-          return (
-            <article className="event-card panel print-tech-slip" key={event.id}>
-              <span className="print-mark print-mark-tl slip-mark" />
-              <span className="print-mark print-mark-tr slip-mark" />
+            return (
+              <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
+                <div className="campaign-hero-grid">
+                  <div className="campaign-hero-image-wrap">
+                    <img src={campaign.image} alt={campaign.title} />
+                    <span className="campaign-live-tag">
+                      <span className="live-dot" />
+                      ONGOING CIVIC CAMPAIGN
+                    </span>
+                    <span className="campaign-location-pill">
+                      <MapPin size={12} />
+                      {campaign.location}
+                    </span>
+                  </div>
 
-              <button className="event-card-image" onClick={() => open("event", event)}>
-                <img src={event.image} alt={event.title} />
-                <span className="event-category">{event.category}</span>
-                <span className="event-card-date">
-                  <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>
-                  <strong>{date.getDate()}</strong>
-                </span>
-                {isNear && <span className="event-urgent-tag">HAPPENING IN &lt;48H</span>}
-              </button>
+                  <div className="campaign-hero-content">
+                    <div>
+                      <div className="campaign-meta-row">
+                        <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
+                        <span className="campaign-volunteers-tag">
+                          <Users size={13} />
+                          {campaign.volunteers} Active Advocates
+                        </span>
+                      </div>
 
-              <div className="event-card-body">
-                <span className="event-card-time">
-                  <CalendarDays size={13} />
-                  {date.toLocaleDateString("en-IN", { weekday: "long" })} <span>·</span> {date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
-                </span>
-                <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
-                <p className="event-card-description">{event.description}</p>
-                <span className="event-location"><MapPin size={14} />{event.location}</span>
+                      <h2>{campaign.title}</h2>
+                      <p className="campaign-hero-desc">{campaign.description}</p>
+                    </div>
 
-                <div className="event-card-footer">
-                  <span><Users size={14} />{event.volunteers} active volunteers</span>
-                  {needed > 0 ? (
-                    <span className="stamp-needed font-bold text-[length:max(8px,var(--fs-floor,0px))]">{needed} REQUISITIONS NEEDED</span>
-                  ) : (
-                    <span className="stamp-verified font-bold text-[length:max(8px,var(--fs-floor,0px))]">{verified} ITEMS PEER-VERIFIED</span>
-                  )}
+                    {/* Progress Bar Container */}
+                    <div className="campaign-progress-box">
+                      <div className="campaign-progress-header">
+                        <span className="campaign-progress-label mono">
+                          CAMPAIGN TARGET: <strong>{campaign.progressPercent || 20}% REACHED</strong>
+                        </span>
+                        <span className="campaign-phase-badge">
+                          PHASE {currentMilestone?.phase || 2}: {currentMilestone?.title || "In Progress"}
+                        </span>
+                      </div>
+                      <div className="campaign-progress-track">
+                        <div
+                          className="campaign-progress-fill"
+                          style={{ width: `${campaign.progressPercent || 20}%` }}
+                        />
+                      </div>
+                      <div className="campaign-progress-footer">
+                        <span>
+                          ✓ {completedMilestones} of {totalMilestones} milestones achieved
+                        </span>
+                        {campaign.targetGoal && (
+                          <span className="campaign-target-goal" title={campaign.targetGoal}>
+                            Goal: {campaign.targetGoal}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="campaign-hero-actions">
+                      <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
+                        View Campaign Action Plan
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        icon={FileText}
+                        onClick={() => {
+                          const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
+                          if (mashCircular) open("circular", mashCircular);
+                        }}
+                      >
+                        Read Investigation Report & Photos
+                      </Button>
+                      <button
+                        className="button button-secondary button-whatsapp"
+                        onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
+                        title="Mobilize on WhatsApp"
+                      >
+                        <MessageCircle size={15} />
+                        Share Campaign
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+
+          {!filteredCampaigns.length && (
+            <section className="panel my-6">
+              <EmptyState icon={Megaphone} title="No campaigns found" description="Try clearing your search query or switch to upcoming programmes." />
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* 2. UPCOMING SINGLE-DAY EVENTS TAB */}
+      {filter === "upcoming" && (
+        <div>
+          {filteredUpcoming.length > 0 ? (
+            <div className="event-cards-grid">
+              {filteredUpcoming.map((event) => {
+                const date = new Date(event.startsAt);
+                const needed = data.procurements.filter((p) => p.eventId === event.id && p.status === "needed").length;
+                const verified = data.procurements.filter((p) => p.eventId === event.id && p.status === "verified").length;
+                const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
+
+                return (
+                  <article className="event-card panel print-tech-slip" key={event.id}>
+                    <span className="print-mark print-mark-tl slip-mark" />
+                    <span className="print-mark print-mark-tr slip-mark" />
+
+                    <button className="event-card-image" onClick={() => open("event", event)}>
+                      <img src={event.image} alt={event.title} />
+                      <span className="event-category">{event.category}</span>
+                      <span className="event-card-date">
+                        <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>
+                        <strong>{date.getDate()}</strong>
+                      </span>
+                      {isNear && <span className="event-urgent-tag">HAPPENING IN &lt;48H</span>}
+                    </button>
+
+                    <div className="event-card-body">
+                      <span className="event-card-time">
+                        <CalendarDays size={13} />
+                        {date.toLocaleDateString("en-IN", { weekday: "long" })} <span>·</span> {date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                      </span>
+                      <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
+                      <p className="event-card-description">{event.description}</p>
+                      <span className="event-location"><MapPin size={14} />{event.location}</span>
+
+                      <div className="event-card-footer">
+                        <span><Users size={14} />{event.volunteers} active volunteers</span>
+                        {needed > 0 ? (
+                          <span className="stamp-needed font-bold text-[length:max(8px,var(--fs-floor,0px))]">{needed} REQUISITIONS NEEDED</span>
+                        ) : (
+                          <span className="stamp-verified font-bold text-[length:max(8px,var(--fs-floor,0px))]">{verified} ITEMS PEER-VERIFIED</span>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                        <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
+                          View programme briefing & checklist
+                          <ArrowUpRight size={15} />
+                        </Button>
+                        <button
+                          className="button button-secondary button-whatsapp"
+                          style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                          onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
+                          title="Mobilize volunteers on WhatsApp"
+                        >
+                          <MessageCircle size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <section className="panel p-8 text-center my-6 border border-dashed border-rule-soft rounded-lg">
+              <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
+                <CalendarDays size={22} />
+              </div>
+              <h3 className="text-base font-bold text-ink mb-1">No single-day events scheduled</h3>
+              <p className="text-xs text-ink-mute max-w-md mx-auto mb-4">
+                There are no 2-hour demonstrations or cadre rallies scheduled right now. Our unit is actively mobilizing on the Mashkalaibari environmental movement.
+              </p>
+              {ongoingCampaigns.length > 0 && (
+                <Button variant="primary" onClick={() => setFilter("campaigns")}>
+                  View Active Campaign ({ongoingCampaigns.length})
+                </Button>
+              )}
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* 3. ALL EVENTS & ARCHIVE TAB */}
+      {filter === "all" && (
+        <div>
+          {filteredCampaigns.map((campaign) => (
+            <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
+              <div className="campaign-hero-grid">
+                <div className="campaign-hero-image-wrap">
+                  <img src={campaign.image} alt={campaign.title} />
+                  <span className="campaign-live-tag">
+                    <span className="live-dot" />
+                    ONGOING CIVIC CAMPAIGN
+                  </span>
+                  <span className="campaign-location-pill">
+                    <MapPin size={12} />
+                    {campaign.location}
+                  </span>
                 </div>
 
-                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                  <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                    View programme briefing & checklist
-                    <ArrowUpRight size={15} />
-                  </Button>
-                  <button
-                    className="button button-secondary button-whatsapp"
-                    style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                    onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
-                    title="Mobilize volunteers on WhatsApp"
-                  >
-                    <MessageCircle size={15} />
-                  </button>
+                <div className="campaign-hero-content">
+                  <div>
+                    <div className="campaign-meta-row">
+                      <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
+                      <span className="campaign-volunteers-tag">
+                        <Users size={13} />
+                        {campaign.volunteers} Active Advocates
+                      </span>
+                    </div>
+
+                    <h2>{campaign.title}</h2>
+                    <p className="campaign-hero-desc">{campaign.description}</p>
+                  </div>
+
+                  <div className="campaign-hero-actions">
+                    <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
+                      View Campaign Action Plan ({campaign.progressPercent || 20}% Reached)
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      icon={FileText}
+                      onClick={() => {
+                        const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
+                        if (mashCircular) open("circular", mashCircular);
+                      }}
+                    >
+                      Read Report & Photos
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </article>
-          );
-        })}
-      </div>
+            </section>
+          ))}
 
-      {!list.length && (
-        <section className="panel">
-          <EmptyState icon={CalendarDays} title="No single-session programmes scheduled" description="Use 'Create event' above to schedule new science outreach programmes, conventions, or cadre workshops." />
-        </section>
+          <div className="event-cards-grid">
+            {scheduledEvents
+              .filter((e) => `${e.title} ${e.location}`.toLowerCase().includes(search.toLowerCase()))
+              .map((event) => {
+                const date = new Date(event.startsAt);
+                const needed = data.procurements.filter((p) => p.eventId === event.id && p.status === "needed").length;
+                const verified = data.procurements.filter((p) => p.eventId === event.id && p.status === "verified").length;
+
+                return (
+                  <article className="event-card panel print-tech-slip" key={event.id}>
+                    <button className="event-card-image" onClick={() => open("event", event)}>
+                      <img src={event.image} alt={event.title} />
+                      <span className="event-category">{event.category}</span>
+                      <span className="event-card-date">
+                        <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>
+                        <strong>{date.getDate()}</strong>
+                      </span>
+                    </button>
+
+                    <div className="event-card-body">
+                      <span className="event-card-time">
+                        <CalendarDays size={13} />
+                        {date.toLocaleDateString("en-IN", { weekday: "long" })} <span>·</span> {date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                      </span>
+                      <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
+                      <p className="event-card-description">{event.description}</p>
+                      <span className="event-location"><MapPin size={14} />{event.location}</span>
+
+                      <div className="event-card-footer">
+                        <span><Users size={14} />{event.volunteers} active volunteers</span>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                        <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
+                          View details
+                          <ArrowUpRight size={15} />
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+          </div>
+
+          {!filteredAll.length && (
+            <section className="panel my-6">
+              <EmptyState icon={CalendarDays} title="No events found" description="Try clearing your search query." />
+            </section>
+          )}
+        </div>
       )}
 
       <div className="info-strip">

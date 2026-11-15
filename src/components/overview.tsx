@@ -1,10 +1,12 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, HeartHandshake, MapPin, Megaphone, Package, Pin, Plus, ShieldAlert, Users, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { type WorkspaceData, type View, type UnitEvent, type Circular, type Procurement, money, months } from "@/lib/types";
 import { Avatar, Badge, Button, PageHeading, SectionTitle, ArrowLink, relativeTime } from "@/components/ui";
+import { useI18n } from "@/lib/i18n";
+import { formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 
 export type OpenModal = (type: string, record?: unknown) => void;
 export type Navigate = (view: View, eventId?: string) => void;
@@ -13,6 +15,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const [period, setPeriod] = useState("This month");
   const [periodOpen, setPeriodOpen] = useState(false);
   const [activityFilter, setActivityFilter] = useState<"all" | "dues" | "procurement" | "donation">("all");
+  const { locale } = useI18n();
   const [currentTime] = useState(() => Date.now());
   const now = new Date(currentTime);
   const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
@@ -21,6 +24,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
+  const ongoingCampaign = data.events.find((e) => e.isOngoing);
 
   const inPeriod = (date: string) =>
     period === "All time" ||
@@ -147,8 +151,17 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
       {/* Role-tailored stats grid: strictly no money figures for public visitors */}
       {userRole === "guest" ? (
         <div className="stats-grid">
-          <Stat icon={CalendarDays} tone="orange" title="Public science rallies" value={String(data.events.length)} onClick={() => navigate("events")}>
-            <span className="stat-footnote"><span className="tiny-dot green" />Scheduled outreach across Jalpaiguri</span>
+          <Stat
+            icon={CalendarDays}
+            tone="orange"
+            title="Active campaigns"
+            value={ongoingCampaign ? "1 Ongoing" : String(data.events.length)}
+            onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("events"))}
+          >
+            <span className="stat-footnote">
+              <span className="tiny-dot green" />
+              {ongoingCampaign ? `${ongoingCampaign.progressPercent || 20}% reached · Mashkalaibari` : "Scheduled outreach across Jalpaiguri"}
+            </span>
           </Stat>
           <Stat icon={Megaphone} tone="blue" title="Demonstration toolkits" value="Available" onClick={() => navigate("resources")}>
             <span className="stat-footnote">Anti-superstition chemical & physics scripts</span>
@@ -208,6 +221,98 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           </Stat>
         </div>
       )}
+
+      {/* Ongoing Civic Campaigns Spotlight on Homepage */}
+      {data.events.filter((e) => e.isOngoing).map((campaign) => {
+        const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
+        const totalMilestones = campaign.milestones?.length || 0;
+        const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
+
+        return (
+          <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
+            <div className="campaign-hero-grid">
+              <div className="campaign-hero-image-wrap">
+                <img src={campaign.image} alt={campaign.title} />
+                <span className="campaign-live-tag">
+                  <span className="live-dot" />
+                  ONGOING CIVIC CAMPAIGN
+                </span>
+                <span className="campaign-location-pill">
+                  <MapPin size={12} />
+                  {campaign.location}
+                </span>
+              </div>
+
+              <div className="campaign-hero-content">
+                <div>
+                  <div className="campaign-meta-row">
+                    <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
+                    <span className="campaign-volunteers-tag">
+                      <Users size={13} />
+                      {campaign.volunteers} Active Advocates
+                    </span>
+                  </div>
+
+                  <h2>{campaign.title}</h2>
+                  <p className="campaign-hero-desc">{campaign.description}</p>
+                </div>
+
+                {/* Progress Bar Container */}
+                <div className="campaign-progress-box">
+                  <div className="campaign-progress-header">
+                    <span className="campaign-progress-label mono">
+                      CAMPAIGN TARGET: <strong>{campaign.progressPercent || 20}% REACHED</strong>
+                    </span>
+                    <span className="campaign-phase-badge">
+                      PHASE {currentMilestone?.phase || 2}: {currentMilestone?.title || "In Progress"}
+                    </span>
+                  </div>
+                  <div className="campaign-progress-track">
+                    <div
+                      className="campaign-progress-fill"
+                      style={{ width: `${campaign.progressPercent || 20}%` }}
+                    />
+                  </div>
+                  <div className="campaign-progress-footer">
+                    <span>
+                      ✓ {completedMilestones} of {totalMilestones} milestones achieved
+                    </span>
+                    {campaign.targetGoal && (
+                      <span className="campaign-target-goal" title={campaign.targetGoal}>
+                        Goal: {campaign.targetGoal}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="campaign-hero-actions">
+                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
+                    View Campaign Action Plan
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    icon={FileText}
+                    onClick={() => {
+                      const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
+                      if (mashCircular) open("circular", mashCircular);
+                    }}
+                  >
+                    Read Investigation Report & Photos
+                  </Button>
+                  <button
+                    className="button button-secondary button-whatsapp"
+                    onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
+                    title="Mobilize on WhatsApp"
+                  >
+                    <MessageCircle size={15} />
+                    Share Campaign
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })}
 
       <div className="dashboard-grid">
         {/* Procurements panel: strictly visible to volunteers and executives only */}
@@ -276,6 +381,15 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <div className="upcoming-events">
             {upcoming.length ? (
               upcoming.map((event) => <EventRow key={event.id} event={event} open={() => open("event", event)} data={data} />)
+            ) : ongoingCampaign ? (
+              <div className="p-3.5 bg-paper border border-rule-soft rounded flex items-center justify-between gap-3">
+                <div>
+                  <span className="eyebrow text-rust text-[10px] block">ACTIVE CIVIC MOVEMENT</span>
+                  <strong className="text-ink text-xs block mt-0.5">{ongoingCampaign.title}</strong>
+                  <span className="text-ink-mute text-[11px] block mt-0.5">Phase 2 In Progress · {ongoingCampaign.progressPercent || 20}% Target Reached</span>
+                </div>
+                <Button variant="secondary" onClick={() => open("event", ongoingCampaign)}>View Plan</Button>
+              </div>
             ) : (
               <p className="inline-empty">No upcoming events scheduled.</p>
             )}
