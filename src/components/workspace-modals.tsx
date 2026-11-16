@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, CalendarDays, Check, CircleAlert, CircleCheck, Copy, Download, ExternalLink, HeartHandshake, Info, MapPin, MessageCircle, MessageSquare, Package, Printer, ReceiptText, Send, ShieldAlert, ShieldCheck, Users, Wallet } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Copy, Download, ExternalLink, HeartHandshake, Info, MapPin, MessageCircle, MessageSquare, Package, Printer, ReceiptText, Send, ShieldAlert, ShieldCheck, Users, Wallet } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { type WorkspaceData, type Donation, type UnitEvent, type Procurement, type Circular, type DuesRecord, type PerformAction, money, months } from "@/lib/types";
 import { type Resource } from "@/lib/resources";
@@ -98,6 +98,339 @@ function SmsPreviewModal({
           >
             Dispatch SMS receipt
           </Button>
+        )}
+        <Button variant="secondary" onClick={close}>Close</Button>
+      </div>
+    </Modal>
+  );
+}
+
+const MASHKALAIBARI_PHOTOS = [
+  {
+    src: "/images/field-reports/mashkalaibari/inspection-1.jpg",
+    caption: "Field delegation with local youth in front of the crematorium and chimney stack",
+    fig: "FIG 01",
+    tag: "Delegation & Furnace",
+  },
+  {
+    src: "/images/field-reports/mashkalaibari/inspection-2.jpg",
+    caption: "Crematorium furnace building and short emission chimney stack discharging towards residential quarters",
+    fig: "FIG 02",
+    tag: "Furnace & Chimney",
+  },
+  {
+    src: "/images/field-reports/mashkalaibari/inspection-3.jpg",
+    caption: "On-site dialogue with local conscious citizen Babul Choudhury and neighbouring residents",
+    fig: "FIG 03",
+    tag: "Citizen Hearing",
+  },
+  {
+    src: "/images/field-reports/mashkalaibari/inspection-4.jpg",
+    caption: "Absence of waste management: ritual clothes and plastic remnants dumped in open riverbed",
+    fig: "FIG 04",
+    tag: "Waste Dumping",
+  },
+  {
+    src: "/images/field-reports/mashkalaibari/inspection-5.jpg",
+    caption: "Rear grounds overgrown with thick jungle and lack of boundary maintenance",
+    fig: "FIG 05",
+    tag: "Jungle Overgrowth",
+  },
+  {
+    src: "/images/field-reports/mashkalaibari/inspection-6.jpg",
+    caption: "Riverbank contamination and ecological degradation adjacent to the cremation grounds",
+    fig: "FIG 06",
+    tag: "Riverbed Pollution",
+  },
+];
+
+function EventDetailModal({
+  event,
+  data,
+  close,
+  open,
+  notify,
+  navigate,
+}: {
+  event: UnitEvent;
+  data: WorkspaceData;
+  close: () => void;
+  open: OpenModal;
+  notify: (msg: string) => void;
+  navigate: Navigate;
+}) {
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const isMashkalaibari = event.title.includes("Mashkalaibari") || Boolean(event.isOngoing);
+  const eventItems = data.procurements.filter((p) => p.eventId === event.id);
+  const date = new Date(event.startsAt);
+  const currentPhoto = isMashkalaibari ? MASHKALAIBARI_PHOTOS[activePhotoIdx] : null;
+
+  return (
+    <Modal
+      title={event.title}
+      subtitle={`${event.isOngoing ? "Ongoing Civic Campaign" : event.category} · ${identity.unit}`}
+      onClose={close}
+      wide
+    >
+      {/* 1. PHOTOGRAPHIC EVIDENCE SECTION */}
+      {isMashkalaibari ? (
+        <div className="campaign-gallery-container px-4 sm:px-6 pt-3">
+          {/* Main Photo Viewer Stage */}
+          <div className="relative bg-[#0d120a] rounded-lg overflow-hidden border border-rule-soft shadow-md">
+            <div className="relative flex items-center justify-center min-h-[280px] sm:min-h-[400px] max-h-[500px] bg-black/50">
+              <img
+                src={currentPhoto?.src || event.image}
+                alt={currentPhoto?.caption || event.title}
+                className="max-h-[400px] sm:max-h-[480px] w-full object-contain mx-auto select-none"
+              />
+
+              {/* Prev / Next Navigation Arrows */}
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1))
+                }
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
+                aria-label="Previous photograph"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0))
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
+                aria-label="Next photograph"
+              >
+                <ChevronRight size={22} />
+              </button>
+
+              {/* Photo Counter Pill */}
+              <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-white text-[11px] px-2.5 py-1 rounded font-mono font-bold tracking-wider border border-white/15">
+                PHOTO 0{activePhotoIdx + 1} OF 06 · {currentPhoto?.tag}
+              </span>
+
+              {/* Full-Res Link */}
+              <a
+                href={currentPhoto?.src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-3 right-3 bg-black/80 hover:bg-black text-white text-[11px] px-2.5 py-1 rounded font-mono font-medium flex items-center gap-1.5 border border-white/15 transition-colors"
+                title="Open uncompressed photograph in new browser tab"
+              >
+                <ExternalLink size={12} />
+                <span>Full-Res</span>
+              </a>
+            </div>
+
+            {/* Photo Caption Strip */}
+            <div className="p-3 bg-[#151c10] border-t border-white/10 text-xs text-[#ece6d8] flex items-center justify-between gap-3">
+              <span className="leading-relaxed">
+                <strong className="text-rust-tint font-bold font-mono mr-1.5">{currentPhoto?.fig}:</strong>
+                {currentPhoto?.caption}
+              </span>
+              <span className="mono text-[10.5px] text-ink-mute shrink-0">03/11/2026</span>
+            </div>
+          </div>
+
+          {/* 6-Photo Thumbnail Navigation Strip */}
+          <div className="mt-3.5">
+            <div className="flex items-center justify-between mb-1.5 px-0.5">
+              <span className="mono text-[11px] font-bold uppercase text-rust tracking-wider">
+                All 6 Field Inspection Photographs
+              </span>
+              <span className="mono text-[10.5px] text-ink-mute">Click thumbnail to inspect</span>
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              {MASHKALAIBARI_PHOTOS.map((photo, idx) => (
+                <button
+                  key={photo.src}
+                  type="button"
+                  onClick={() => setActivePhotoIdx(idx)}
+                  className={`group relative rounded overflow-hidden aspect-[4/3] border-2 transition-all ${
+                    activePhotoIdx === idx
+                      ? "border-rust ring-2 ring-rust/50 scale-[1.03]"
+                      : "border-rule-soft opacity-75 hover:opacity-100 hover:border-ink-mute"
+                  }`}
+                  title={photo.caption}
+                >
+                  <img src={photo.src} alt={photo.caption} className="w-full h-full object-cover" />
+                  <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-white text-center py-0.5 mono font-bold">
+                    0{idx + 1}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="px-6 pt-3">
+          <div className="bg-[#12180d] rounded-lg overflow-hidden border border-rule-soft flex items-center justify-center min-h-[240px]">
+            <img
+              className="max-h-[380px] w-full object-contain mx-auto block"
+              src={event.image}
+              alt={event.title}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 2. BODY CONTENT */}
+      <div className="event-detail-body">
+        <div className="event-detail-meta">
+          <span>
+            <CalendarDays size={17} />
+            {event.isOngoing
+              ? `Initiated: ${date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Active Campaign`
+              : date.toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}
+          </span>
+          <span><MapPin size={17} />{event.location}</span>
+          <span><Users size={17} />{event.volunteers} active {event.isOngoing ? "advocates mobilizing" : "volunteers assigned"}</span>
+        </div>
+
+        <p className="event-detail-description">{event.description}</p>
+
+        {/* Campaign Progress Bar */}
+        {event.isOngoing && (
+          <div className="campaign-progress-box my-4">
+            <div className="campaign-progress-header">
+              <span className="campaign-progress-label mono">
+                CAMPAIGN TARGET: <strong>{event.progressPercent || 20}% REACHED</strong>
+              </span>
+              <span className="campaign-phase-badge">
+                PHASE {event.milestones?.find((m) => m.status === "in_progress")?.phase || 2} IN PROGRESS
+              </span>
+            </div>
+            <div className="campaign-progress-track">
+              <div
+                className="campaign-progress-fill"
+                style={{ width: `${event.progressPercent || 20}%` }}
+              />
+            </div>
+            {event.targetGoal && (
+              <div className="campaign-progress-footer">
+                <span>Goal: {event.targetGoal}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Phased Action Plan & Milestones Roadmap */}
+        {event.isOngoing && event.milestones && event.milestones.length > 0 && (
+          <div className="campaign-milestones-section my-5 pt-4 border-t border-rule-soft">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="mono text-xs font-bold text-rust uppercase tracking-wider">
+                Campaign Action Plan & Milestone Roadmap
+              </h4>
+              <span className="text-[11px] text-ink-faint mono">
+                {event.milestones.filter((m) => m.status === "completed").length} of {event.milestones.length} Completed
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {event.milestones.map((m) => (
+                <div
+                  key={m.id}
+                  className={`p-3 rounded border text-left transition-colors ${
+                    m.status === "completed"
+                      ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
+                      : m.status === "in_progress"
+                      ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
+                      : "bg-paper-card border-rule-soft text-ink-mute opacity-85"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="mono text-[11px] font-bold">
+                      PHASE 0{m.phase} · {m.title}
+                    </span>
+                    <span
+                      className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mono ${
+                        m.status === "completed"
+                          ? "bg-olive text-paper-card"
+                          : m.status === "in_progress"
+                          ? "bg-rust text-paper-card"
+                          : "bg-stone-200 text-stone-600"
+                      }`}
+                    >
+                      {m.status === "completed" ? "✓ Completed" : m.status === "in_progress" ? "● In Progress" : "○ Planned"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-2 leading-relaxed">{m.description}</p>
+                  {m.completedDate && (
+                    <small className="text-[10px] text-ink-faint mono block mt-1">
+                      Completed: {m.completedDate}
+                    </small>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Shortcut to full investigation circular */}
+        {event.title.includes("Mashkalaibari") && (
+          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg my-4 flex items-center justify-between gap-3">
+            <div>
+              <strong className="text-xs text-ink block font-semibold">Official Field Investigation Report on Record</strong>
+              <span className="text-[11px] text-ink-mute">Read the comprehensive fact-finding charter submitted to Jalpaiguri Municipality</span>
+            </div>
+            <Button
+              variant="secondary"
+              icon={ArrowUpRight}
+              onClick={() => {
+                const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
+                if (c) {
+                  close();
+                  open("circular", c);
+                }
+              }}
+            >
+              Read Full Report
+            </Button>
+          </div>
+        )}
+
+        {!event.isOngoing && (
+          <div className="event-checklist-summary">
+            <Package size={20} />
+            <div>
+              <strong>Field Requisition Status</strong>
+              <p>{eventItems.length} items logged · {eventItems.filter((p) => p.status === "needed").length} needed · {eventItems.filter((p) => p.status === "verified").length} verified</p>
+            </div>
+            <ArrowRight size={17} />
+          </div>
+        )}
+      </div>
+
+      <div className="modal-actions">
+        <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatEventBroadcast(event))}>
+          <MessageCircle size={15} />
+          Mobilize on WhatsApp
+        </button>
+        {event.isOngoing ? (
+          <Button
+            variant="primary"
+            onClick={() => {
+              const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
+              if (c) {
+                close();
+                open("circular", c);
+              } else {
+                close();
+              }
+            }}
+          >
+            Read Investigation Report
+          </Button>
+        ) : (
+          <>
+            <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify("iCal event file downloaded."); }}>
+              Add to calendar
+            </Button>
+            <Button icon={Package} onClick={() => { close(); navigate("procurement", event.id); }}>
+              Open procurement checklist
+            </Button>
+          </>
         )}
         <Button variant="secondary" onClick={close}>Close</Button>
       </div>
@@ -530,170 +863,15 @@ export function WorkspaceModals(props: Props) {
   }
 
   if (modal.type === "event") {
-    const event = modal.record as UnitEvent;
-    const eventItems = data.procurements.filter((p) => p.eventId === event.id);
-    const date = new Date(event.startsAt);
-
     return (
-      <Modal title={event.title} subtitle={`${event.isOngoing ? "Ongoing Civic Campaign" : event.category} · ${identity.unit}`} onClose={close} wide>
-        <img className="event-detail-image" src={event.image} alt={event.title} />
-        <div className="event-detail-body">
-          <div className="event-detail-meta">
-            <span>
-              <CalendarDays size={17} />
-              {event.isOngoing
-                ? `Initiated: ${date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Active Campaign`
-                : date.toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}
-            </span>
-            <span><MapPin size={17} />{event.location}</span>
-            <span><Users size={17} />{event.volunteers} active {event.isOngoing ? "advocates mobilizing" : "volunteers assigned"}</span>
-          </div>
-
-          <p className="event-detail-description">{event.description}</p>
-
-          {/* Campaign Progress Bar */}
-          {event.isOngoing && (
-            <div className="campaign-progress-box my-4">
-              <div className="campaign-progress-header">
-                <span className="campaign-progress-label mono">
-                  CAMPAIGN TARGET: <strong>{event.progressPercent || 0}% REACHED</strong>
-                </span>
-                <span className="campaign-phase-badge">
-                  PHASE {event.milestones?.find((m) => m.status === "in_progress")?.phase || 2} IN PROGRESS
-                </span>
-              </div>
-              <div className="campaign-progress-track">
-                <div
-                  className="campaign-progress-fill"
-                  style={{ width: `${event.progressPercent || 0}%` }}
-                />
-              </div>
-              {event.targetGoal && (
-                <div className="campaign-progress-footer">
-                  <span>Goal: {event.targetGoal}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Phased Action Plan & Milestones Roadmap */}
-          {event.isOngoing && event.milestones && event.milestones.length > 0 && (
-            <div className="campaign-milestones-section my-5 pt-4 border-t border-rule-soft">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="mono text-xs font-bold text-rust uppercase tracking-wider">
-                  Campaign Action Plan & Milestone Roadmap
-                </h4>
-                <span className="text-[11px] text-ink-faint mono">
-                  {event.milestones.filter((m) => m.status === "completed").length} of {event.milestones.length} Completed
-                </span>
-              </div>
-              <div className="space-y-2.5">
-                {event.milestones.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`p-3 rounded border text-left transition-colors ${
-                      m.status === "completed"
-                        ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
-                        : m.status === "in_progress"
-                        ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
-                        : "bg-paper-card border-rule-soft text-ink-mute opacity-85"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="mono text-[11px] font-bold">
-                        PHASE 0{m.phase} · {m.title}
-                      </span>
-                      <span
-                        className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mono ${
-                          m.status === "completed"
-                            ? "bg-olive text-paper-card"
-                            : m.status === "in_progress"
-                            ? "bg-rust text-paper-card"
-                            : "bg-stone-200 text-stone-600"
-                        }`}
-                      >
-                        {m.status === "completed" ? "✓ Completed" : m.status === "in_progress" ? "● In Progress" : "○ Planned"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-ink-2 leading-relaxed">{m.description}</p>
-                    {m.completedDate && (
-                      <small className="text-[10px] text-ink-faint mono block mt-1">
-                        Completed: {m.completedDate}
-                      </small>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Shortcut to full investigation circular */}
-          {event.title.includes("Mashkalaibari") && (
-            <div className="p-3 bg-amber-50/70 border border-amber-200 rounded my-4 flex items-center justify-between gap-3">
-              <div>
-                <strong className="text-xs text-ink block font-semibold">Evidence & Official Notice on Record</strong>
-                <span className="text-[11px] text-ink-mute">Field Investigation Report with 6 on-site photographic records</span>
-              </div>
-              <Button
-                variant="secondary"
-                icon={ArrowUpRight}
-                onClick={() => {
-                  const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
-                  if (c) {
-                    close();
-                    open("circular", c);
-                  }
-                }}
-              >
-                View Report & Photos
-              </Button>
-            </div>
-          )}
-
-          {!event.isOngoing && (
-            <div className="event-checklist-summary">
-              <Package size={20} />
-              <div>
-                <strong>Field Requisition Status</strong>
-                <p>{eventItems.length} items logged · {eventItems.filter((p) => p.status === "needed").length} needed · {eventItems.filter((p) => p.status === "verified").length} verified</p>
-              </div>
-              <ArrowRight size={17} />
-            </div>
-          )}
-        </div>
-        <div className="modal-actions">
-          <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatEventBroadcast(event))}>
-            <MessageCircle size={15} />
-            Mobilize on WhatsApp
-          </button>
-          {event.isOngoing ? (
-            <Button
-              variant="primary"
-              onClick={() => {
-                const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
-                if (c) {
-                  close();
-                  open("circular", c);
-                } else {
-                  close();
-                }
-              }}
-            >
-              Read Investigation Report
-            </Button>
-          ) : (
-            <>
-              <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify("iCal event file downloaded."); }}>
-                Add to calendar
-              </Button>
-              <Button icon={Package} onClick={() => { close(); navigate("procurement", event.id); }}>
-                Open procurement checklist
-              </Button>
-            </>
-          )}
-          <Button variant="secondary" onClick={close}>Close</Button>
-        </div>
-      </Modal>
+      <EventDetailModal
+        event={modal.record as UnitEvent}
+        data={data}
+        close={close}
+        open={open}
+        notify={notify}
+        navigate={navigate}
+      />
     );
   }
 
