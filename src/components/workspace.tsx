@@ -14,6 +14,7 @@ import { WorkspaceModals, type ModalState } from "@/components/workspace-modals"
 import { LoginScreen } from "@/components/login-screen";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 import { I18nProvider, useI18n } from "@/lib/i18n";
+import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -367,7 +368,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     }
   };
   const showReminder = duesReminderPref && (user?.unpaidMonths || 0) > 0;
-  const hasActiveCampaign = data.events.some((e) => e.isOngoing);
+  const hasActiveCampaign = data.events.some(isCampaignEvent);
   const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => (
     <button
       key={item.view}
@@ -431,7 +432,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <div className="guest-banner-actions">
             <button
               onClick={() => {
-                const campaign = data.events.find((e) => e.isOngoing);
+                const rawCampaign = data.events.find(isCampaignEvent);
+                const campaign = rawCampaign ? hydrateCampaignEvent(rawCampaign) : undefined;
                 if (campaign) open("event", campaign);
                 else navigate("events");
               }}

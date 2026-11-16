@@ -10,6 +10,7 @@ import { resources, type Resource, getSanitizedResources } from "@/lib/resources
 import { useI18n } from "@/lib/i18n";
 import { authClient } from "@/lib/auth-client";
 import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
+import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
 
@@ -21,8 +22,8 @@ export function EventsView({ data, open }: Props) {
   const [nowMs] = useState(() => Date.now());
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = user?.role || "guest";
-  const ongoingCampaigns = data.events.filter((e) => e.isOngoing);
-  const scheduledEvents = data.events.filter((e) => !e.isOngoing);
+  const ongoingCampaigns = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent);
+  const scheduledEvents = data.events.filter((e) => !isCampaignEvent(e));
   const upcomingScheduled = scheduledEvents.filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000);
 
   const filteredUpcoming = upcomingScheduled.filter((e) =>
@@ -79,7 +80,7 @@ export function EventsView({ data, open }: Props) {
               <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
                 <div className="campaign-hero-grid">
                   <div className="campaign-hero-image-wrap">
-                    <img src={campaign.image} alt={campaign.title} />
+                    <img src={campaign.image} alt={campaign.title} style={{ objectPosition: "center 42%" }} />
                     <span className="campaign-live-tag">
                       <span className="live-dot" />
                       ONGOING CIVIC CAMPAIGN
@@ -211,6 +212,26 @@ export function EventsView({ data, open }: Props) {
               </section>
             );
           })}
+          {filteredCampaigns.length === 0 && (
+            <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
+              <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
+                <Flame size={24} />
+              </div>
+              <h4 className="text-base font-bold text-ink mb-1">
+                {search ? `No campaigns matching "${search}"` : "No active campaigns currently logged"}
+              </h4>
+              <p className="text-xs text-ink-mute max-w-md mx-auto mb-4 leading-relaxed">
+                {search
+                  ? "Try clearing your search term or searching by area name."
+                  : "New environmental or civic campaigns initiated by the unit will be featured here."}
+              </p>
+              {search && (
+                <Button variant="secondary" onClick={() => setSearch("")}>
+                  Clear search
+                </Button>
+              )}
+            </section>
+          )}
         </div>
       )}
 

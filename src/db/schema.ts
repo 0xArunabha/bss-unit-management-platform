@@ -46,6 +46,9 @@ export const events = pgTable("events", {
   category: text("category").notNull(),
   volunteers: integer("volunteers").notNull().default(0),
   image: text("image").notNull().default("/images/science-outreach.jpg"),
+  isOngoing: boolean("is_ongoing").default(false),
+  progressPercent: integer("progress_percent").default(0),
+  targetGoal: text("target_goal"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

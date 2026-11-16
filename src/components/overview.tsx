@@ -7,6 +7,7 @@ import { type WorkspaceData, type View, type UnitEvent, type Circular, type Proc
 import { Avatar, Badge, Button, PageHeading, SectionTitle, ArrowLink, relativeTime } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 import { formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
+import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 export type OpenModal = (type: string, record?: unknown) => void;
 export type Navigate = (view: View, eventId?: string) => void;
@@ -24,7 +25,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
-  const ongoingCampaign = data.events.find((e) => e.isOngoing);
+  const ongoingCampaign = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent)[0];
 
   const inPeriod = (date: string) =>
     period === "All time" ||
@@ -45,7 +46,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
     .sort((a, b) => ({ needed: 0, purchased: 1, verified: 2 }[a.status] - { needed: 0, purchased: 1, verified: 2 }[b.status]))
     .slice(0, 4);
 
-  const upcoming = data.events.filter((e) => new Date(e.startsAt).getTime() >= currentTime - 86400000).slice(0, 3);
+  const upcoming = data.events.filter((e) => !isCampaignEvent(e) && new Date(e.startsAt).getTime() >= currentTime - 86400000).slice(0, 3);
 
   const urgentItems = data.procurements.filter((p) => {
     if (p.status !== "needed") return false;
@@ -248,7 +249,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
       )}
 
       {/* Ongoing Civic Campaigns Spotlight on Homepage */}
-      {data.events.filter((e) => e.isOngoing).map((campaign) => {
+      {data.events.filter(isCampaignEvent).map(hydrateCampaignEvent).map((campaign) => {
         const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
         const totalMilestones = campaign.milestones?.length || 0;
         const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
@@ -257,7 +258,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
             <div className="campaign-hero-grid">
               <div className="campaign-hero-image-wrap">
-                <img src={campaign.image} alt={campaign.title} />
+                <img src={campaign.image} alt={campaign.title} style={{ objectPosition: "center 42%" }} />
                 <span className="campaign-live-tag">
                   <span className="live-dot" />
                   ONGOING CIVIC CAMPAIGN

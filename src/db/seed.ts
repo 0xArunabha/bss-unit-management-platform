@@ -179,6 +179,10 @@ async function seed() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS is_ongoing BOOLEAN DEFAULT FALSE;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS progress_percent INTEGER DEFAULT 0;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS target_goal TEXT;
+
       CREATE TABLE IF NOT EXISTS event_procurements (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -367,6 +371,13 @@ async function seed() {
       for (const [index, venue] of sampleVenues.entries()) {
         await tx.update(events).set({ location: venue.location }).where(and(eq(events.id, uid(2, index + 1)), eq(events.location, venue.previous)));
       }
+      await tx.execute(sql`
+        UPDATE events
+        SET is_ongoing = TRUE,
+            progress_percent = 20,
+            target_goal = 'Installation of automated Air Pollution Control System (APCS) & River Protection'
+        WHERE category = 'Campaign' OR title ILIKE '%Mashkalaibari%';
+      `);
       await tx.update(donations).set({ donorName: `${identity.city} community supporters` }).where(and(eq(donations.id, uid(4, 2)), eq(donations.donorName, "Jadavpur Vidyapith")));
       // Align sample receipt numbering with the unit prefix. Only untouched, fixed-ID demo rows change.
       await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, 1)), sql`${donations.receiptNo} like 'BSS-%'`));
@@ -456,7 +467,19 @@ async function seed() {
     if (payments.length) await tx.insert(dues).values(payments);
 
     await tx.insert(events).values([
-      { id: uid(2, 5), title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping", description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.", location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri", startsAt: new Date("2026-11-03T08:00:00.000Z"), category: "Campaign", volunteers: 18, image: "/images/field-reports/mashkalaibari/inspection-1.jpg" },
+      {
+        id: uid(2, 5),
+        title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
+        description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.",
+        location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri",
+        startsAt: new Date("2026-11-03T08:00:00.000Z"),
+        category: "Campaign",
+        volunteers: 18,
+        image: "/images/field-reports/mashkalaibari/inspection-1.jpg",
+        isOngoing: true,
+        progressPercent: 20,
+        targetGoal: "Installation of automated Air Pollution Control System (APCS) & River Protection",
+      },
     ]);
     // await tx.insert(procurements).values([...]);
 

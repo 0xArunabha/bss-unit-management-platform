@@ -11,6 +11,7 @@ import { VirtualIdCard } from "@/components/id-card";
 import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 import type { Profile } from "@/lib/types";
 import type { Navigate, OpenModal } from "@/components/overview";
+import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 export type ModalState = { type: string; record?: unknown } | null;
 type Props = { modal: ModalState; data: WorkspaceData; close: () => void; open: OpenModal; perform: PerformAction; busy: boolean; error: string; navigate: Navigate; notify: (message: string) => void };
@@ -145,7 +146,7 @@ const MASHKALAIBARI_PHOTOS = [
 ];
 
 function EventDetailModal({
-  event,
+  event: rawEvent,
   data,
   close,
   open,
@@ -159,9 +160,10 @@ function EventDetailModal({
   notify: (msg: string) => void;
   navigate: Navigate;
 }) {
+  const event = hydrateCampaignEvent(rawEvent);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
-  const isMashkalaibari = event.title.includes("Mashkalaibari") || Boolean(event.isOngoing);
+  const isMashkalaibari = isCampaignEvent(event);
   const eventItems = data.procurements.filter((p) => p.eventId === event.id);
   const date = new Date(event.startsAt);
   const currentPhoto = isMashkalaibari ? MASHKALAIBARI_PHOTOS[activePhotoIdx] : null;

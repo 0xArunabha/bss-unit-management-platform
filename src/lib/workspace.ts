@@ -5,6 +5,7 @@ import { asc, desc } from "drizzle-orm";
 import type { WorkspaceData, Profile, Role } from "@/lib/types";
 import { getDemoWorkspace } from "@/lib/demo-data";
 import { isProductionRuntime } from "@/lib/runtime";
+import { hydrateCampaignEvent } from "@/lib/campaign-data";
 
 export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   if (!isDatabaseConfigured) {
@@ -14,7 +15,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   }
 
   await ensureSeed();
-  const [people, payments, unitEvents, items, contributions, notices, feed] = await Promise.all([
+  const [people, payments, rawEvents, items, contributions, notices, feed] = await Promise.all([
     db.select().from(profiles).orderBy(asc(profiles.createdAt)),
     db.select().from(dues),
     db.select().from(events).orderBy(asc(events.startsAt)),
@@ -23,6 +24,13 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
     db.select().from(circulars).orderBy(desc(circulars.pinned), desc(circulars.createdAt)),
     db.select().from(activities).orderBy(desc(activities.createdAt)).limit(50),
   ]);
+  const unitEvents = rawEvents.map((e) =>
+    hydrateCampaignEvent({
+      ...e,
+      startsAt: e.startsAt instanceof Date ? e.startsAt.toISOString() : String(e.startsAt),
+      createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : String(e.createdAt),
+    })
+  );
   people.sort((a, b) => a.id.localeCompare(b.id));
   const requestingUser = people.find((p) => p.id === userId);
 
