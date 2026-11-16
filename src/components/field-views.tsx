@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, FlaskConical, HeartHandshake, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, money } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
@@ -16,7 +16,8 @@ type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
 export function EventsView({ data, open }: Props) {
   const { locale } = useI18n();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
+  const [filter, setFilter] = useState<"campaigns" | "upcoming" | "all">("campaigns");
+  const [roadmapExpanded, setRoadmapExpanded] = useState(false);
   const [nowMs] = useState(() => Date.now());
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = user?.role || "guest";
@@ -30,6 +31,9 @@ export function EventsView({ data, open }: Props) {
   const filteredAll = scheduledEvents.filter((e) =>
     `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
   );
+  const filteredCampaigns = ongoingCampaigns.filter((e) =>
+    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="view-enter">
@@ -41,118 +45,176 @@ export function EventsView({ data, open }: Props) {
         {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>Create event</Button>}
       </PageHeading>
 
-      {/* Permanently Featured Active Civic Campaigns Spotlight */}
-      {ongoingCampaigns.map((campaign) => {
-        const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
-        const totalMilestones = campaign.milestones?.length || 0;
-        const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
-
-        return (
-          <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
-            <div className="campaign-hero-grid">
-              <div className="campaign-hero-image-wrap">
-                <img src={campaign.image} alt={campaign.title} />
-                <span className="campaign-live-tag">
-                  <span className="live-dot" />
-                  ONGOING CIVIC CAMPAIGN
-                </span>
-                <span className="campaign-location-pill">
-                  <MapPin size={12} />
-                  {campaign.location}
-                </span>
-              </div>
-
-              <div className="campaign-hero-content">
-                <div>
-                  <div className="campaign-meta-row">
-                    <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
-                    <span className="campaign-volunteers-tag">
-                      <Users size={13} />
-                      {campaign.volunteers} Active Advocates
-                    </span>
-                  </div>
-
-                  <h2>{campaign.title}</h2>
-                  <p className="campaign-hero-desc">{campaign.description}</p>
-                </div>
-
-                {/* Progress Bar Container */}
-                <div className="campaign-progress-box">
-                  <div className="campaign-progress-header">
-                    <span className="campaign-progress-label mono">
-                      CAMPAIGN TARGET: <strong>{campaign.progressPercent || 20}% REACHED</strong>
-                    </span>
-                    <span className="campaign-phase-badge">
-                      PHASE {currentMilestone?.phase || 2}: {currentMilestone?.title || "In Progress"}
-                    </span>
-                  </div>
-                  <div className="campaign-progress-track">
-                    <div
-                      className="campaign-progress-fill"
-                      style={{ width: `${campaign.progressPercent || 20}%` }}
-                    />
-                  </div>
-                  <div className="campaign-progress-footer">
-                    <span>
-                      ✓ {completedMilestones} of {totalMilestones} milestones achieved
-                    </span>
-                    {campaign.targetGoal && (
-                      <span className="campaign-target-goal" title={campaign.targetGoal}>
-                        Goal: {campaign.targetGoal}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="campaign-hero-actions">
-                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                    View Campaign Action Plan
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    icon={FileText}
-                    onClick={() => {
-                      const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
-                      if (mashCircular) open("circular", mashCircular);
-                    }}
-                  >
-                    Read Investigation Report & Photos
-                  </Button>
-                  <button
-                    className="button button-secondary button-whatsapp"
-                    onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
-                    title="Mobilize on WhatsApp"
-                  >
-                    <MessageCircle size={15} />
-                    Share Campaign
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        );
-      })}
-
-      {/* Calendar Section Divider */}
-      <div className="calendar-section-header mb-3 flex items-center justify-between">
-        <span className="eyebrow text-ink-mute">SCHEDULED SCIENCE OUTREACH & CONVENTIONS</span>
-      </div>
-
-      <div className="standalone-toolbar">
+      {/* Tri-Tab Campaign & Calendar Switcher */}
+      <div className="standalone-toolbar mb-5">
         <div className="tabs">
+          <button className={filter === "campaigns" ? "active" : ""} onClick={() => setFilter("campaigns")}>
+            <Flame size={13} className="text-rust" />
+            <span>Active Campaigns</span>
+            <span>{ongoingCampaigns.length}</span>
+          </button>
           <button className={filter === "upcoming" ? "active" : ""} onClick={() => setFilter("upcoming")}>
-            Upcoming Programmes
+            <CalendarDays size={13} />
+            <span>Outreach Calendar</span>
             <span>{upcomingScheduled.length}</span>
           </button>
           <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
-            All Events & Archive
+            <History size={13} />
+            <span>Archive & Past</span>
             <span>{scheduledEvents.length}</span>
           </button>
         </div>
-        <SearchInput placeholder="Find a demonstration camp or venue…" value={search} onChange={setSearch} />
+        <SearchInput placeholder="Search campaigns, conventions or venues…" value={search} onChange={setSearch} />
       </div>
 
-      {/* 1. UPCOMING SINGLE-DAY EVENTS */}
+      {/* 1. ACTIVE CAMPAIGNS TAB */}
+      {filter === "campaigns" && (
+        <div className="space-y-6">
+          {filteredCampaigns.map((campaign) => {
+            const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
+            const totalMilestones = campaign.milestones?.length || 0;
+            const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
+
+            return (
+              <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
+                <div className="campaign-hero-grid">
+                  <div className="campaign-hero-image-wrap">
+                    <img src={campaign.image} alt={campaign.title} />
+                    <span className="campaign-live-tag">
+                      <span className="live-dot" />
+                      ONGOING CIVIC CAMPAIGN
+                    </span>
+                    <span className="campaign-location-pill">
+                      <MapPin size={12} />
+                      {campaign.location}
+                    </span>
+                  </div>
+
+                  <div className="campaign-hero-content">
+                    <div>
+                      <div className="campaign-meta-row">
+                        <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
+                        <span className="campaign-volunteers-tag">
+                          <Users size={13} />
+                          {campaign.volunteers} Active Advocates
+                        </span>
+                      </div>
+
+                      <h2>{campaign.title}</h2>
+                      <p className="campaign-hero-desc">{campaign.description}</p>
+                    </div>
+
+                    {/* Progress Bar Container */}
+                    <div className="campaign-progress-box">
+                      <div className="campaign-progress-header">
+                        <span className="campaign-progress-label mono">
+                          CAMPAIGN TARGET: <strong>{campaign.progressPercent || 20}% REACHED</strong>
+                        </span>
+                        <span className="campaign-phase-badge">
+                          PHASE {currentMilestone?.phase || 2}: {currentMilestone?.title || "In Progress"}
+                        </span>
+                      </div>
+                      <div className="campaign-progress-track">
+                        <div
+                          className="campaign-progress-fill"
+                          style={{ width: `${campaign.progressPercent || 20}%` }}
+                        />
+                      </div>
+                      <div className="campaign-progress-footer">
+                        <span>
+                          ✓ {completedMilestones} of {totalMilestones} milestones achieved
+                        </span>
+                        {campaign.targetGoal && (
+                          <span className="campaign-target-goal" title={campaign.targetGoal}>
+                            Goal: {campaign.targetGoal}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expandable Phased Roadmap Accordion */}
+                      <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
+                        <button
+                          type="button"
+                          className="campaign-accordion-toggle"
+                          onClick={() => setRoadmapExpanded(!roadmapExpanded)}
+                          aria-expanded={roadmapExpanded}
+                        >
+                          <span>{roadmapExpanded ? "Collapse Phased Roadmap" : "Inspect 4-Phase Action Plan"}</span>
+                          {roadmapExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+                        <span className="mono text-[10.5px] text-ink-mute">
+                          Next Milestone: Municipal Deputation
+                        </span>
+                      </div>
+
+                      {roadmapExpanded && campaign.milestones && (
+                        <div className="mt-3 space-y-2 pt-2 border-t border-rule-soft">
+                          {campaign.milestones.map((m) => (
+                            <div
+                              key={m.id}
+                              className={`p-2.5 rounded border text-left text-xs ${
+                                m.status === "completed"
+                                  ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
+                                  : m.status === "in_progress"
+                                  ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
+                                  : "bg-paper-card border-rule-soft text-ink-mute opacity-80"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold mono text-[10.5px]">
+                                  PHASE 0{m.phase} · {m.title}
+                                </span>
+                                <span
+                                  className={`text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono ${
+                                    m.status === "completed"
+                                      ? "bg-olive text-paper-card"
+                                      : m.status === "in_progress"
+                                      ? "bg-rust text-paper-card"
+                                      : "bg-stone-200 text-stone-600"
+                                  }`}
+                                >
+                                  {m.status === "completed" ? "✓ Done" : m.status === "in_progress" ? "● Active" : "○ Planned"}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-ink-2 leading-relaxed">{m.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="campaign-hero-actions">
+                      <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
+                        View Campaign Gallery & Plan
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        icon={FileText}
+                        onClick={() => {
+                          const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
+                          if (mashCircular) open("circular", mashCircular);
+                        }}
+                      >
+                        Read Investigation Report & Photos
+                      </Button>
+                      <button
+                        className="button button-secondary button-whatsapp"
+                        onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
+                        title="Mobilize on WhatsApp"
+                      >
+                        <MessageCircle size={15} />
+                        Share Campaign
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2. UPCOMING SINGLE-DAY EVENTS CALENDAR */}
       {filter === "upcoming" && (
         <div>
           {filteredUpcoming.length > 0 ? (
@@ -216,20 +278,35 @@ export function EventsView({ data, open }: Props) {
               })}
             </div>
           ) : (
-            <section className="panel p-6 border border-dashed border-rule-soft rounded-lg text-center my-4">
-              <div className="w-10 h-10 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-2">
-                <CalendarDays size={20} />
+            <div className="all-hands-card">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="w-9 h-9 rounded-full bg-rust-tint text-rust flex items-center justify-center font-bold text-base shrink-0">
+                  <Flame size={18} />
+                </span>
+                <div>
+                  <span className="eyebrow text-rust text-[10px] block">ACTIVE FIELD PRIORITY</span>
+                  <h4 className="text-base font-bold text-ink">All Unit Capacity Mobilized for Mashkalaibari</h4>
+                </div>
               </div>
-              <h4 className="text-sm font-bold text-ink mb-1">No single-day conventions or rallies scheduled this week</h4>
-              <p className="text-xs text-ink-mute max-w-md mx-auto">
-                Our Jalpaiguri unit is currently dedicating all active field volunteer capacity to the <strong>Mashkalaibari Crematorium Campaign</strong> featured above.
+              <p className="text-xs text-ink-mute leading-relaxed max-w-xl mb-4">
+                Our Jalpaiguri unit is dedicating active volunteer and cadre capacity to the ongoing <strong>Clean Mashkalaibari Campaign</strong>. Single-day conventions and rallies resume following the technical deputation to Jalpaiguri Municipality.
               </p>
-            </section>
+              <div className="flex items-center gap-3 flex-wrap">
+                {ongoingCampaigns[0] && (
+                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", ongoingCampaigns[0])}>
+                    Open Mashkalaibari Campaign Action Plan
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => setFilter("campaigns")}>
+                  View Active Campaigns Tab →
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      {/* 2. ALL EVENTS & ARCHIVE TAB */}
+      {/* 3. ALL EVENTS & ARCHIVE TAB */}
       {filter === "all" && (
         <div>
           {filteredAll.length > 0 ? (

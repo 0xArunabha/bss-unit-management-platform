@@ -160,8 +160,16 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           >
             <span className="stat-footnote">
               <span className="tiny-dot green" />
-              {ongoingCampaign ? `${ongoingCampaign.progressPercent || 20}% reached · Mashkalaibari` : "Scheduled outreach across Jalpaiguri"}
+              {ongoingCampaign ? `${ongoingCampaign.progressPercent || 20}% target reached · Mashkalaibari` : "Scheduled outreach across Jalpaiguri"}
             </span>
+            {ongoingCampaign && (
+              <div className="stat-progress-track">
+                <div
+                  className="stat-progress-fill"
+                  style={{ width: `${ongoingCampaign.progressPercent || 20}%` }}
+                />
+              </div>
+            )}
           </Stat>
           <Stat icon={Megaphone} tone="blue" title="Demonstration toolkits" value="Available" onClick={() => navigate("resources")}>
             <span className="stat-footnote">Anti-superstition chemical & physics scripts</span>
@@ -205,8 +213,25 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         </div>
       ) : (
         <div className="stats-grid">
-          <Stat icon={CalendarDays} tone="orange" title="Outreach events" value={String(data.events.length)} onClick={() => navigate("events")}>
-            <span className="stat-footnote"><span className="tiny-dot green" />Unit programmes & conventions</span>
+          <Stat
+            icon={CalendarDays}
+            tone="orange"
+            title="Active campaigns"
+            value={ongoingCampaign ? "1 Ongoing" : String(data.events.length)}
+            onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("events"))}
+          >
+            <span className="stat-footnote">
+              <span className="tiny-dot green" />
+              {ongoingCampaign ? `${ongoingCampaign.progressPercent || 20}% reached · Mashkalaibari` : "Unit programmes & conventions"}
+            </span>
+            {ongoingCampaign && (
+              <div className="stat-progress-track">
+                <div
+                  className="stat-progress-fill"
+                  style={{ width: `${ongoingCampaign.progressPercent || 20}%` }}
+                />
+              </div>
+            )}
           </Stat>
           <Stat icon={Users} tone="blue" title="Unit advocates" value={String(data.profiles.length)} onClick={() => navigate("members")}>
             <span className="stat-footnote">Active advocates in Jalpaiguri</span>
@@ -287,7 +312,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
                 <div className="campaign-hero-actions">
                   <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                    View Campaign Action Plan
+                    View Campaign Gallery & Plan
                   </Button>
                   <Button
                     variant="secondary"

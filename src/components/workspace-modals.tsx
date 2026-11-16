@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Copy, Download, ExternalLink, HeartHandshake, Info, MapPin, MessageCircle, MessageSquare, Package, Printer, ReceiptText, Send, ShieldAlert, ShieldCheck, Users, Wallet } from "lucide-react";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { type WorkspaceData, type Donation, type UnitEvent, type Procurement, type Circular, type DuesRecord, type PerformAction, money, months } from "@/lib/types";
 import { type Resource } from "@/lib/resources";
 import { Avatar, Badge, Button, FormField, Modal, SubmitButton } from "@/components/ui";
@@ -160,10 +160,42 @@ function EventDetailModal({
   navigate: Navigate;
 }) {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const isMashkalaibari = event.title.includes("Mashkalaibari") || Boolean(event.isOngoing);
   const eventItems = data.procurements.filter((p) => p.eventId === event.id);
   const date = new Date(event.startsAt);
   const currentPhoto = isMashkalaibari ? MASHKALAIBARI_PHOTOS[activePhotoIdx] : null;
+
+  // Keyboard navigation for photo gallery
+  useEffect(() => {
+    if (!isMashkalaibari) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1));
+      } else if (e.key === "ArrowRight") {
+        setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMashkalaibari]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(deltaX) > 40) {
+      if (deltaX > 0) {
+        setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1));
+      } else {
+        setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0));
+      }
+    }
+    touchStartX.current = null;
+  };
 
   return (
     <Modal
@@ -176,12 +208,16 @@ function EventDetailModal({
       {isMashkalaibari ? (
         <div className="campaign-gallery-container px-4 sm:px-6 pt-3">
           {/* Main Photo Viewer Stage */}
-          <div className="relative bg-[#0d120a] rounded-lg overflow-hidden border border-rule-soft shadow-md">
+          <div
+            className="relative bg-[#0d120a] rounded-lg overflow-hidden border border-rule-soft shadow-md touch-pan-y"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <div className="relative flex items-center justify-center min-h-[280px] sm:min-h-[400px] max-h-[500px] bg-black/50">
               <img
                 src={currentPhoto?.src || event.image}
                 alt={currentPhoto?.caption || event.title}
-                className="max-h-[400px] sm:max-h-[480px] w-full object-contain mx-auto select-none"
+                className="max-h-[400px] sm:max-h-[480px] w-full object-contain mx-auto select-none transition-opacity duration-200"
               />
 
               {/* Prev / Next Navigation Arrows */}
@@ -191,7 +227,7 @@ function EventDetailModal({
                   setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1))
                 }
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
-                aria-label="Previous photograph"
+                aria-label="Previous photograph (or press Left Arrow)"
               >
                 <ChevronLeft size={22} />
               </button>
@@ -201,7 +237,7 @@ function EventDetailModal({
                   setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0))
                 }
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
-                aria-label="Next photograph"
+                aria-label="Next photograph (or press Right Arrow)"
               >
                 <ChevronRight size={22} />
               </button>
@@ -230,19 +266,19 @@ function EventDetailModal({
                 <strong className="text-rust-tint font-bold font-mono mr-1.5">{currentPhoto?.fig}:</strong>
                 {currentPhoto?.caption}
               </span>
-              <span className="mono text-[10.5px] text-ink-mute shrink-0">03/11/2026</span>
+              <span className="mono text-[10px] text-ink-mute shrink-0 hidden sm:inline">Use ← / → keys or swipe</span>
             </div>
           </div>
 
-          {/* 6-Photo Thumbnail Navigation Strip */}
+          {/* 6-Photo Thumbnail Navigation Strip (Responsive horizontal scroll on mobile, 6-col on desktop) */}
           <div className="mt-3.5">
             <div className="flex items-center justify-between mb-1.5 px-0.5">
               <span className="mono text-[11px] font-bold uppercase text-rust tracking-wider">
                 All 6 Field Inspection Photographs
               </span>
-              <span className="mono text-[10.5px] text-ink-mute">Click thumbnail to inspect</span>
+              <span className="mono text-[10.5px] text-ink-mute">Click thumbnail or swipe</span>
             </div>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="campaign-thumb-strip">
               {MASHKALAIBARI_PHOTOS.map((photo, idx) => (
                 <button
                   key={photo.src}
