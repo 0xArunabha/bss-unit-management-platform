@@ -108,39 +108,39 @@ function SmsPreviewModal({
 const MASHKALAIBARI_PHOTOS = [
   {
     src: "/images/field-reports/mashkalaibari/inspection-1.jpg",
-    caption: "Field delegation with local youth in front of the crematorium and chimney stack",
+    caption: "Light of Science representative Kunal Roy alongside a local resident in front of Mashkalaibari crematorium and the emission chimney stack",
     fig: "FIG 01",
-    tag: "Delegation & Furnace",
+    tag: "Delegation · Kunal Roy",
   },
   {
     src: "/images/field-reports/mashkalaibari/inspection-2.jpg",
-    caption: "Crematorium furnace building and short emission chimney stack discharging towards residential quarters",
+    caption: "Plastic waste, beverage bottles, and uncollected refuse scattered on the dirt pathway near surrounding thickets",
     fig: "FIG 02",
-    tag: "Furnace & Chimney",
+    tag: "Plastic & Refuse Litter",
   },
   {
     src: "/images/field-reports/mashkalaibari/inspection-3.jpg",
-    caption: "On-site dialogue with local conscious citizen Babul Choudhury and neighbouring residents",
+    caption: "Furnace building with arrow highlighting the emission chimney stack base, exhaust ducting, and blower motor assembly",
     fig: "FIG 03",
-    tag: "Citizen Hearing",
+    tag: "Chimney & Furnace Fault",
   },
   {
     src: "/images/field-reports/mashkalaibari/inspection-4.jpg",
-    caption: "Absence of waste management: ritual clothes and plastic remnants dumped in open riverbed",
+    caption: "Kunal Roy inspecting dense jungle overgrowth and lack of maintenance in the rear premises and adjoining burial ground (kabrastan)",
     fig: "FIG 04",
-    tag: "Waste Dumping",
+    tag: "Rear Jungle Overgrowth",
   },
   {
     src: "/images/field-reports/mashkalaibari/inspection-5.jpg",
-    caption: "Rear grounds overgrown with thick jungle and lack of boundary maintenance",
+    caption: "Riverbed contamination: discarded ritual clothes, umbrellas, and funeral remnants polluting the stream",
     fig: "FIG 05",
-    tag: "Jungle Overgrowth",
+    tag: "Riverbed Contamination",
   },
   {
     src: "/images/field-reports/mashkalaibari/inspection-6.jpg",
-    caption: "Riverbank contamination and ecological degradation adjacent to the cremation grounds",
+    caption: "Roadside dumping of funeral ritual clothes and solid waste with stray goats scavenging along the access path",
     fig: "FIG 06",
-    tag: "Riverbed Pollution",
+    tag: "Roadside Ritual Dumping",
   },
 ];
 
@@ -929,24 +929,28 @@ export function WorkspaceModals(props: Props) {
                 <span className="text-[11px] text-ink-faint">6 Photographic Records</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6].map((num) => (
-                  <a
-                    key={num}
-                    href={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
-                  >
-                    <img
-                      src={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
-                      alt={`Mashkalaibari Crematorium Inspection Photo ${num}`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                    <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
-                      FIG. 0{num}
-                    </span>
-                  </a>
-                ))}
+                {[1, 2, 3, 4, 5, 6].map((num) => {
+                  const p = MASHKALAIBARI_PHOTOS[num - 1];
+                  return (
+                    <a
+                      key={num}
+                      href={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
+                      title={p ? `${p.fig}: ${p.caption}` : `Inspection Photo ${num}`}
+                    >
+                      <img
+                        src={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
+                        alt={p?.caption || `Mashkalaibari Crematorium Inspection Photo ${num}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                      <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
+                        FIG. 0{num}
+                      </span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}
