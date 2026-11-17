@@ -61,6 +61,43 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
     });
   }
 
+  // Guarantee the real World Environment Day Awareness Rally is always present
+  const hasEnvironmentDay = validEvents.some(
+    (e) => e.title.includes("Environment Day") || e.id === "20000000-0000-4000-8000-000000000006"
+  );
+  if (!hasEnvironmentDay) {
+    validEvents.push({
+      id: "20000000-0000-4000-8000-000000000006",
+      title: "World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground",
+      description: "Mass rally and civic awareness demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society demanding immediate restoration of Karala River and relocation of toxic municipal dumping grounds.",
+      location: "Kotwali Thana More to Kadamtala, Jalpaiguri",
+      startsAt: new Date("2026-06-05T09:30:00.000Z"),
+      category: "Awareness Rally",
+      volunteers: 35,
+      image: "/images/field-reports/environment-day-2026/karala-rally-march.jpg",
+      createdAt: new Date("2026-06-05T09:30:00.000Z"),
+      isOngoing: false,
+      progressPercent: 100,
+      targetGoal: "Restoration of Karala River & Relocation of Municipal Dumping Ground",
+    });
+  }
+
+  // Guarantee the World Environment Day Field Action Report is always present in circulars
+  const hasEnvCircular = notices.some(
+    (c) => c.id === "50000000-0000-4000-8000-000000000006" || c.title.includes("Environment Day")
+  );
+  if (!hasEnvCircular) {
+    notices.unshift({
+      id: "50000000-0000-4000-8000-000000000006",
+      title: "Field Action Report: World Environment Day Rally for Karala River & Civic Dumping Ground",
+      content: `LOCATION: Jalpaiguri (Kotwali Thana More to Kadamtala)\nDATE: June 5, 2026\nORGANIZED BY: Light of Science (Breakthrough Science Society, Jalpaiguri Unit) in solidarity with Relief and Public Welfare Society\n\n1. KEY ENVIRONMENTAL DEMANDS:\n• Complete ecological restoration, desiltation, and sewage prevention for River Karala.\n• Immediate relocation and scientific management of the open-air toxic municipal dumping ground away from town residential wards.\n\n2. RALLY SUMMARY:\nA massive youth and citizens' rally marched from Thana More to Kadamtala carrying scientific placards and banners ("Love the Earth, It's our Home", "There is no Planet B", "চাই বৈজ্ঞানিক বর্জ্য নিয়ন্ত্রণ", "করলা আমাদের মা, তাকে রক্ষা করা আমাদের কর্তব্য").\n\n3. ADDRESSES & SOLIDARITY:\n• Avash Rajak (Joint Secretary, Light of Science): Addressed administrative negligence and called for scientific desiltation.\n• Swarndeep Sen (Acting President, Light of Science): Highlighted severe respiratory and groundwater risks of municipal dumping.\n• Kunal Roy (President, Light of Science): Emphasized continuous civic scientific vigilance beyond symbolic annual observance.\n• Aditi Chowdhury addressed the gathering.`,
+      category: "Campaign report",
+      pinned: true,
+      authorId: "10000000-0000-4000-8000-000000000026",
+      createdAt: new Date("2026-06-05T10:00:00.000Z"),
+    });
+  }
+
   const unitEvents = validEvents.map((e) =>
     hydrateCampaignEvent({
       ...e,

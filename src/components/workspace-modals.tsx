@@ -145,6 +145,45 @@ const MASHKALAIBARI_PHOTOS = [
   },
 ];
 
+const ENVIRONMENT_DAY_PHOTOS = [
+  {
+    src: "/images/field-reports/environment-day-2026/karala-rally-march.jpg",
+    caption: "Joint environmental rally march proceeding from Kotwali Thana More to Kadamtala with Light of Science Club and Relief & Public Welfare Society banners",
+    fig: "FIG 01",
+    tag: "Civic Demonstration March",
+  },
+  {
+    src: "/images/field-reports/environment-day-2026/karala-rally-placards.jpg",
+    caption: "Volunteers and local citizens carrying scientific placards demanding Karala river desiltation and anti-dumping measures",
+    fig: "FIG 02",
+    tag: "Citizen Demands & Placards",
+  },
+  {
+    src: "/images/field-reports/environment-day-2026/karala-rally-delegation.jpg",
+    caption: "Joint coordination delegation including Relief & Public Welfare Society and Light of Science leadership",
+    fig: "FIG 03",
+    tag: "Joint Leadership Delegation",
+  },
+  {
+    src: "/images/field-reports/environment-day-2026/karala-rally-speech.jpg",
+    caption: "Open-air street corner address at Kadamtala on ecological restoration of River Karala and removal of hazardous municipal dumpsite",
+    fig: "FIG 04",
+    tag: "Street Address & Speeches",
+  },
+  {
+    src: "/images/field-reports/environment-day-2026/karala-rally-youth.jpg",
+    caption: "Student and youth cadres advocating for clean water bodies and scientific waste management in Jalpaiguri town",
+    fig: "FIG 05",
+    tag: "Youth & Science Cadres",
+  },
+  {
+    src: "/images/field-reports/environment-day-2026/karala-rally-banner.jpg",
+    caption: "Official front banner of the World Environment Day Rally held on June 5, 2026 across Jalpaiguri town",
+    fig: "FIG 06",
+    tag: "World Environment Day Banner",
+  },
+];
+
 function EventDetailModal({
   event: rawEvent,
   data,
@@ -164,36 +203,46 @@ function EventDetailModal({
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const isMashkalaibari = isCampaignEvent(event);
+  const isEnvironmentDay =
+    event.id === "20000000-0000-4000-8000-000000000006" ||
+    event.title.toLowerCase().includes("environment day") ||
+    event.title.toLowerCase().includes("karala");
+  const galleryPhotos = isEnvironmentDay
+    ? ENVIRONMENT_DAY_PHOTOS
+    : isMashkalaibari
+    ? MASHKALAIBARI_PHOTOS
+    : null;
   const eventItems = data.procurements.filter((p) => p.eventId === event.id);
   const date = new Date(event.startsAt);
-  const currentPhoto = isMashkalaibari ? MASHKALAIBARI_PHOTOS[activePhotoIdx] : null;
+  const currentPhoto = galleryPhotos ? galleryPhotos[activePhotoIdx] : null;
+  const totalPhotos = galleryPhotos?.length || 0;
 
   // Keyboard navigation for photo gallery
   useEffect(() => {
-    if (!isMashkalaibari) return;
+    if (!galleryPhotos || totalPhotos <= 1) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") {
-        setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1));
+        setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : totalPhotos - 1));
       } else if (e.key === "ArrowRight") {
-        setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0));
+        setActivePhotoIdx((idx) => (idx < totalPhotos - 1 ? idx + 1 : 0));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMashkalaibari]);
+  }, [galleryPhotos, totalPhotos]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
+    if (touchStartX.current === null || !galleryPhotos || totalPhotos <= 1) return;
     const deltaX = e.changedTouches[0].clientX - touchStartX.current;
     if (Math.abs(deltaX) > 40) {
       if (deltaX > 0) {
-        setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1));
+        setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : totalPhotos - 1));
       } else {
-        setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0));
+        setActivePhotoIdx((idx) => (idx < totalPhotos - 1 ? idx + 1 : 0));
       }
     }
     touchStartX.current = null;
@@ -207,7 +256,7 @@ function EventDetailModal({
       wide
     >
       {/* 1. PHOTOGRAPHIC EVIDENCE SECTION */}
-      {isMashkalaibari ? (
+      {galleryPhotos ? (
         <div className="campaign-gallery-container px-4 sm:px-6 pt-3">
           {/* Main Photo Viewer Stage */}
           <div
@@ -229,7 +278,7 @@ function EventDetailModal({
               <button
                 type="button"
                 onClick={() =>
-                  setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : MASHKALAIBARI_PHOTOS.length - 1))
+                  setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : totalPhotos - 1))
                 }
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
                 aria-label="Previous photograph (or press Left Arrow)"
@@ -239,7 +288,7 @@ function EventDetailModal({
               <button
                 type="button"
                 onClick={() =>
-                  setActivePhotoIdx((idx) => (idx < MASHKALAIBARI_PHOTOS.length - 1 ? idx + 1 : 0))
+                  setActivePhotoIdx((idx) => (idx < totalPhotos - 1 ? idx + 1 : 0))
                 }
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
                 aria-label="Next photograph (or press Right Arrow)"
@@ -249,7 +298,7 @@ function EventDetailModal({
 
               {/* Photo Counter Pill */}
               <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-white text-[11px] px-2.5 py-1 rounded font-mono font-bold tracking-wider border border-white/15">
-                PHOTO 0{activePhotoIdx + 1} OF 06 · {currentPhoto?.tag}
+                PHOTO 0{activePhotoIdx + 1} OF 0{totalPhotos} · {currentPhoto?.tag}
               </span>
 
               {/* Full-Res Link */}
@@ -279,12 +328,14 @@ function EventDetailModal({
           <div className="mt-3.5">
             <div className="flex items-center justify-between mb-1.5 px-0.5">
               <span className="mono text-[11px] font-bold uppercase text-rust tracking-wider">
-                All 6 Field Inspection Photographs
+                {isEnvironmentDay
+                  ? "All 6 World Environment Day Rally Photographs"
+                  : "All 6 Field Inspection Photographs"}
               </span>
               <span className="mono text-[10.5px] text-ink-mute">Click thumbnail or swipe</span>
             </div>
             <div className="campaign-thumb-strip">
-              {MASHKALAIBARI_PHOTOS.map((photo, idx) => (
+              {galleryPhotos.map((photo, idx) => (
                 <button
                   key={photo.src}
                   type="button"
@@ -427,6 +478,29 @@ function EventDetailModal({
               }}
             >
               Read Full Report
+            </Button>
+          </div>
+        )}
+
+        {/* Shortcut to World Environment Day circular */}
+        {isEnvironmentDay && (
+          <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-lg my-4 flex items-center justify-between gap-3">
+            <div>
+              <strong className="text-xs text-ink block font-semibold">Official Field Action Report on Record</strong>
+              <span className="text-[11px] text-ink-mute">Read the June 5, 2026 rally resolutions, River Karala demands, and civic addresses</span>
+            </div>
+            <Button
+              variant="secondary"
+              icon={ArrowUpRight}
+              onClick={() => {
+                const c = data.circulars.find((cir) => cir.id === "50000000-0000-4000-8000-000000000006" || cir.title.includes("Environment Day"));
+                if (c) {
+                  close();
+                  open("circular", c);
+                }
+              }}
+            >
+              Read Action Report
             </Button>
           </div>
         )}
@@ -992,6 +1066,38 @@ export function WorkspaceModals(props: Props) {
                     </a>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {notice.title.includes("Environment Day") && (
+            <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
+                  World Environment Day Rally Records (05/06/2026)
+                </span>
+                <span className="text-[11px] text-ink-faint">6 Photographic Records</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {ENVIRONMENT_DAY_PHOTOS.map((p, idx) => (
+                  <a
+                    key={p.src}
+                    href={p.src}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
+                    title={`${p.fig}: ${p.caption}`}
+                  >
+                    <img
+                      src={p.src}
+                      alt={p.caption}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
+                      FIG. 0{idx + 1}
+                    </span>
+                  </a>
+                ))}
               </div>
             </div>
           )}

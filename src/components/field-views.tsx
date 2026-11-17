@@ -219,6 +219,44 @@ export function EventsView({ data, open }: Props) {
               </section>
             );
           })}
+
+          {/* Concluded Awareness Action / Civic Rally Section */}
+          {scheduledEvents.length > 0 && (
+            <section className="panel p-5 border border-rule-soft bg-[#faf7f0] rounded-lg print-tech-slip">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded mono">
+                      ✓ Concluded Awareness Action
+                    </span>
+                    <span className="text-[11px] mono text-ink-mute">5th June 2026 · World Environment Day</span>
+                  </div>
+                  <h3 className="text-base font-bold text-ink">
+                    World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground
+                  </h3>
+                  <p className="text-xs text-ink-2 mt-1 leading-relaxed max-w-2xl">
+                    Completed mass awareness rally and civic demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society, demanding urgent desiltation of River Karala and relocation of toxic municipal dumping grounds.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <Button
+                    variant="primary"
+                    icon={ArrowUpRight}
+                    onClick={() => {
+                      const envEvent = scheduledEvents.find((e) => e.id === "20000000-0000-4000-8000-000000000006" || e.title.includes("Environment Day"));
+                      if (envEvent) open("event", envEvent);
+                    }}
+                  >
+                    View Field Photos & Report
+                  </Button>
+                  <Button variant="secondary" onClick={() => setFilter("all")}>
+                    Inspect in Archive ({scheduledEvents.length}) →
+                  </Button>
+                </div>
+              </div>
+            </section>
+          )}
+
           {filteredCampaigns.length === 0 && (
             <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
               <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
@@ -378,13 +416,24 @@ export function EventsView({ data, open }: Props) {
 
                       <div className="event-card-footer">
                         <span><Users size={14} />{event.volunteers} active volunteers</span>
+                        <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
+                          ✓ Concluded Action
+                        </span>
                       </div>
 
                       <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                         <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                          View details
+                          View programme briefing & field photos
                           <ArrowUpRight size={15} />
                         </Button>
+                        <button
+                          className="button button-secondary button-whatsapp"
+                          style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                          onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
+                          title="Share on WhatsApp"
+                        >
+                          <MessageCircle size={15} />
+                        </button>
                       </div>
                     </div>
                   </article>

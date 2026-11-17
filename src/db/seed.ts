@@ -125,6 +125,27 @@ In light of this critical environmental and civic breakdown, Light of Science, J
 
 এমতাবস্থায় আমরা কীভাবে বিষয়টা দেখবো? এবিষয়ে একটা মিটিং করলে ভালো হয়।`;
 
+const envReportTitle = "Field Action Report: World Environment Day Rally for Karala River & Civic Dumping Ground";
+const envReportContent = `LOCATION: Jalpaiguri (Kotwali Thana More to Kadamtala)
+DATE: June 5, 2026
+ORGANIZED BY: Light of Science (Breakthrough Science Society, Jalpaiguri Unit) in solidarity with Relief and Public Welfare Society
+
+1. KEY ENVIRONMENTAL DEMANDS:
+• Complete ecological restoration, desiltation, and sewage prevention for River Karala.
+• Immediate relocation and scientific management of the open-air toxic municipal dumping ground away from town residential wards.
+
+2. RALLY SUMMARY:
+A massive youth and citizens' rally marched from Thana More to Kadamtala carrying scientific placards and banners ("Love the Earth, It's our Home", "There is no Planet B", "চাই বৈজ্ঞানিক বর্জ্য নিয়ন্ত্রণ", "করলা আমাদের মা, তাকে রক্ষা করা আমাদের কর্তব্য").
+
+3. ADDRESSES & SOLIDARITY:
+• Avash Rajak (Joint Secretary, Light of Science): Addressed administrative negligence and called for scientific desiltation.
+• Swarndeep Sen (Acting President, Light of Science): Highlighted severe respiratory and groundwater risks of municipal dumping.
+• Kunal Roy (President, Light of Science): Emphasized continuous civic scientific vigilance beyond symbolic annual observance.
+• Aditi Chowdhury addressed the gathering.
+
+4. MASS PARTICIPATION:
+Members of Relief and Public Welfare Society, student science cadres, and conscious citizens of Jalpaiguri actively participated in the demonstration.`;
+
 async function seed() {
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(7428101)`);
@@ -456,6 +477,51 @@ async function seed() {
       } catch (err) {
         console.warn("[Seed] Mashkalaibari event upsert notice:", err);
       }
+
+      try {
+        await tx.execute(sql`
+          INSERT INTO events (
+            id,
+            title,
+            description,
+            location,
+            starts_at,
+            category,
+            volunteers,
+            image,
+            is_ongoing,
+            progress_percent,
+            target_goal,
+            created_at
+          ) VALUES (
+            ${uid(2, 6)},
+            'World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground',
+            'Mass rally and civic awareness demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society demanding immediate restoration of Karala River and relocation of toxic municipal dumping grounds.',
+            'Kotwali Thana More to Kadamtala, Jalpaiguri',
+            '2026-06-05 09:30:00+00',
+            'Awareness Rally',
+            35,
+            '/images/field-reports/environment-day-2026/karala-rally-march.jpg',
+            false,
+            100,
+            'Restoration of Karala River & Relocation of Municipal Dumping Ground',
+            '2026-06-05 09:30:00+00'
+          )
+          ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            location = EXCLUDED.location,
+            starts_at = EXCLUDED.starts_at,
+            category = EXCLUDED.category,
+            volunteers = EXCLUDED.volunteers,
+            image = EXCLUDED.image,
+            is_ongoing = EXCLUDED.is_ongoing,
+            progress_percent = EXCLUDED.progress_percent,
+            target_goal = EXCLUDED.target_goal
+        `);
+      } catch (err) {
+        console.warn("[Seed] Environment Day event upsert notice:", err);
+      }
       await tx.update(donations).set({ donorName: `${identity.city} community supporters` }).where(and(eq(donations.id, uid(4, 2)), eq(donations.donorName, "Jadavpur Vidyapith")));
       // Align sample receipt numbering with the unit prefix. Only untouched, fixed-ID demo rows change.
       await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, 1)), sql`${donations.receiptNo} like 'BSS-%'`));
@@ -463,6 +529,11 @@ async function seed() {
         await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, index)), sql`${donations.receiptNo} like 'BSS-%'`));
       }
       await tx.update(circulars).set({ title: unitCircularTitle, content: unitCircularContent }).where(and(eq(circulars.id, uid(5, 1)), eq(circulars.title, "Let’s take science to every neighbourhood"), eq(circulars.content, originalCircularContent)));
+      await tx.execute(sql`
+        INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
+        VALUES (${uid(5, 6)}, ${envReportTitle}, ${envReportContent}, 'Campaign report', true, ${uid(1, 26)}, '2026-06-05 10:00:00+00')
+        ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, pinned = EXCLUDED.pinned
+      `);
       await tx.execute(sql`
         INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
         VALUES (${uid(5, 5)}, ${mashkalaibariReportTitle}, ${mashkalaibariReportContent}, 'Campaign report', true, ${ADMIN_ID}, '2026-11-03 08:00:00+00')
@@ -558,6 +629,19 @@ async function seed() {
         progressPercent: 20,
         targetGoal: "Installation of automated Air Pollution Control System (APCS) & River Protection",
       },
+      {
+        id: uid(2, 6),
+        title: "World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground",
+        description: "Mass rally and civic awareness demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society demanding immediate restoration of Karala River and relocation of toxic municipal dumping grounds.",
+        location: "Kotwali Thana More to Kadamtala, Jalpaiguri",
+        startsAt: new Date("2026-06-05T09:30:00.000Z"),
+        category: "Awareness Rally",
+        volunteers: 35,
+        image: "/images/field-reports/environment-day-2026/karala-rally-march.jpg",
+        isOngoing: false,
+        progressPercent: 100,
+        targetGoal: "Restoration of Karala River & Relocation of Municipal Dumping Ground",
+      },
     ]);
     // await tx.insert(procurements).values([...]);
 
@@ -571,6 +655,7 @@ async function seed() {
     ]);
 
     await tx.insert(circulars).values([
+      { id: uid(5, 6), title: envReportTitle, content: envReportContent, category: "Campaign report", pinned: true, authorId: uid(1, 26), createdAt: new Date("2026-06-05T10:00:00.000Z") },
       { id: uid(5, 5), title: mashkalaibariReportTitle, content: mashkalaibariReportContent, category: "Campaign report", pinned: true, authorId: ADMIN_ID, createdAt: new Date("2026-11-03T08:00:00.000Z") },
       { id: uid(5, 4), title: teamsCircularTitle, content: teamsCircularContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: ago(30) },
       { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: false, authorId: ADMIN_ID, createdAt: ago(180) },
