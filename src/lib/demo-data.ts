@@ -35,7 +35,7 @@ export const REAL_MEMBERS: RealMemberSpec[] = [
   { id: uid(1, 4), fullName: "Hari Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sand", paid: true },
   { id: uid(1, 5), fullName: "Soham Das", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "lavender", paid: true },
   { id: uid(1, 6), fullName: "Samarpan Chakraborty", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "peach", paid: true },
-  { id: uid(1, 7), fullName: "Kunal Roy", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "sage", paid: true },
+  { id: uid(1, 7), fullName: "Kunal Roy", phone: null, role: "admin", monthlyPledge: 100, avatarColor: "sage", paid: true },
   { id: uid(1, 8), fullName: "Kaushiki Ray", phone: null, role: "volunteer", monthlyPledge: 20, avatarColor: "blue", paid: true },
   { id: uid(1, 9), fullName: "Udita Roy Basunia", phone: null, role: "organizer", monthlyPledge: 50, avatarColor: "sand", paid: true },
   { id: uid(1, 10), fullName: "Debarghya Das", phone: null, role: "volunteer", monthlyPledge: 50, avatarColor: "lavender", paid: true },
@@ -257,7 +257,7 @@ Any suggestions or recommendations regarding this proposal should be communicate
 • Avash Rajak
 • Anirban Kar
 
-Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (Joint Secretary)
+Kunal Roy (President, Light of Science · BSS State Executive) · Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (Joint Secretary)
 
 ───────────────────────────────
 মূল বাংলা প্রস্তাব (Original Bengali Reference):

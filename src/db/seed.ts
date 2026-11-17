@@ -72,11 +72,13 @@ Any suggestions or recommendations regarding this proposal should be communicate
 • Avash Rajak
 • Anirban Kar
 
-Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (Joint Secretary)
+Kunal Roy (President, Light of Science · BSS State Executive) · Swarndeep Sen (Working President) · Pritam Sarkar (Secretary) · Avash Rajak (Joint Secretary)
 
 ───────────────────────────────
 মূল বাংলা প্রস্তাব (Original Bengali Reference):
 গত ২২শে মার্চ লাইট অফ সাইন্সের ক্লাব ঘরে অনুষ্ঠিত হওয়া মিটিংয়ে উপস্থিত সদস্যদের মত অনুসারে ক্লাবের কাজ সুষ্ঠুভাবে পরিচালনা করার কতগুলি টিম তৈরি করার প্রস্তাব এসেছে। ক্লাবের সকল সদস্যদের মতামতের ভিত্তিতে এই প্রস্তাব সিদ্ধান্ত হিসেবে গৃহীত হবে।
+
+কুণাল রায় (সভাপতি, লাইট অফ সায়েন্স · বিএসএস রাজ্য কার্যনির্বাহী সদস্য) · স্বর্ণদ্বীপ সেন (কার্যকরী সভাপতি) · প্রীতম সরকার (সম্পাদক) · আভাস রজক (যুগ্ম সম্পাদক)
 
 এই প্রস্তাব বিষয়ক যেকোন সাজেশন স্বর্ণদ্বীপ সেনের কাছে ব্যক্তিগত ভাবে পাঠাবেন। সকলের মতামত কাম্য।`;
 

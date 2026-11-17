@@ -109,9 +109,9 @@ function SmsPreviewModal({
 const MASHKALAIBARI_PHOTOS = [
   {
     src: "/images/field-reports/mashkalaibari/inspection-1.jpg",
-    caption: "Light of Science representative Kunal Roy alongside a local resident in front of Mashkalaibari crematorium and the emission chimney stack",
+    caption: "Light of Science President & BSS State Executive Kunal Roy alongside a local resident in front of Mashkalaibari crematorium and the emission chimney stack",
     fig: "FIG 01",
-    tag: "Delegation · Kunal Roy",
+    tag: "President · Kunal Roy",
   },
   {
     src: "/images/field-reports/mashkalaibari/inspection-2.jpg",

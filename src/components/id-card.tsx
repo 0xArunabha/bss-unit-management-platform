@@ -41,9 +41,9 @@ function GuillochePattern() {
           <circle cx="1" cy="1" r="0.6" fill="currentColor" opacity="0.08" />
         </pattern>
         <linearGradient id="card-accent-gradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#b83d16" stopOpacity="0.06" />
+          <stop offset="0%" stopColor="#047857" stopOpacity="0.06" />
           <stop offset="50%" stopColor="#4d6632" stopOpacity="0.04" />
-          <stop offset="100%" stopColor="#b83d16" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="#047857" stopOpacity="0.06" />
         </linearGradient>
       </defs>
       <rect width="440" height="270" fill="url(#guilloche-dots)" />
