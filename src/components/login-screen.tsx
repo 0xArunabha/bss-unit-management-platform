@@ -169,7 +169,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
           </div>
           <h1>{identity.name}</h1>
           <p className="login-subtitle">
-            {identity.organisation} · {identity.unit}
+            A Unit of {identity.organisation} · {identity.unit}
           </p>
           <div className="login-tagline">
             “{identity.motto}”
