@@ -120,7 +120,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem("bss-locale") as Locale | null;
       if (saved === "bn" || saved === "en") {
-        setLocaleState(saved);
+        queueMicrotask(() => {
+          setLocaleState(saved);
+        });
       }
     } catch {
       // localStorage may fail in restricted environments
