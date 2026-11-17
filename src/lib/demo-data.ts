@@ -184,6 +184,17 @@ function createInitialState(): {
         },
       ],
     },
+    {
+      id: uid(2, 6),
+      title: "World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground",
+      description: "Mass rally from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society demanding immediate restoration of Karala River and relocation of toxic municipal dumping grounds.",
+      location: "Thana More to Kadamtala, Jalpaiguri",
+      startsAt: "2026-06-05T09:30:00.000Z",
+      category: "Campaign",
+      volunteers: 35,
+      image: "/images/field-reports/environment-day-2026/karala-rally-march.jpg",
+      createdAt: "2026-06-05T09:30:00.000Z",
+    },
   ];
 
   const procurementsList: Procurement[] = [
@@ -309,6 +320,15 @@ In light of this critical environmental and civic breakdown, Light of Science, J
 এমতাবস্থায় আমরা কীভাবে বিষয়টা দেখবো? এবিষয়ে একটা মিটিং করলে ভালো হয়।`;
 
   const circularsList: Circular[] = [
+    {
+      id: uid(5, 6),
+      title: "Field Campaign Report: World Environment Day Rally for Karala River & Civic Dumping Ground",
+      content: `LOCATION: Jalpaiguri (Kotwali Thana More to Kadamtala)\nDATE: June 5, 2026\nORGANIZED BY: Light of Science (Breakthrough Science Society, Jalpaiguri Unit) in solidarity with Relief and Public Welfare Society\n\n1. KEY ENVIRONMENTAL DEMANDS:\n• Complete ecological restoration, desiltation, and sewage prevention for River Karala.\n• Immediate relocation and scientific management of the open-air toxic municipal dumping ground away from town residential wards.\n\n2. RALLY SUMMARY:\nA massive youth and citizens' rally marched from Thana More to Kadamtala carrying scientific placards and banners ("Love the Earth, It's our Home", "There is no Planet B", "চাই বৈজ্ঞানিক বর্জ্য নিয়ন্ত্রণ", "করলা আমাদের মা, তাকে রক্ষা করা আমাদের কর্তব্য").\n\n3. SPEAKERS & ADDRESSES:\n• Avash Rajak (Joint Secretary, Light of Science): Addressed administrative negligence and called for scientific desiltation.\n• Swarndeep Sen (Acting President, Light of Science): Highlighted severe respiratory and groundwater risks of municipal dumping.\n• Kunal Roy (President, Light of Science): Emphasized continuous civic scientific vigilance beyond symbolic annual observance.\n• Aditi Chowdhury: Called upon students, youth, and women to lead environmental defense.`,
+      category: "Campaign report",
+      pinned: true,
+      authorId: uid(1, 26),
+      createdAt: "2026-06-05T10:00:00.000Z",
+    },
     { id: uid(5, 5), title: mashkalaibariReportTitle, content: mashkalaibariReportContent, category: "Campaign report", pinned: true, authorId: DEMO_ADMIN_ID, createdAt: "2026-11-03T08:00:00.000Z" },
     { id: uid(5, 4), title: teamsCircularTitle, content: teamsCircularContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: ago(30) },
     { id: uid(5, 1), title: unitCircularTitle, content: unitCircularContent, category: "Unit circular", pinned: false, authorId: DEMO_ADMIN_ID, createdAt: ago(180) },
