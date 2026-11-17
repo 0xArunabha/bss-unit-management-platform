@@ -480,7 +480,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
             <span>{locale === "bn" ? "অনুসন্ধান করুন…" : "Search the unit…"}</span>
             <kbd><Command size={10} />K</kbd>
           </button>
-          <span className="topbar-date">{new Date().toLocaleDateString(locale === "bn" ? "bn-IN" : "en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
+          <span className="topbar-date" suppressHydrationWarning>{new Date().toLocaleDateString(locale === "bn" ? "bn-IN" : "en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
           <button className="icon-button help-topbar" aria-label="Workspace help" onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
           <div className="notifications-wrap" data-popover>
             <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label="Open notifications" aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
@@ -506,7 +506,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                       <span className={`notification-symbol activity-${a.type}`}>
                         {a.type === "donation" ? <HeartHandshake size={16} /> : a.type === "dues" ? <ArrowDownLeft size={16} /> : a.type === "verified" ? <CircleCheck size={16} /> : <Package size={16} />}
                       </span>
-                      <span><strong>{a.title}</strong><small>{a.description}</small><time>{relativeTime(a.createdAt)} · Action: Click to inspect</time></span>
+                      <span><strong>{a.title}</strong><small>{a.description}</small><time suppressHydrationWarning>{relativeTime(a.createdAt)} · Action: Click to inspect</time></span>
                       {unread && i < 2 && <i />}
                     </button>
                   ))}
