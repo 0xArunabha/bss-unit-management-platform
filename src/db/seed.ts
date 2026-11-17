@@ -365,6 +365,36 @@ async function seed() {
         reviewed_by UUID REFERENCES profiles(id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      -- Self-healing schema migrations for claim_codes and membership_applications:
+      -- Upgrades databases created before patch 0003 without requiring manual SQL.
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'claim_codes' AND column_name = 'created_by') THEN
+          ALTER TABLE claim_codes RENAME COLUMN created_by TO issued_by;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'claim_codes' AND column_name = 'claimed_by_sub') THEN
+          ALTER TABLE claim_codes RENAME COLUMN claimed_by_sub TO claimed_by_google_sub;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'claim_codes' AND column_name = 'issued_by') THEN
+          ALTER TABLE claim_codes ADD COLUMN issued_by UUID REFERENCES profiles(id);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'claim_codes' AND column_name = 'claimed_by_google_sub') THEN
+          ALTER TABLE claim_codes ADD COLUMN claimed_by_google_sub TEXT;
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'membership_applications' AND column_name = 'email') THEN
+          ALTER TABLE membership_applications RENAME COLUMN email TO google_email;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'membership_applications' AND column_name = 'google_email') THEN
+          ALTER TABLE membership_applications ADD COLUMN google_email TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'membership_applications' AND column_name = 'is_minor') THEN
+          ALTER TABLE membership_applications ADD COLUMN is_minor BOOLEAN NOT NULL DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'membership_applications' AND column_name = 'guardian_name') THEN
+          ALTER TABLE membership_applications ADD COLUMN guardian_name TEXT;
+        END IF;
+      END $$;
     `);
     if ((await tx.select({ id: profiles.id }).from(profiles).limit(1)).length) {
       // Localize only untouched, fixed-ID sample records. Never reset user data or ledger history.

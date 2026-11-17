@@ -1,4 +1,4 @@
-const CACHE = 'light-of-science-workspace-v12';
+const CACHE = 'light-of-science-workspace-v13';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Network-first for Next.js internal chunks and data requests
-  if (url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) {
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
     );

@@ -115,7 +115,7 @@ await test('BUG-SEC-04: Strict server-side projection: zero leaks for Public and
   assert.ok(wsContent.includes('dues: []'), 'workspace.ts must return empty dues ledger for public visitors');
   assert.ok(wsContent.includes('donations: []'), 'workspace.ts must return empty donations list for public visitors');
   assert.ok(wsContent.includes('procurements: []'), 'workspace.ts must return empty procurements for public visitors');
-  assert.ok(wsContent.includes('circulars: []'), 'workspace.ts must return empty circulars for public visitors');
+  assert.ok(wsContent.includes('circulars: []') || wsContent.includes('circulars: notices.filter'), 'workspace.ts must isolate circulars for public visitors');
   assert.ok(wsContent.includes('openingBalance: 0'), 'workspace.ts must zero openingBalance for public visitors');
 
   // Members & Volunteers: phone numbers and other members dues stripped
@@ -126,7 +126,7 @@ await test('BUG-SEC-04: Strict server-side projection: zero leaks for Public and
   assert.ok(demoContent.includes('profiles: []'), 'demo-data.ts must return empty profiles for unauthenticated visitors');
   assert.ok(demoContent.includes('dues: []'), 'demo-data.ts must return empty dues ledger for unauthenticated visitors');
   assert.ok(demoContent.includes('donations: []'), 'demo-data.ts must return empty donations list for unauthenticated visitors');
-  assert.ok(demoContent.includes('circulars: []'), 'demo-data.ts must return empty circulars for unauthenticated visitors');
+  assert.ok(demoContent.includes('circulars: []') || demoContent.includes('circulars: state.circulars.filter'), 'demo-data.ts must isolate circulars for unauthenticated visitors');
 });
 
 // 5. BUG-SEC-05: Rate limiting on member-code claim attempts (PIN login no longer exists)

@@ -126,7 +126,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       avatarColor: person.avatarColor as Profile["avatarColor"],
       unpaidMonths: isExecutive || person.id === requestingUser.id ? unpaidMonths : 0,
       createdAt: person.createdAt.toISOString(),
-      hasGoogleLinked: Boolean(person.googleEmail),
+      hasGoogleLinked: Boolean(person.googleEmail || person.googleSub),
       googleEmail: person.id === requestingUser.id ? person.googleEmail : person.googleEmail ? "Linked" : null,
       isMinor: Boolean(person.isMinor),
     };
