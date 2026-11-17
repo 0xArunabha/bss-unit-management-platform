@@ -8,6 +8,7 @@ import type { WorkspaceData, Profile, PerformAction } from "@/lib/types";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 import { normalizeCode } from "@/lib/claim-format";
 import { authClient } from "@/lib/auth-client";
+import { useFirstFlush, FirstFlushLeaves } from "@/components/first-flush-easter-egg";
 
 interface LoginScreenProps {
   data: WorkspaceData;
@@ -19,6 +20,11 @@ interface LoginScreenProps {
 export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEmail }: LoginScreenProps) {
   const [mode, setMode] = useState<"login" | "claimCode" | "apply">(() => initialGoogleEmail ? "claimCode" : "login");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const { leaves, triggerFirstFlush } = useFirstFlush((msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 4000);
+  });
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>(() =>
     initialGoogleEmail ? `Signed in with Google as ${initialGoogleEmail}. Link your member code below, or submit an application.` : ""
@@ -167,7 +173,28 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               <small>JALPAIGURI</small>
             </div>
           </div>
-          <h1>{identity.name}</h1>
+          <h1>
+            {identity.name}
+            <span
+              className="brand-period"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerFirstFlush(e);
+              }}
+              title="Dooars First Flush 🍃"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  triggerFirstFlush();
+                }
+              }}
+            >
+              .
+            </span>
+          </h1>
           <p className="login-subtitle">
             A Unit of {identity.organisation} · {identity.unit}
           </p>
@@ -403,6 +430,12 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
           <span>Zero-Knowledge Server Projection · Zero Plaintext Storage · DPDP Act 2023 Compliant</span>
         </div>
       </div>
+      {toast && (
+        <div className="toast" role="status" style={{ zIndex: 10000 }}>
+          <span>{toast}</span>
+        </div>
+      )}
+      <FirstFlushLeaves leaves={leaves} />
     </div>
   );
 }

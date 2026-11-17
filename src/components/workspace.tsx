@@ -15,6 +15,7 @@ import { LoginScreen } from "@/components/login-screen";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 import { I18nProvider, useI18n } from "@/lib/i18n";
 import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
+import { useFirstFlush, FirstFlushLeaves } from "@/components/first-flush-easter-egg";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -142,6 +143,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   // Five tabs and a top bar share ~390px, so the long sidebar names ("Membership dues") get short forms on phones.
   const shortLabels: Partial<Record<View, string>> = { members: t("membersShort"), dues: t("duesShort"), events: t("eventsShort"), circulars: t("circularsShort"), resources: t("resourcesShort"), settings: t("settingsShort") };
   const notify = useCallback((message: string) => setToast({ message }), []);
+  const { leaves, triggerFirstFlush } = useFirstFlush(notify, locale);
   // Closing plays an exit animation first. Opening another modal while one is still leaving cancels that exit.
   const { exiting: modalExiting, close, cancel: cancelModalExit } = useModalExit(() => { setModal(null); setActionError(""); });
   const open = useCallback((type: string, record?: unknown) => { cancelModalExit(); setPopover(null); setActionError(""); setModal({ type, record }); }, [cancelModalExit]);
@@ -400,7 +402,34 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       tabIndex={sidebarOpen ? 0 : -1}
     />
     <aside ref={sidebarRef} className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} onTouchStart={onDrawerTouchStart} onTouchMove={onDrawerTouchMove} onTouchEnd={onDrawerTouchEnd} onTouchCancel={onDrawerTouchEnd}>
-      <button className="brand" onClick={() => navigate("overview")} aria-label={`${identity.name} home`}><img src="/images/bss-logo.svg" alt="" /><span><strong>{identity.name}<span className="brand-period">.</span></strong><small>{locale === "bn" ? "ব্রেকথ্রু সায়েন্স সোসাইটির একটি শাখা" : `A unit of ${identity.organisation}`}</small></span></button>
+      <button className="brand" onClick={() => navigate("overview")} aria-label={`${identity.name} home`}>
+        <img src="/images/bss-logo.svg" alt="" />
+        <span>
+          <strong>
+            {identity.name}
+            <span
+              className="brand-period"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerFirstFlush(e);
+              }}
+              title="Dooars First Flush 🍃"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  triggerFirstFlush();
+                }
+              }}
+            >
+              .
+            </span>
+          </strong>
+          <small>{locale === "bn" ? "ব্রেকথ্রু সায়েন্স সোসাইটির একটি শাখা" : `A unit of ${identity.organisation}`}</small>
+        </span>
+      </button>
       <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{identity.unit}</strong><small>{identity.state}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">YOUR UNIT WORKSPACE</span><button onClick={() => setPopover(null)}><span>{identity.unit}<small>{identity.state} chapter</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />Unit settings<ArrowUpRight size={13} /></button></div>}</div>
       <nav className="sidebar-nav" aria-label="Main navigation">
         <div className="nav-group-label">{locale === "bn" ? "কর্মক্ষেত্র" : "WORKSPACE"}</div>
@@ -416,7 +445,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <span>{locale === "bn" ? "জলপাইগুড়িতে বিজ্ঞানের প্রসার, একসাথে।" : "Taking science to Jalpaiguri, together."}</span>
         </div>
         <button className="sidebar-help" onClick={() => open("help")}><CircleHelp size={17} strokeWidth={1.5} /><span>{locale === "bn" ? "সহায়তা প্রয়োজন?" : "Need a helping hand?"}</span><ArrowUpRight size={13} /></button>
-        <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? `${offlineCount} to sync` : (locale === "bn" ? "অনলাইন সংযুক্ত" : "Workspace online")) : (locale === "bn" ? "ফিল্ড অফলাইন কিউ" : "Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #047857)", color: "#fff" }}>⚡ {offlineCount}</span> : <span className="sidebar-version-pill" title={`Release: ${identity.releaseName} · Build ${identity.build}`}>v{identity.version}</span>}</div>
+        <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? `${offlineCount} to sync` : (locale === "bn" ? "অনলাইন সংযুক্ত" : "Workspace online")) : (locale === "bn" ? "ফিল্ড অফলাইন কিউ" : "Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {offlineCount}</span> : <span className="sidebar-version-pill" title={`Release: ${identity.releaseName} · Build ${identity.build}`}>v{identity.version}</span>}</div>
         <button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? (locale === "bn" ? "কার্যনির্বাহক" : "Unit Executive") : (locale === "bn" ? (user.role === "organizer" ? "সংগঠক" : user.role === "volunteer" ? "স্বেচ্ছাসেবক" : "সদস্য") : (user.role.charAt(0).toUpperCase() + user.role.slice(1)))}</small></span><ChevronRight size={15} /></button>
       </div>
     </aside>
@@ -450,7 +479,28 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       <header className="topbar">
         <div className="topbar-left">
           <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Open main navigation"><Menu size={21} /></button>
-          <span className="breadcrumb-root">{identity.name}</span>
+          <span className="breadcrumb-root">
+            {identity.name}
+            <span
+              className="brand-period"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerFirstFlush(e);
+              }}
+              title="Dooars First Flush 🍃"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  triggerFirstFlush();
+                }
+              }}
+            >
+              .
+            </span>
+          </span>
           <ChevronRight size={13} className="breadcrumb-chevron" />
           <span className="breadcrumb-current"><span className="bc-full">{labels[view]}</span><span className="bc-short">{shortLabels[view] ?? labels[view]}</span></span>
         </div>
@@ -567,7 +617,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
         <div className="offline-banner">
           <WifiOff size={15} />
           <span><strong>You’re offline in the field.</strong> Field queue active: dues, procurements, and donations are saved locally in IndexedDB and will auto-sync when network returns.</span>
-          {offlineCount > 0 && <span className="demo-pill" style={{ marginLeft: "auto", background: "var(--rust, #047857)", color: "#fff" }}>⚡ {offlineCount} queued</span>}
+          {offlineCount > 0 && <span className="demo-pill" style={{ marginLeft: "auto", background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {offlineCount} queued</span>}
         </div>
       )}
       {online && offlineCount > 0 && (
@@ -638,6 +688,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     <ModalExiting value={modalExiting}><WorkspaceModals modal={modal} data={data} close={close} open={open} perform={perform} busy={busy} error={actionError} navigate={navigate} notify={notify} /></ModalExiting>
     {searchOpen && <GlobalSearch data={data} close={() => setSearchOpen(false)} open={open} navigate={navigate} />}
     {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <InfoSymbol /> : <CircleCheck size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss message"><X size={15} /></button></div>}
+    <FirstFlushLeaves leaves={leaves} />
   </div>;
 }
 function GlobalSearch({ data, close: removeSearch, open, navigate }: { data: WorkspaceData; close: () => void; open: (type: string, record?: unknown) => void; navigate: (view: View, eventId?: string) => void }) {

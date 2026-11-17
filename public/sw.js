@@ -1,4 +1,4 @@
-const CACHE = 'light-of-science-workspace-v14';
+const CACHE = 'light-of-science-workspace-v15';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
