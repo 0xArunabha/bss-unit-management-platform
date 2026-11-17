@@ -146,6 +146,41 @@ A massive youth and citizens' rally marched from Thana More to Kadamtala carryin
 4. MASS PARTICIPATION:
 Members of Relief and Public Welfare Society, student science cadres, and conscious citizens of Jalpaiguri actively participated in the demonstration.`;
 
+const dhimanSessionTitle = "Club Room Deliberations: Contemporary Science Movement & Future Action Resolutions with Sri Dhiman Sarkar";
+const dhimanSessionContent = `VENUE: Light of Science Club Room, Jalpaiguri
+DATE: May 1, 2026 (০১|০৫|২০২৬)
+SPECIAL GUEST: Sri Dhiman Sarkar (Associate Curator, National Science Museum; State Executive Committee Member, Breakthrough Science Society; Former Secretary, Light of Science)
+
+============================================================
+মূল কার্যবিবরণী ও সিদ্ধান্তসমূহ (ORIGINAL PROCEEDINGS):
+============================================================
+আমাদের আজকের ক্লাব ঘরে আসরের কিছু মুহুর্ত। উপস্থিত ছিলেন ব্রেকথ্রু সায়েন্স সোসাইটির রাজ্য কমিটির কার্যকরী সদস্য ও ক্লাবের পূর্বতন সম্পাদক শ্রী ধীমান সরকার। বিজ্ঞানের সমসাময়িক উন্নতি ও আজকের বিজ্ঞান আন্দোলন নিয়ে আলোচনা হয়। আগামীতে এই প্রক্রিয়ায় কাজ এগিয়ে নিয়ে যাওয়ার উদ্যোগে কিছু সিদ্ধান্ত হয়:
+
+১| AI ডেটা সেন্টার এবং মানুষ ও পরিবেশের ওপর প্রভাব নিয়ে সেমিনার করা হবে।
+২| Emotional Quotient এর ওপর সেমিনার করা হবে।
+৩| ডায়না চা বাগানে হাতে কলমে বিজ্ঞান ও কুসংস্কার বিরোধী প্রদর্শনী হবে।
+৪| অক্টোবর মাসে Robotics and AI নিয়ে ওয়ার্কশপ হবে। উপস্থিত থাকবেন National Science Museum এর Associate Curator এবং ব্রেকথ্রু সায়েন্স সোসাইটির রাজ্য কমিটির কার্যকরী সদস্য শ্রী ধীমান সরকার।
+
+উপস্থিত ছিলেন ক্লাবের সভাপতি কুণাল রায়, কার্যকরী সভাপতি স্বর্ণদীপ সেন, সম্পাদক প্রীতম সরকার ও যুগ্ম সহ সম্পাদক আভাস রজক, অনির্বাণ কর সহ ক্লাবের কার্যকরী সদস্যা ও সদস্যবৃন্দ।
+
+০১|০৫|২০২৬
+
+============================================================
+EXECUTIVE SUMMARY & ACTION RESOLUTIONS:
+============================================================
+1. Seminar on AI Data Centers: Analysis of computational infrastructure energy demands, water footprint, carbon intensity, and ecological impact on local human communities.
+2. Seminar on Emotional Quotient (EQ): Scientific perspective on emotional resilience, mental health, and humanist psychology for student and youth cadres.
+3. Diana Tea Estate Demonstration: Grassroots hands-on science experiments and anti-superstition laboratory demonstrations for tea garden plantation workers and tribal communities in Dooars.
+4. October 2026 Robotics & AI Workshop: Multi-day hands-on engineering and applied intelligence workshop conducted in person by Associate Curator Sri Dhiman Sarkar.
+
+EXECUTIVE ROLL PRESENT:
+• Kunal Roy (President, Light of Science & BSS State Executive Member)
+• Swarndeep Sen (Working President)
+• Pritam Sarkar (Secretary)
+• Avash Rajak (Joint Secretary)
+• Anirban Kar (Joint Secretary)
+• Executive Council members, student and youth cadres`;
+
 async function seed() {
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(7428101)`);
@@ -522,6 +557,51 @@ async function seed() {
       } catch (err) {
         console.warn("[Seed] Environment Day event upsert notice:", err);
       }
+
+      try {
+        await tx.execute(sql`
+          INSERT INTO events (
+            id,
+            title,
+            description,
+            location,
+            starts_at,
+            category,
+            volunteers,
+            image,
+            is_ongoing,
+            progress_percent,
+            target_goal,
+            created_at
+          ) VALUES (
+            ${uid(2, 7)},
+            'Hands-on Workshop: Robotics and Artificial Intelligence with Sri Dhiman Sarkar',
+            'Comprehensive hands-on workshop on microcontroller interfacing, sensor automation, and real-world AI applications, led by Sri Dhiman Sarkar (Associate Curator, National Science Museum & BSS State Committee Executive Member).',
+            'Light of Science Club Room & Seminar Hall, Jalpaiguri',
+            '2026-10-10 10:00:00+00',
+            'Workshop',
+            24,
+            '/images/field-reports/club-room-dhiman-session/session-dhiman-sarkar-1.jpg',
+            false,
+            40,
+            'Practical Robotics, Sensor Interfacing & AI Literacy for School & College Cadres',
+            '2026-05-01 17:00:00+00'
+          )
+          ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            location = EXCLUDED.location,
+            starts_at = EXCLUDED.starts_at,
+            category = EXCLUDED.category,
+            volunteers = EXCLUDED.volunteers,
+            image = EXCLUDED.image,
+            is_ongoing = EXCLUDED.is_ongoing,
+            progress_percent = EXCLUDED.progress_percent,
+            target_goal = EXCLUDED.target_goal
+        `);
+      } catch (err) {
+        console.warn("[Seed] Robotics & AI workshop event upsert notice:", err);
+      }
       await tx.update(donations).set({ donorName: `${identity.city} community supporters` }).where(and(eq(donations.id, uid(4, 2)), eq(donations.donorName, "Jadavpur Vidyapith")));
       // Align sample receipt numbering with the unit prefix. Only untouched, fixed-ID demo rows change.
       await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, 1)), sql`${donations.receiptNo} like 'BSS-%'`));
@@ -529,6 +609,11 @@ async function seed() {
         await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, index)), sql`${donations.receiptNo} like 'BSS-%'`));
       }
       await tx.update(circulars).set({ title: unitCircularTitle, content: unitCircularContent }).where(and(eq(circulars.id, uid(5, 1)), eq(circulars.title, "Let’s take science to every neighbourhood"), eq(circulars.content, originalCircularContent)));
+      await tx.execute(sql`
+        INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
+        VALUES (${uid(5, 7)}, ${dhimanSessionTitle}, ${dhimanSessionContent}, 'Unit circular', true, ${uid(1, 3)}, '2026-05-01 17:00:00+00')
+        ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content, pinned = EXCLUDED.pinned
+      `);
       await tx.execute(sql`
         INSERT INTO circulars (id, title, content, category, pinned, author_id, created_at)
         VALUES (${uid(5, 6)}, ${envReportTitle}, ${envReportContent}, 'Campaign report', true, ${uid(1, 26)}, '2026-06-05 10:00:00+00')
@@ -642,6 +727,19 @@ async function seed() {
         progressPercent: 100,
         targetGoal: "Restoration of Karala River & Relocation of Municipal Dumping Ground",
       },
+      {
+        id: uid(2, 7),
+        title: "Hands-on Workshop: Robotics and Artificial Intelligence with Sri Dhiman Sarkar",
+        description: "Special interactive robotics and AI engineering workshop conducted by Sri Dhiman Sarkar (Associate Curator, National Science Museum & BSS State Executive Member). Focus on microcontroller interfacing, sensor logic, and ethical AI applications.",
+        location: "Light of Science Club Room & Seminar Hall, Jalpaiguri",
+        startsAt: new Date("2026-10-10T10:00:00.000Z"),
+        category: "Workshop",
+        volunteers: 24,
+        image: "/images/field-reports/club-room-dhiman-session/session-dhiman-sarkar-1.jpg",
+        isOngoing: false,
+        progressPercent: 40,
+        targetGoal: "Practical Robotics & AI Literacy for School and College Cadres",
+      },
     ]);
     // await tx.insert(procurements).values([...]);
 
@@ -655,6 +753,7 @@ async function seed() {
     ]);
 
     await tx.insert(circulars).values([
+      { id: uid(5, 7), title: dhimanSessionTitle, content: dhimanSessionContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: new Date("2026-05-01T17:00:00.000Z") },
       { id: uid(5, 6), title: envReportTitle, content: envReportContent, category: "Campaign report", pinned: true, authorId: uid(1, 26), createdAt: new Date("2026-06-05T10:00:00.000Z") },
       { id: uid(5, 5), title: mashkalaibariReportTitle, content: mashkalaibariReportContent, category: "Campaign report", pinned: true, authorId: ADMIN_ID, createdAt: new Date("2026-11-03T08:00:00.000Z") },
       { id: uid(5, 4), title: teamsCircularTitle, content: teamsCircularContent, category: "Unit circular", pinned: true, authorId: uid(1, 3), createdAt: ago(30) },

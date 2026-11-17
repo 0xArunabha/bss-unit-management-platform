@@ -184,6 +184,21 @@ const ENVIRONMENT_DAY_PHOTOS = [
   },
 ];
 
+const DHIMAN_SESSION_PHOTOS = [
+  {
+    src: "/images/field-reports/club-room-dhiman-session/session-dhiman-sarkar-1.jpg",
+    caption: "Sri Dhiman Sarkar (Associate Curator, National Science Museum & BSS State Executive Member) discussing contemporary science movements with President Kunal Roy, Secretary Pritam Sarkar, and unit leaders",
+    fig: "FIG 01",
+    tag: "Deliberation & Policy Session",
+  },
+  {
+    src: "/images/field-reports/club-room-dhiman-session/session-dhiman-sarkar-2.jpg",
+    caption: "Club room assembly: Sri Dhiman Sarkar interacting with executive members on upcoming AI, Emotional Quotient, and tea garden outreach initiatives",
+    fig: "FIG 02",
+    tag: "Club Room Assembly",
+  },
+];
+
 function EventDetailModal({
   event: rawEvent,
   data,
@@ -207,7 +222,14 @@ function EventDetailModal({
     event.id === "20000000-0000-4000-8000-000000000006" ||
     event.title.toLowerCase().includes("environment day") ||
     event.title.toLowerCase().includes("karala");
-  const galleryPhotos = isEnvironmentDay
+  const isDhimanSession =
+    event.id === "20000000-0000-4000-8000-000000000007" ||
+    event.title.toLowerCase().includes("dhiman") ||
+    event.title.includes("ধীমান") ||
+    event.title.toLowerCase().includes("robotics");
+  const galleryPhotos = isDhimanSession
+    ? DHIMAN_SESSION_PHOTOS
+    : isEnvironmentDay
     ? ENVIRONMENT_DAY_PHOTOS
     : isMashkalaibari
     ? MASHKALAIBARI_PHOTOS
@@ -1080,6 +1102,38 @@ export function WorkspaceModals(props: Props) {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {ENVIRONMENT_DAY_PHOTOS.map((p, idx) => (
+                  <a
+                    key={p.src}
+                    href={p.src}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
+                    title={`${p.fig}: ${p.caption}`}
+                  >
+                    <img
+                      src={p.src}
+                      alt={p.caption}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
+                      FIG. 0{idx + 1}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(notice.title.includes("Dhiman") || notice.title.includes("ধীমান") || notice.title.includes("Robotics")) && (
+            <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
+                  Club Room Deliberation Records (01/05/2026)
+                </span>
+                <span className="text-[11px] text-ink-faint">2 Photographic Records</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {DHIMAN_SESSION_PHOTOS.map((p, idx) => (
                   <a
                     key={p.src}
                     href={p.src}

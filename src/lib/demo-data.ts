@@ -198,6 +198,20 @@ function createInitialState(): {
       progressPercent: 100,
       targetGoal: "Restoration of Karala River & Relocation of Municipal Dumping Ground",
     },
+    {
+      id: uid(2, 7),
+      title: "Hands-on Workshop: Robotics and Artificial Intelligence with Sri Dhiman Sarkar",
+      description: "Special interactive robotics and AI engineering workshop conducted by Sri Dhiman Sarkar (Associate Curator, National Science Museum & BSS State Executive Member). Focus on microcontroller interfacing, sensor logic, and ethical AI applications.",
+      location: "Light of Science Club Room & Seminar Hall, Jalpaiguri",
+      startsAt: "2026-10-10T10:00:00.000Z",
+      category: "Workshop",
+      volunteers: 24,
+      image: "/images/field-reports/club-room-dhiman-session/session-dhiman-sarkar-1.jpg",
+      createdAt: "2026-05-01T17:00:00.000Z",
+      isOngoing: false,
+      progressPercent: 40,
+      targetGoal: "Practical Robotics & AI Literacy for School and College Cadres",
+    },
   ];
 
   const procurementsList: Procurement[] = [
@@ -322,7 +336,51 @@ In light of this critical environmental and civic breakdown, Light of Science, J
 
 এমতাবস্থায় আমরা কীভাবে বিষয়টা দেখবো? এবিষয়ে একটা মিটিং করলে ভালো হয়।`;
 
+  const dhimanSessionTitle = "Club Room Deliberations: Contemporary Science Movement & Future Action Resolutions with Sri Dhiman Sarkar";
+  const dhimanSessionContent = `VENUE: Light of Science Club Room, Jalpaiguri
+DATE: May 1, 2026 (০১|০৫|২০২৬)
+SPECIAL GUEST: Sri Dhiman Sarkar (Associate Curator, National Science Museum; State Executive Committee Member, Breakthrough Science Society; Former Secretary, Light of Science)
+
+============================================================
+মূল কার্যবিবরণী ও সিদ্ধান্তসমূহ (ORIGINAL PROCEEDINGS):
+============================================================
+আমাদের আজকের ক্লাব ঘরে আসরের কিছু মুহুর্ত। উপস্থিত ছিলেন ব্রেকথ্রু সায়েন্স সোসাইটির রাজ্য কমিটির কার্যকরী সদস্য ও ক্লাবের পূর্বতন সম্পাদক শ্রী ধীমান সরকার। বিজ্ঞানের সমসাময়িক উন্নতি ও আজকের বিজ্ঞান আন্দোলন নিয়ে আলোচনা হয়। আগামীতে এই প্রক্রিয়ায় কাজ এগিয়ে নিয়ে যাওয়ার উদ্যোগে কিছু সিদ্ধান্ত হয়:
+
+১| AI ডেটা সেন্টার এবং মানুষ ও পরিবেশের ওপর প্রভাব নিয়ে সেমিনার করা হবে।
+২| Emotional Quotient এর ওপর সেমিনার করা হবে।
+৩| ডায়না চা বাগানে হাতে কলমে বিজ্ঞান ও কুসংস্কার বিরোধী প্রদর্শনী হবে।
+৪| অক্টোবর মাসে Robotics and AI নিয়ে ওয়ার্কশপ হবে। উপস্থিত থাকবেন National Science Museum এর Associate Curator এবং ব্রেকথ্রু সায়েন্স সোসাইটির রাজ্য কমিটির কার্যকরী সদস্য শ্রী ধীমান সরকার।
+
+উপস্থিত ছিলেন ক্লাবের সভাপতি কুণাল রায়, কার্যকরী সভাপতি স্বর্ণদীপ সেন, সম্পাদক প্রীতম সরকার ও যুগ্ম সহ সম্পাদক আভাস রজক, অনির্বাণ কর সহ ক্লাবের কার্যকরী সদস্যা ও সদস্যবৃন্দ।
+
+০১|০৫|২০২৬
+
+============================================================
+EXECUTIVE SUMMARY & ACTION RESOLUTIONS:
+============================================================
+1. Seminar on AI Data Centers: Analysis of computational infrastructure energy demands, water footprint, carbon intensity, and ecological impact on local human communities.
+2. Seminar on Emotional Quotient (EQ): Scientific perspective on emotional resilience, mental health, and humanist psychology for student and youth cadres.
+3. Diana Tea Estate Demonstration: Grassroots hands-on science experiments and anti-superstition laboratory demonstrations for tea garden plantation workers and tribal communities in Dooars.
+4. October 2026 Robotics & AI Workshop: Multi-day hands-on engineering and applied intelligence workshop conducted in person by Associate Curator Sri Dhiman Sarkar.
+
+EXECUTIVE ROLL PRESENT:
+• Kunal Roy (President, Light of Science & BSS State Executive Member)
+• Swarndeep Sen (Working President)
+• Pritam Sarkar (Secretary)
+• Avash Rajak (Joint Secretary)
+• Anirban Kar (Joint Secretary)
+• Executive Council members, student and youth cadres`;
+
   const circularsList: Circular[] = [
+    {
+      id: uid(5, 7),
+      title: dhimanSessionTitle,
+      content: dhimanSessionContent,
+      category: "Unit circular",
+      pinned: true,
+      authorId: uid(1, 3),
+      createdAt: "2026-05-01T17:00:00.000Z",
+    },
     {
       id: uid(5, 6),
       title: "Field Action Report: World Environment Day Rally for Karala River & Civic Dumping Ground",
