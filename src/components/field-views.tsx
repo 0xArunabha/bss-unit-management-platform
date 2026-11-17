@@ -46,45 +46,102 @@ export function EventsView({ data, open }: Props) {
         {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>Create event</Button>}
       </PageHeading>
 
-      {/* Tri-Tab Campaign & Calendar Switcher */}
-      <div className="standalone-toolbar mb-6">
-        <div className="tabs tabs-segmented" role="tablist" aria-label="Events and campaigns switcher">
+      {/* TOTALLY REDESIGNED: Executive 3-Card Field Switchboard */}
+      <nav aria-label="Field programmes view selector" className="events-command-deck mb-7">
+        <div className="events-deck-grid" role="tablist">
+          {/* 1. Active Campaigns Card */}
           <button
             type="button"
-            role="tab"
-            aria-selected={filter === "campaigns"}
-            className={`tab-btn tab-btn-campaigns ${filter === "campaigns" ? "active" : ""}`}
             onClick={() => setFilter("campaigns")}
+            className={`events-deck-card ${filter === "campaigns" ? "is-active" : ""}`}
+            aria-selected={filter === "campaigns"}
+            role="tab"
           >
-            <Flame size={16} className="tab-icon tab-icon-fire" />
-            <span className="tab-label">Active Campaigns</span>
-            <span className="tab-count-badge">{ongoingCampaigns.length}</span>
+            <div className="events-deck-icon-wrap icon-campaigns">
+              <Flame size={20} />
+              {ongoingCampaigns.length > 0 && <span className="deck-live-pulse" />}
+            </div>
+            <div className="events-deck-info">
+              <span className="events-deck-title">Active Campaigns</span>
+              <span className="events-deck-desc">Ongoing civic movements</span>
+            </div>
+            <div className="events-deck-badge-wrap">
+              <span className="events-deck-badge badge-campaigns">
+                {ongoingCampaigns.length} Active
+              </span>
+            </div>
           </button>
+
+          {/* 2. Outreach Calendar Card */}
           <button
             type="button"
-            role="tab"
-            aria-selected={filter === "upcoming"}
-            className={`tab-btn tab-btn-calendar ${filter === "upcoming" ? "active" : ""}`}
             onClick={() => setFilter("upcoming")}
+            className={`events-deck-card ${filter === "upcoming" ? "is-active" : ""}`}
+            aria-selected={filter === "upcoming"}
+            role="tab"
           >
-            <CalendarDays size={16} className="tab-icon tab-icon-calendar" />
-            <span className="tab-label">Outreach Calendar</span>
-            <span className="tab-count-badge">{upcomingScheduled.length}</span>
+            <div className="events-deck-icon-wrap icon-calendar">
+              <CalendarDays size={20} />
+            </div>
+            <div className="events-deck-info">
+              <span className="events-deck-title">Outreach Calendar</span>
+              <span className="events-deck-desc">Scheduled field programmes</span>
+            </div>
+            <div className="events-deck-badge-wrap">
+              <span className="events-deck-badge badge-calendar">
+                {upcomingScheduled.length} Scheduled
+              </span>
+            </div>
           </button>
+
+          {/* 3. Archive & Past Card */}
           <button
             type="button"
-            role="tab"
-            aria-selected={filter === "all"}
-            className={`tab-btn tab-btn-archive ${filter === "all" ? "active" : ""}`}
             onClick={() => setFilter("all")}
+            className={`events-deck-card ${filter === "all" ? "is-active" : ""}`}
+            aria-selected={filter === "all"}
+            role="tab"
           >
-            <History size={16} className="tab-icon tab-icon-archive" />
-            <span className="tab-label">Archive & Past</span>
-            <span className="tab-count-badge">{scheduledEvents.length}</span>
+            <div className="events-deck-icon-wrap icon-archive">
+              <History size={20} />
+            </div>
+            <div className="events-deck-info">
+              <span className="events-deck-title">Archive & Past</span>
+              <span className="events-deck-desc">Concluded awareness actions</span>
+            </div>
+            <div className="events-deck-badge-wrap">
+              <span className="events-deck-badge badge-archive">
+                {scheduledEvents.length} Concluded
+              </span>
+            </div>
           </button>
         </div>
-        <SearchInput placeholder="Search campaigns, conventions or venues…" value={search} onChange={setSearch} />
-      </div>
+
+        {/* Integrated Real-Time Status & Contextual Search */}
+        <div className="events-deck-subbar">
+          <div className="events-deck-current-label">
+            <span className="current-dot" />
+            <span className="current-text">
+              {filter === "campaigns" && `Viewing ${ongoingCampaigns.length} active environmental campaign (Mashkalaibari)`}
+              {filter === "upcoming" && `Viewing ${upcomingScheduled.length} scheduled outreach programmes`}
+              {filter === "all" && `Viewing ${scheduledEvents.length} concluded awareness actions (World Environment Day 2026)`}
+            </span>
+          </div>
+          <div className="events-deck-search">
+            <SearchInput
+              placeholder={
+                filter === "campaigns"
+                  ? "Search active campaigns, milestones or locations…"
+                  : filter === "upcoming"
+                  ? "Search upcoming dates, topics or venues…"
+                  : "Search archived actions, Environment Day or past rallies…"
+              }
+              value={search}
+              onChange={setSearch}
+            />
+          </div>
+        </div>
+      </nav>
 
       {/* 1. ACTIVE CAMPAIGNS TAB */}
       {filter === "campaigns" && (
