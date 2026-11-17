@@ -9,14 +9,24 @@ export interface TeaLeafParticle {
   size: number;
   scale: number;
   variant: number;
+  spreadX: number;
   driftX1: number;
   driftX2: number;
   driftX3: number;
   driftX4: number;
-  rotStart: number;
-  rotMid1: number;
-  rotMid2: number;
-  rotEnd: number;
+  dropY1: number;
+  dropY2: number;
+  dropY3: number;
+  dropY4: number;
+  rotZ0: number;
+  rotZ1: number;
+  rotZ2: number;
+  rotZ3: number;
+  rotZ4: number;
+  rotX1: number;
+  rotX2: number;
+  rotY1: number;
+  rotY2: number;
   duration: number;
   delay: number;
 }
@@ -104,7 +114,7 @@ export const PremiumTeaLeafSVG = memo(function PremiumTeaLeafSVG({
 });
 
 /**
- * Container rendering all actively floating tea leaf particles.
+ * Container rendering all actively falling and swirling tea leaf particles.
  */
 export function FirstFlushLeaves({ leaves }: { leaves: TeaLeafParticle[] }) {
   if (leaves.length === 0) return null;
@@ -112,6 +122,7 @@ export function FirstFlushLeaves({ leaves }: { leaves: TeaLeafParticle[] }) {
   return (
     <div
       className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden"
+      style={{ perspective: "1000px" }}
       aria-hidden="true"
     >
       <svg width="0" height="0" className="absolute pointer-events-none" aria-hidden="true">
@@ -140,17 +151,28 @@ export function FirstFlushLeaves({ leaves }: { leaves: TeaLeafParticle[] }) {
             {
               left: `${leaf.x}px`,
               top: `${leaf.y}px`,
-              animation: `floatTeaLeaf ${leaf.duration}s cubic-bezier(0.22, 1, 0.36, 1) ${leaf.delay}s forwards`,
+              animation: `fallTeaLeaf ${leaf.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${leaf.delay}s forwards`,
               transformOrigin: "center center",
+              transformStyle: "preserve-3d",
               willChange: "transform, opacity",
+              "--spread-x": `${leaf.spreadX}px`,
               "--drift-1": `${leaf.driftX1}px`,
               "--drift-2": `${leaf.driftX2}px`,
               "--drift-3": `${leaf.driftX3}px`,
               "--drift-4": `${leaf.driftX4}px`,
-              "--rot-0": `${leaf.rotStart}deg`,
-              "--rot-1": `${leaf.rotMid1}deg`,
-              "--rot-2": `${leaf.rotMid2}deg`,
-              "--rot-3": `${leaf.rotEnd}deg`,
+              "--drop-1": `${leaf.dropY1}px`,
+              "--drop-2": `${leaf.dropY2}px`,
+              "--drop-3": `${leaf.dropY3}px`,
+              "--drop-4": `${leaf.dropY4}px`,
+              "--rot-z-0": `${leaf.rotZ0}deg`,
+              "--rot-z-1": `${leaf.rotZ1}deg`,
+              "--rot-z-2": `${leaf.rotZ2}deg`,
+              "--rot-z-3": `${leaf.rotZ3}deg`,
+              "--rot-z-4": `${leaf.rotZ4}deg`,
+              "--rot-x-1": `${leaf.rotX1}deg`,
+              "--rot-x-2": `${leaf.rotX2}deg`,
+              "--rot-y-1": `${leaf.rotY1}deg`,
+              "--rot-y-2": `${leaf.rotY2}deg`,
               "--target-scale": leaf.scale,
             } as React.CSSProperties
           }
@@ -159,26 +181,35 @@ export function FirstFlushLeaves({ leaves }: { leaves: TeaLeafParticle[] }) {
         </div>
       ))}
       <style>{`
-        @keyframes floatTeaLeaf {
+        @keyframes fallTeaLeaf {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) rotate(var(--rot-0)) scale(0.4);
+            transform: translate3d(0, 0, 0) rotateZ(var(--rot-z-0)) rotateX(0deg) rotateY(0deg) scale(0.35);
           }
-          12% {
-            opacity: 0.96;
-            transform: translate3d(var(--drift-1), -60px, 0) rotate(var(--rot-1)) scale(var(--target-scale));
+          10% {
+            opacity: 0.98;
+            /* Gentle upward plucking flick then begins smooth descent */
+            transform: translate3d(var(--spread-x), -28px, 0) rotateZ(var(--rot-z-1)) rotateX(var(--rot-x-1)) rotateY(var(--rot-y-1)) scale(var(--target-scale));
           }
-          45% {
+          32% {
+            opacity: 0.95;
+            /* Falling & swaying outwards to side A */
+            transform: translate3d(var(--drift-1), var(--drop-1), 10px) rotateZ(var(--rot-z-2)) rotateX(var(--rot-x-2)) rotateY(var(--rot-y-2)) scale(var(--target-scale));
+          }
+          58% {
             opacity: 0.9;
-            transform: translate3d(var(--drift-2), -190px, 0) rotate(var(--rot-2)) scale(var(--target-scale));
+            /* Swirling back across the opposite side like a real leaf catching air resistance */
+            transform: translate3d(var(--drift-2), var(--drop-2), -10px) rotateZ(var(--rot-z-3)) rotateX(calc(var(--rot-x-1) * -1)) rotateY(calc(var(--rot-y-1) * -1)) scale(var(--target-scale));
           }
-          75% {
-            opacity: 0.75;
-            transform: translate3d(var(--drift-3), -320px, 0) rotate(var(--rot-3)) scale(calc(var(--target-scale) * 0.95));
+          82% {
+            opacity: 0.78;
+            /* Gliding downward with smooth tilt */
+            transform: translate3d(var(--drift-3), var(--drop-3), 5px) rotateZ(var(--rot-z-4)) rotateX(var(--rot-x-2)) rotateY(var(--rot-y-1)) scale(calc(var(--target-scale) * 0.95));
           }
           100% {
             opacity: 0;
-            transform: translate3d(var(--drift-4), -450px, 0) rotate(calc(var(--rot-3) + 70deg)) scale(calc(var(--target-scale) * 0.75));
+            /* Smooth descent towards floor */
+            transform: translate3d(var(--drift-4), var(--drop-4), 0) rotateZ(calc(var(--rot-z-4) + 45deg)) rotateX(60deg) rotateY(40deg) scale(calc(var(--target-scale) * 0.82));
           }
         }
       `}</style>
@@ -208,29 +239,39 @@ export function useFirstFlush(notify: (msg: string) => void, locale?: string) {
         }
       }
 
-      // Generate 8 premium leaves with organic physics
+      // Generate 8 premium leaves with realistic falling & swirling physics
       const count = 8;
       const batchId = Date.now();
       const newLeaves: TeaLeafParticle[] = Array.from({ length: count }, (_, i) => {
-        const spread = (Math.random() - 0.5) * 50;
-        const driftDirection = Math.random() > 0.5 ? 1 : -1;
+        const driftDirection = i % 2 === 0 ? 1 : -1;
+        const speedFactor = 0.85 + Math.random() * 0.35;
         return {
           id: batchId + i,
-          x: originX + spread,
-          y: originY + (Math.random() - 0.5) * 20,
-          size: Math.floor(Math.random() * 8) + 24, // 24px - 32px
-          scale: Number((0.85 + Math.random() * 0.35).toFixed(2)),
+          x: originX + (Math.random() - 0.5) * 30,
+          y: originY + (Math.random() - 0.5) * 15,
+          size: Math.floor(Math.random() * 7) + 25, // 25px - 31px
+          scale: Number((0.9 + Math.random() * 0.3).toFixed(2)),
           variant: i % 4,
-          driftX1: Math.round(driftDirection * (20 + Math.random() * 35)),
-          driftX2: Math.round(driftDirection * (45 + Math.random() * 65)),
-          driftX3: Math.round(driftDirection * (30 + Math.random() * 95)),
-          driftX4: Math.round(driftDirection * (50 + Math.random() * 130)),
-          rotStart: Math.round((Math.random() - 0.5) * 60),
-          rotMid1: Math.round((Math.random() - 0.5) * 120 + 30),
-          rotMid2: Math.round((Math.random() - 0.5) * 180 + 75),
-          rotEnd: Math.round((Math.random() - 0.5) * 240 + 130),
-          duration: Number((2.8 + Math.random() * 0.8).toFixed(2)), // 2.8s - 3.6s
-          delay: Number((i * 0.04).toFixed(3)),
+          spreadX: Math.round((Math.random() - 0.5) * 50),
+          driftX1: Math.round(driftDirection * (35 + Math.random() * 45)),
+          driftX2: Math.round(-driftDirection * (25 + Math.random() * 50)), // Swings back across!
+          driftX3: Math.round(driftDirection * (45 + Math.random() * 65)),  // Swings back again!
+          driftX4: Math.round((driftDirection * 30) + (Math.random() - 0.5) * 80),
+          dropY1: Math.round(100 * speedFactor + Math.random() * 30), // Cascades down smoothly
+          dropY2: Math.round(250 * speedFactor + Math.random() * 50),
+          dropY3: Math.round(440 * speedFactor + Math.random() * 70),
+          dropY4: Math.round(650 * speedFactor + Math.random() * 90),
+          rotZ0: Math.round((Math.random() - 0.5) * 40),
+          rotZ1: Math.round(driftDirection * (25 + Math.random() * 35)),
+          rotZ2: Math.round(-driftDirection * (45 + Math.random() * 40)),
+          rotZ3: Math.round(driftDirection * (60 + Math.random() * 50)),
+          rotZ4: Math.round(-driftDirection * (75 + Math.random() * 60)),
+          rotX1: Math.round(30 + Math.random() * 30),
+          rotX2: Math.round(-35 - Math.random() * 25),
+          rotY1: Math.round(25 + Math.random() * 35),
+          rotY2: Math.round(-30 - Math.random() * 30),
+          duration: Number((3.6 + Math.random() * 0.9).toFixed(2)), // 3.6s - 4.5s smooth fluttering descent
+          delay: Number((i * 0.07).toFixed(3)),
         };
       });
 
@@ -246,7 +287,7 @@ export function useFirstFlush(notify: (msg: string) => void, locale?: string) {
       // Clean up leaves after animation completes
       setTimeout(() => {
         setLeaves((prev) => prev.filter((leaf) => !newLeaves.some((n) => n.id === leaf.id)));
-      }, 4000);
+      }, 5500);
     },
     [notify, locale]
   );
