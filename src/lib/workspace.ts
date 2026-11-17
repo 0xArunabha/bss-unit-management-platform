@@ -14,11 +14,19 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
     return getDemoWorkspace(userId);
   }
 
-  await ensureSeed();
+  try {
+    await ensureSeed();
+  } catch (err) {
+    console.warn("[Workspace] Seed notice (proceeding):", err);
+  }
+
   const [people, payments, rawEvents, items, contributions, notices, feed] = await Promise.all([
     db.select().from(profiles).orderBy(asc(profiles.createdAt)),
     db.select().from(dues),
-    db.select().from(events).orderBy(asc(events.startsAt)),
+    db.select().from(events).orderBy(asc(events.startsAt)).catch((err) => {
+      console.warn("[Workspace] Failed to query events table, using fallback:", err);
+      return [];
+    }),
     db.select().from(procurements).orderBy(desc(procurements.createdAt)),
     db.select().from(donations).orderBy(desc(donations.createdAt)),
     db.select().from(circulars).orderBy(desc(circulars.pinned), desc(circulars.createdAt)),

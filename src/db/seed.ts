@@ -369,51 +369,61 @@ async function seed() {
     if ((await tx.select({ id: profiles.id }).from(profiles).limit(1)).length) {
       // Localize only untouched, fixed-ID sample records. Never reset user data or ledger history.
       // Clean up legacy sample events from initial project template
-      await tx.execute(sql`
-        DELETE FROM events
-        WHERE id IN (${uid(2, 1)}, ${uid(2, 2)}, ${uid(2, 3)}, ${uid(2, 4)})
-           OR title ILIKE '%greener neighbourhood%'
-           OR image LIKE '%environment-campaign%';
+      try {
+        await tx.execute(sql`
+          DELETE FROM events
+          WHERE id IN (${uid(2, 1)}, ${uid(2, 2)}, ${uid(2, 3)}, ${uid(2, 4)})
+             OR title ILIKE '%greener neighbourhood%'
+             OR image LIKE '%environment-campaign%'
+        `);
+      } catch (err) {
+        console.warn("[Seed] Legacy events cleanup notice:", err);
+      }
 
-        INSERT INTO events (
-          id,
-          title,
-          description,
-          location,
-          starts_at,
-          category,
-          volunteers,
-          image,
-          is_ongoing,
-          progress_percent,
-          target_goal,
-          created_at
-        ) VALUES (
-          ${uid(2, 5)},
-          'Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping',
-          'Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.',
-          'Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri',
-          '2026-11-03 08:00:00+00',
-          'Campaign',
-          18,
-          '/images/field-reports/mashkalaibari/inspection-1.jpg',
-          true,
-          20,
-          'Installation of automated Air Pollution Control System (APCS) & River Protection',
-          '2026-11-03 08:00:00+00'
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          title = EXCLUDED.title,
-          description = EXCLUDED.description,
-          location = EXCLUDED.location,
-          starts_at = EXCLUDED.starts_at,
-          category = EXCLUDED.category,
-          volunteers = EXCLUDED.volunteers,
-          image = EXCLUDED.image,
-          is_ongoing = EXCLUDED.is_ongoing,
-          progress_percent = EXCLUDED.progress_percent,
-          target_goal = EXCLUDED.target_goal;
-      `);
+      try {
+        await tx.execute(sql`
+          INSERT INTO events (
+            id,
+            title,
+            description,
+            location,
+            starts_at,
+            category,
+            volunteers,
+            image,
+            is_ongoing,
+            progress_percent,
+            target_goal,
+            created_at
+          ) VALUES (
+            ${uid(2, 5)},
+            'Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping',
+            'Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.',
+            'Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri',
+            '2026-11-03 08:00:00+00',
+            'Campaign',
+            18,
+            '/images/field-reports/mashkalaibari/inspection-1.jpg',
+            true,
+            20,
+            'Installation of automated Air Pollution Control System (APCS) & River Protection',
+            '2026-11-03 08:00:00+00'
+          )
+          ON CONFLICT (id) DO UPDATE SET
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            location = EXCLUDED.location,
+            starts_at = EXCLUDED.starts_at,
+            category = EXCLUDED.category,
+            volunteers = EXCLUDED.volunteers,
+            image = EXCLUDED.image,
+            is_ongoing = EXCLUDED.is_ongoing,
+            progress_percent = EXCLUDED.progress_percent,
+            target_goal = EXCLUDED.target_goal
+        `);
+      } catch (err) {
+        console.warn("[Seed] Mashkalaibari event upsert notice:", err);
+      }
       await tx.update(donations).set({ donorName: `${identity.city} community supporters` }).where(and(eq(donations.id, uid(4, 2)), eq(donations.donorName, "Jadavpur Vidyapith")));
       // Align sample receipt numbering with the unit prefix. Only untouched, fixed-ID demo rows change.
       await tx.update(donations).set({ receiptNo: sql`replace(${donations.receiptNo}, 'BSS-', ${identity.receiptPrefix + "-"})` }).where(and(eq(donations.id, uid(4, 1)), sql`${donations.receiptNo} like 'BSS-%'`));
@@ -547,6 +557,11 @@ async function seed() {
 }
 
 export function ensureSeed() {
-  if (!ready) ready = seed().catch((error) => { ready = null; throw error; });
+  if (!ready) {
+    ready = seed().catch((error) => {
+      console.error("[Seed] Migration / seed warning:", error);
+      ready = null;
+    });
+  }
   return ready;
 }
