@@ -47,22 +47,40 @@ export function EventsView({ data, open }: Props) {
       </PageHeading>
 
       {/* Tri-Tab Campaign & Calendar Switcher */}
-      <div className="standalone-toolbar mb-5">
-        <div className="tabs">
-          <button className={filter === "campaigns" ? "active" : ""} onClick={() => setFilter("campaigns")}>
-            <Flame size={13} className="text-rust" />
-            <span>Active Campaigns</span>
-            <span>{ongoingCampaigns.length}</span>
+      <div className="standalone-toolbar mb-6">
+        <div className="tabs tabs-segmented" role="tablist" aria-label="Events and campaigns switcher">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filter === "campaigns"}
+            className={`tab-btn tab-btn-campaigns ${filter === "campaigns" ? "active" : ""}`}
+            onClick={() => setFilter("campaigns")}
+          >
+            <Flame size={16} className="tab-icon tab-icon-fire" />
+            <span className="tab-label">Active Campaigns</span>
+            <span className="tab-count-badge">{ongoingCampaigns.length}</span>
           </button>
-          <button className={filter === "upcoming" ? "active" : ""} onClick={() => setFilter("upcoming")}>
-            <CalendarDays size={13} />
-            <span>Outreach Calendar</span>
-            <span>{upcomingScheduled.length}</span>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filter === "upcoming"}
+            className={`tab-btn tab-btn-calendar ${filter === "upcoming" ? "active" : ""}`}
+            onClick={() => setFilter("upcoming")}
+          >
+            <CalendarDays size={16} className="tab-icon tab-icon-calendar" />
+            <span className="tab-label">Outreach Calendar</span>
+            <span className="tab-count-badge">{upcomingScheduled.length}</span>
           </button>
-          <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
-            <History size={13} />
-            <span>Archive & Past</span>
-            <span>{scheduledEvents.length}</span>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filter === "all"}
+            className={`tab-btn tab-btn-archive ${filter === "all" ? "active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            <History size={16} className="tab-icon tab-icon-archive" />
+            <span className="tab-label">Archive & Past</span>
+            <span className="tab-count-badge">{scheduledEvents.length}</span>
           </button>
         </div>
         <SearchInput placeholder="Search campaigns, conventions or venues…" value={search} onChange={setSearch} />
@@ -537,28 +555,56 @@ export function ProcurementView({
         </div>
       </div>
 
-      <div className="standalone-toolbar">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="standalone-toolbar mb-6">
+        <div className="flex flex-wrap items-center gap-3">
           <Select label="Filter by event" value={eventFilter} onChange={setEventFilter}>
             <option value="all">All science events ({data.events.length})</option>
             {data.events.map((e) => (
               <option value={e.id} key={e.id}>{e.title}</option>
             ))}
           </Select>
-          <div className="tabs">
-            <button className={stageFilter === "all" ? "active" : ""} onClick={() => setStageFilter("all")}>
-              All vouchers <span>{allItems.length}</span>
+          <div className="tabs tabs-segmented" role="tablist" aria-label="Procurement voucher filter">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={stageFilter === "all"}
+              className={`tab-btn ${stageFilter === "all" ? "active" : ""}`}
+              onClick={() => setStageFilter("all")}
+            >
+              <span className="tab-label">All vouchers</span>
+              <span className="tab-count-badge">{allItems.length}</span>
             </button>
             {urgentCount > 0 && (
-              <button className={stageFilter === "urgent" ? "active" : ""} onClick={() => setStageFilter("urgent")}>
-                Urgent (&lt;48h) <span className="bg-rust text-white">{urgentCount}</span>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={stageFilter === "urgent"}
+                className={`tab-btn ${stageFilter === "urgent" ? "active" : ""}`}
+                onClick={() => setStageFilter("urgent")}
+              >
+                <span className="tab-label">Urgent (&lt;48h)</span>
+                <span className="tab-count-badge bg-rust text-white">{urgentCount}</span>
               </button>
             )}
-            <button className={stageFilter === "ready" ? "active" : ""} onClick={() => setStageFilter("ready")}>
-              Ready for peer check <span>{allItems.filter((p) => p.status === "purchased").length}</span>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={stageFilter === "ready"}
+              className={`tab-btn ${stageFilter === "ready" ? "active" : ""}`}
+              onClick={() => setStageFilter("ready")}
+            >
+              <span className="tab-label">Ready for check</span>
+              <span className="tab-count-badge">{allItems.filter((p) => p.status === "purchased").length}</span>
             </button>
-            <button className={stageFilter === "closed" ? "active" : ""} onClick={() => setStageFilter("closed")}>
-              Verified & closed <span>{allItems.filter((p) => p.status === "verified").length}</span>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={stageFilter === "closed"}
+              className={`tab-btn ${stageFilter === "closed" ? "active" : ""}`}
+              onClick={() => setStageFilter("closed")}
+            >
+              <span className="tab-label">Verified & closed</span>
+              <span className="tab-count-badge">{allItems.filter((p) => p.status === "verified").length}</span>
             </button>
           </div>
         </div>
@@ -779,12 +825,19 @@ export function CircularsView({ data, open }: Props) {
         {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("publishCircular")}>Publish circular</Button>}
       </PageHeading>
 
-      <div className="standalone-toolbar">
-        <div className="tabs">
+      <div className="standalone-toolbar mb-6">
+        <div className="tabs tabs-segmented" role="tablist" aria-label="Notice board filter">
           {["All notices", "Pinned"].map((t) => (
-            <button key={t} onClick={() => setFilter(t)} className={filter === t ? "active" : ""}>
-              {t}
-              {t === "Pinned" && <Pin size={12} />}
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={filter === t}
+              onClick={() => setFilter(t)}
+              className={`tab-btn ${filter === t ? "active" : ""}`}
+            >
+              <span className="tab-label">{t}</span>
+              {t === "Pinned" && <Pin size={13} className="tab-icon text-rust" />}
             </button>
           ))}
         </div>
@@ -918,11 +971,18 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
         </div>
       </section>
 
-      <div className="standalone-toolbar mt-6">
-        <div className="tabs resource-tabs">
+      <div className="standalone-toolbar mt-6 mb-6">
+        <div className="tabs tabs-segmented resource-tabs" role="tablist" aria-label="Science resources category filter">
           {["All resources", "Demonstrations", "Advocacy", "Environment", "Publications", "Organising"].map((c) => (
-            <button key={c} onClick={() => setCategory(c)} className={category === c ? "active" : ""}>
-              {c}
+            <button
+              key={c}
+              type="button"
+              role="tab"
+              aria-selected={category === c}
+              onClick={() => setCategory(c)}
+              className={`tab-btn ${category === c ? "active" : ""}`}
+            >
+              <span className="tab-label">{c}</span>
             </button>
           ))}
         </div>
