@@ -567,7 +567,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
         <div className="offline-banner">
           <WifiOff size={15} />
           <span><strong>You’re offline in the field.</strong> Field queue active: dues, procurements, and donations are saved locally in IndexedDB and will auto-sync when network returns.</span>
-          {offlineCount > 0 && <span className="demo-pill" style={{ marginLeft: "auto", background: "var(--rust, #bf5029)", color: "#fff" }}>⚡ {offlineCount} queued</span>}
+          {offlineCount > 0 && <span className="demo-pill" style={{ marginLeft: "auto", background: "var(--rust, #047857)", color: "#fff" }}>⚡ {offlineCount} queued</span>}
         </div>
       )}
       {online && offlineCount > 0 && (
