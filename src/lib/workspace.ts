@@ -24,7 +24,36 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
     db.select().from(circulars).orderBy(desc(circulars.pinned), desc(circulars.createdAt)),
     db.select().from(activities).orderBy(desc(activities.createdAt)).limit(50),
   ]);
-  const unitEvents = rawEvents.map((e) =>
+  // Filter out obsolete sample events from initial project templates
+  const validEvents = rawEvents.filter(
+    (e) =>
+      !e.title.toLowerCase().includes("greener neighbourhood") &&
+      !e.image.includes("environment-campaign") &&
+      e.id !== "20000000-0000-4000-8000-000000000003"
+  );
+
+  // Guarantee the real Mashkalaibari Campaign is always present
+  const hasMashkalaibari = validEvents.some(
+    (e) => e.title.includes("Mashkalaibari") || e.id === "20000000-0000-4000-8000-000000000005"
+  );
+  if (!hasMashkalaibari) {
+    validEvents.push({
+      id: "20000000-0000-4000-8000-000000000005",
+      title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
+      description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.",
+      location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri",
+      startsAt: new Date("2026-11-03T08:00:00.000Z"),
+      category: "Campaign",
+      volunteers: 18,
+      image: "/images/field-reports/mashkalaibari/inspection-1.jpg",
+      createdAt: new Date("2026-11-03T08:00:00.000Z"),
+      isOngoing: true,
+      progressPercent: 20,
+      targetGoal: "Installation of automated Air Pollution Control System (APCS) & River Protection",
+    });
+  }
+
+  const unitEvents = validEvents.map((e) =>
     hydrateCampaignEvent({
       ...e,
       startsAt: e.startsAt instanceof Date ? e.startsAt.toISOString() : String(e.startsAt),

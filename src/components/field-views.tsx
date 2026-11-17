@@ -80,7 +80,14 @@ export function EventsView({ data, open }: Props) {
               <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
                 <div className="campaign-hero-grid">
                   <div className="campaign-hero-image-wrap">
-                    <img src={campaign.image} alt={campaign.title} style={{ objectPosition: "center 42%" }} />
+                    <img
+                      src={campaign.image}
+                      alt={campaign.title}
+                      style={{ objectPosition: "center 42%" }}
+                      onError={(e) => {
+                        e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+                      }}
+                    />
                     <span className="campaign-live-tag">
                       <span className="live-dot" />
                       ONGOING CIVIC CAMPAIGN
@@ -252,7 +259,13 @@ export function EventsView({ data, open }: Props) {
                     <span className="print-mark print-mark-tr slip-mark" />
 
                     <button className="event-card-image" onClick={() => open("event", event)}>
-                      <img src={event.image} alt={event.title} />
+                      <img
+                        src={event.image}
+                        alt={event.title}
+                        onError={(e) => {
+                          e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+                        }}
+                      />
                       <span className="event-category">{event.category}</span>
                       <span className="event-card-date">
                         <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>
@@ -340,7 +353,13 @@ export function EventsView({ data, open }: Props) {
                 return (
                   <article className="event-card panel print-tech-slip" key={event.id}>
                     <button className="event-card-image" onClick={() => open("event", event)}>
-                      <img src={event.image} alt={event.title} />
+                      <img
+                        src={event.image}
+                        alt={event.title}
+                        onError={(e) => {
+                          e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+                        }}
+                      />
                       <span className="event-category">{event.category}</span>
                       <span className="event-card-date">
                         <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>

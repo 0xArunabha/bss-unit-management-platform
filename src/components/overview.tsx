@@ -258,7 +258,14 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
             <div className="campaign-hero-grid">
               <div className="campaign-hero-image-wrap">
-                <img src={campaign.image} alt={campaign.title} style={{ objectPosition: "center 42%" }} />
+                <img
+                  src={campaign.image}
+                  alt={campaign.title}
+                  style={{ objectPosition: "center 42%" }}
+                  onError={(e) => {
+                    e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+                  }}
+                />
                 <span className="campaign-live-tag">
                   <span className="live-dot" />
                   ONGOING CIVIC CAMPAIGN

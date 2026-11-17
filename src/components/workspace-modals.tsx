@@ -219,6 +219,9 @@ function EventDetailModal({
               <img
                 src={currentPhoto?.src || event.image}
                 alt={currentPhoto?.caption || event.title}
+                onError={(e) => {
+                  e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+                }}
                 className="max-h-[400px] sm:max-h-[480px] w-full object-contain mx-auto select-none transition-opacity duration-200"
               />
 

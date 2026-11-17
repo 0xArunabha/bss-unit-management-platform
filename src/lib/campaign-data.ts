@@ -54,9 +54,11 @@ export function isCampaignEvent(
   event?: { isOngoing?: boolean | null; category?: string | null; title?: string | null } | null
 ): boolean {
   if (!event) return false;
+  const title = (event.title || "").toLowerCase();
+  // Filter out any obsolete placeholder sample records
+  if (title.includes("a greener neighbourhood")) return false;
   if (event.isOngoing) return true;
   const category = (event.category || "").toLowerCase();
-  const title = (event.title || "").toLowerCase();
   return (
     category === "campaign" ||
     title.includes("mashkalaibari") ||
@@ -87,6 +89,13 @@ export function hydrateCampaignEvent<
   }
 >(event: T): UnitEvent {
   const isCamp = isCampaignEvent(event);
+  const rawImage = event.image || "";
+  const isBrokenImage =
+    !rawImage ||
+    rawImage.includes("environment-campaign") ||
+    rawImage.includes("science-outreach") ||
+    rawImage.includes("conference");
+
   return {
     id: event.id || "",
     title: event.title || "",
@@ -94,7 +103,9 @@ export function hydrateCampaignEvent<
     location: event.location || "",
     category: event.category || "Outreach",
     volunteers: event.volunteers || 0,
-    image: event.image || "/images/field-reports/mashkalaibari/inspection-1.jpg",
+    image: isBrokenImage
+      ? "/images/field-reports/mashkalaibari/inspection-1.jpg"
+      : rawImage,
     startsAt: event.startsAt || new Date().toISOString(),
     createdAt: event.createdAt || new Date().toISOString(),
     isOngoing: isCamp ? true : Boolean(event.isOngoing),
