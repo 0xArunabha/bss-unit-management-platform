@@ -3,6 +3,7 @@
 import { ArrowUpRight, Check, ChevronDown, Download, LoaderCircle, Search, X, type LucideIcon } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { initials, type Profile } from "@/lib/types";
+import { useI18n, type I18n } from "@/lib/i18n";
 
 export function Avatar({ person, size = "normal" }: { person: Pick<Profile, "fullName" | "avatarColor">; size?: "small" | "normal" | "large" }) {
   return <span className={`avatar avatar-${size} avatar-${person.avatarColor}`} title={person.fullName}>{initials(person.fullName)}</span>;
@@ -19,8 +20,10 @@ export function SectionTitle({ title, subtitle, children }: { title: string; sub
 export function EmptyState({ icon: Icon, title, description, children }: { icon: LucideIcon; title: string; description: string; children?: ReactNode }) {
   return <div className="empty-state"><span className="empty-icon"><Icon size={26} strokeWidth={1.5} /></span><h3>{title}</h3><p>{description}</p>{children}</div>;
 }
-export function SearchInput({ value, onChange, placeholder = "Search…" }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
-  return <div className="search-input"><Search size={16} /><input aria-label={placeholder} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />{value && <button aria-label="Clear search" onClick={() => onChange("")}><X size={14} /></button>}</div>;
+export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+  const { t } = useI18n();
+  const hint = placeholder ?? t("Search…");
+  return <div className="search-input"><Search size={16} /><input aria-label={hint} placeholder={hint} value={value} onChange={(e) => onChange(e.target.value)} />{value && <button aria-label={t("Clear search")} onClick={() => onChange("")}><X size={14} /></button>}</div>;
 }
 export function Select({ children, value, onChange, label }: { children: ReactNode; value: string; onChange: (v: string) => void; label: string }) {
   return <div className="select-wrap"><select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>{children}</select><ChevronDown size={14} /></div>;
@@ -73,6 +76,7 @@ function unlockPageScroll() {
 }
 
 export function Modal({ title, subtitle, children, onClose, wide = false }: { title: string; subtitle?: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   // Parents often pass a fresh function every render; keep the latest in a ref so the effect below runs once per open.
   const onCloseRef = useRef(onClose);
@@ -161,7 +165,7 @@ export function Modal({ title, subtitle, children, onClose, wide = false }: { ti
             <h2>{title}</h2>
             {subtitle && <p>{subtitle}</p>}
           </div>
-          <button className="icon-button" onClick={() => onCloseRef.current()} aria-label="Close dialog">
+          <button className="icon-button" onClick={() => onCloseRef.current()} aria-label={t("Close dialog")}>
             <X size={20} />
           </button>
         </div>
@@ -174,7 +178,8 @@ export function FormField({ label, children, hint, required }: { label: string; 
   return <label className="form-field"><span>{label}{required && <span className="required"> *</span>}</span>{children}{hint && <small>{hint}</small>}</label>;
 }
 export function SubmitButton({ busy, children }: { busy: boolean; children: ReactNode }) {
-  return <Button type="submit" disabled={busy} icon={busy ? LoaderCircle : Check} className={busy ? "is-loading" : ""}>{busy ? "Saving…" : children}</Button>;
+  const { t } = useI18n();
+  return <Button type="submit" disabled={busy} icon={busy ? LoaderCircle : Check} className={busy ? "is-loading" : ""}>{busy ? t("Saving…") : children}</Button>;
 }
 export function PageHeading({ eyebrow, title, description, children }: { eyebrow?: string; title: string; description: string; children?: ReactNode }) {
   return <div className="page-heading"> <div>{eyebrow && <div className="eyebrow">{eyebrow}</div>}<h1>{title}</h1><p>{description}</p></div><div className="page-actions">{children}</div></div>;
@@ -187,11 +192,15 @@ export function downloadCsv(filename: string, rows: (string | number)[][]) {
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
   const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
 }
-export function ExportButton({ onClick }: { onClick: () => void }) { return <Button variant="secondary" icon={Download} onClick={onClick}>Export</Button>; }
-export function relativeTime(value: string) {
+export function ExportButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
+  return <Button variant="secondary" icon={Download} onClick={onClick}>{t("Export")}</Button>;
+}
+/** "Just now", "5m ago", "2h ago", "3d ago". Pass the `t` from useI18n() so the wording follows the language. */
+export function relativeTime(value: string, t: I18n["t"]) {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
-  return `${Math.floor(minutes / 1440)}d ago`;
+  if (minutes < 1) return t("Just now");
+  if (minutes < 60) return t("{count}m ago", { count: minutes });
+  if (minutes < 1440) return t("{count}h ago", { count: Math.floor(minutes / 60) });
+  return t("{count}d ago", { count: Math.floor(minutes / 1440) });
 }

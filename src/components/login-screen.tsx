@@ -8,6 +8,7 @@ import type { WorkspaceData, Profile, PerformAction } from "@/lib/types";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 import { normalizeCode } from "@/lib/claim-format";
 import { authClient } from "@/lib/auth-client";
+import { useI18n } from "@/lib/i18n";
 import { useFirstFlush, FirstFlushLeaves } from "@/components/first-flush-easter-egg";
 
 interface LoginScreenProps {
@@ -18,6 +19,7 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEmail }: LoginScreenProps) {
+  const { t, tx } = useI18n();
   const [mode, setMode] = useState<"login" | "claimCode" | "apply">(() => initialGoogleEmail ? "claimCode" : "login");
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
   });
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>(() =>
-    initialGoogleEmail ? `Signed in with Google as ${initialGoogleEmail}. Link your member code below, or submit an application.` : ""
+    initialGoogleEmail ? t("Signed in with Google as {email}. Link your member code below, or submit an application.", { email: initialGoogleEmail }) : ""
   );
 
   // In-app browser detection (Google OAuth blocks webviews)
@@ -75,7 +77,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
       return;
     } catch (err) {
       console.error("[Google OAuth Error]", err);
-      setError(err instanceof Error ? err.message : "Google sign-in could not be initiated. Please check your network.");
+      setError(err instanceof Error ? err.message : t("Google sign-in could not be initiated. Please check your network."));
       setLoading(false);
     }
   };
@@ -84,7 +86,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
     e.preventDefault();
     const normalized = normalizeCode(claimCodeInput);
     if (normalized.length !== 8) {
-      setError("Please enter your complete 8-character member code (like XXXX-XXXX).");
+      setError(t("Please enter your complete 8-character member code (like XXXX-XXXX)."));
       hapticWarning();
       return;
     }
@@ -101,7 +103,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         setSuccess("Success! Code verified. Entering unit workspace...");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to claim code. Check with Secretary Arunabha Ghosh.");
+      setError(err instanceof Error ? err.message : t("Failed to claim code. Check with Secretary Arunabha Ghosh."));
       hapticWarning();
     } finally {
       setLoading(false);
@@ -111,15 +113,15 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
   const handleApplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!appFullName.trim()) {
-      setError("Please enter your full name.");
+      setError(t("Please enter your full name."));
       return;
     }
     if (!appPhone.trim() || appPhone.trim().length < 10) {
-      setError("Please enter a valid 10-digit mobile number.");
+      setError(t("Please enter a valid 10-digit mobile number."));
       return;
     }
     if (!isAdult && !guardianName.trim()) {
-      setError("Under-18 advocates must provide a parent/guardian name for DPDP Act compliance.");
+      setError(t("Under-18 advocates must provide a parent/guardian name for DPDP Act compliance."));
       return;
     }
 
@@ -143,7 +145,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         }, 2000);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit application.");
+      setError(err instanceof Error ? err.message : t("Failed to submit application."));
       hapticWarning();
     } finally {
       setLoading(false);
@@ -158,8 +160,8 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
           <div className="in-app-browser-alert" role="alert">
             <AlertTriangle size={16} />
             <div>
-              <strong>In-app browser detected:</strong> Google blocks OAuth inside social media apps.
-              <span> Tap the menu (⋮ or Share) and choose <strong>Open in Chrome / Safari</strong>.</span>
+              {tx("<strong>In-app browser detected:</strong> Google blocks OAuth inside social media apps.")}
+              <span> {tx("Tap the menu (⋮ or Share) and choose <strong>Open in Chrome / Safari</strong>.")}</span>
             </div>
           </div>
         )}
@@ -167,21 +169,21 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         {/* Unit Masthead */}
         <div className="login-header">
           <div className="login-logo-seal">
-            <img src="/images/bss-logo.svg" alt="BSS Logo" className="login-logo" />
+            <img src="/images/bss-logo.svg" alt={t("BSS Logo")} className="login-logo" />
             <div className="login-seal-stamp">
               <span>{identity.bengali}</span>
-              <small>JALPAIGURI</small>
+              <small>{t("JALPAIGURI")}</small>
             </div>
           </div>
           <h1>
-            {identity.name}
+            {t(identity.name)}
             <span
               className="brand-period"
               onClick={(e) => {
                 e.stopPropagation();
                 triggerFirstFlush(e);
               }}
-              title="Dooars First Flush 🍃"
+              title={t("Dooars First Flush 🍃")}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -196,10 +198,10 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
             </span>
           </h1>
           <p className="login-subtitle">
-            A Unit of {identity.organisation} · {identity.unit}
+            {t(`A Unit of ${identity.organisation}`)} · {t(identity.unit)}
           </p>
           <div className="login-tagline">
-            “{identity.motto}”
+            “{t(identity.motto)}”
           </div>
         </div>
 
@@ -222,7 +224,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
           <div className="login-body">
             <div className="auth-google-box">
               <p className="auth-instruction">
-                Sign in with your Google account. If your account is linked to the unit, you will be taken straight to your workspace.
+                {t("Sign in with your Google account. If your account is linked to the unit, you will be taken straight to your workspace.")}
               </p>
 
               <button
@@ -237,7 +239,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
-                <span>{loading ? "Signing in..." : "Member Login with Google"}</span>
+                <span>{loading ? t("Signing in...") : t("Member Login with Google")}</span>
               </button>
 
               <div className="login-alt-actions">
@@ -247,13 +249,13 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                   onClick={() => setMode("apply")}
                 >
                   <Sparkles size={13} />
-                  <span>New to the unit? Apply to join</span>
+                  <span>{t("New to the unit? Apply to join")}</span>
                 </button>
               </div>
             </div>
 
             <div className="public-visitor-divider">
-              <span>OR</span>
+              <span>{t("OR")}</span>
             </div>
 
             {/* Public Entry */}
@@ -263,8 +265,8 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                   <Compass size={17} />
                 </div>
                 <div className="public-access-info">
-                  <strong>Public Visitor or Science Advocate?</strong>
-                  <p>Browse open science outreach notices, anti-superstition demo guides, verify donation receipts, or submit a membership request.</p>
+                  <strong>{t("Public Visitor or Science Advocate?")}</strong>
+                  <p>{t("Browse open science outreach notices, anti-superstition demo guides, verify donation receipts, or submit a membership request.")}</p>
                 </div>
               </div>
               <button
@@ -272,7 +274,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                 className="guest-action-btn"
                 onClick={onContinueAsGuest}
               >
-                <span>Explore Public Unit Portal</span>
+                <span>{t("Explore Public Unit Portal")}</span>
                 <ArrowRight size={15} />
               </button>
             </div>
@@ -283,10 +285,10 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         {mode === "claimCode" && (
           <form className="login-body onboarding-form" onSubmit={handleClaimCodeSubmit}>
             <div className="onboarding-step-header">
-              <span className="step-tag">STEP 2 OF 2</span>
-              <h2>Claim your Member Invite Code</h2>
+              <span className="step-tag">{t("STEP 2 OF 2")}</span>
+              <h2>{t("Claim your Member Invite Code")}</h2>
               <p>
-                Enter the 8-character single-use code handed over by Secretary Arunabha Ghosh. This links your Google account permanently.
+                {t("Enter the 8-character single-use code handed over by Secretary Arunabha Ghosh. This links your Google account permanently.")}
               </p>
             </div>
 
@@ -294,7 +296,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               <input
                 type="text"
                 className="claim-code-input"
-                placeholder="XXXX-XXXX"
+                placeholder={t("XXXX-XXXX")}
                 value={claimCodeInput}
                 onChange={handleCodeChange}
                 maxLength={9}
@@ -302,7 +304,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                 required
               />
               <span className="code-help-text">
-                Codes are random 8 characters (Crockford Base32), single-use, and expire in 14 days.
+                {t("Codes are random 8 characters (Crockford Base32), single-use, and expire in 14 days.")}
               </span>
             </div>
 
@@ -311,24 +313,23 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                 type="submit"
                 disabled={loading || claimCodeInput.replace(/[^A-Z0-9]/gi, "").length !== 8}
               >
-                {loading ? "Verifying code..." : "Link Google & Enter Workspace"}
+                {loading ? t("Verifying code...") : t("Link Google & Enter Workspace")}
               </Button>
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() => setMode("login")}
               >
-                Back to Sign In
+                {t("Back to Sign In")}
               </button>
             </div>
 
             <div className="onboarding-footer">
               <p>
-                Don’t have a code yet?{" "}
+                {t("Don’t have a code yet?")}
                 <button type="button" className="inline-link" onClick={() => setMode("apply")}>
-                  Submit a membership application
-                </button>{" "}
-                or contact the unit secretary in person.
+                  {t("Submit a membership application")}
+                </button>{t("or contact the unit secretary in person.")}
               </p>
             </div>
           </form>
@@ -338,19 +339,19 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         {mode === "apply" && (
           <form className="login-body onboarding-form" onSubmit={handleApplySubmit}>
             <div className="onboarding-step-header">
-              <span className="step-tag">MEMBERSHIP</span>
-              <h2>Apply to Join Jalpaiguri Unit</h2>
+              <span className="step-tag">{t("MEMBERSHIP")}</span>
+              <h2>{t("Apply to Join Jalpaiguri Unit")}</h2>
               <p>
-                Join our science movement. Once submitted, unit executives will review your application and issue your member code.
+                {t("Join our science movement. Once submitted, unit executives will review your application and issue your member code.")}
               </p>
             </div>
 
             <div className="form-field-group">
               <label>
-                <span>Full Name</span>
+                <span>{t("Full Name")}</span>
                 <input
                   type="text"
-                  placeholder="e.g. Priyabrata Roy"
+                  placeholder={t("e.g. Priyabrata Roy")}
                   value={appFullName}
                   onChange={(e) => setAppFullName(e.target.value)}
                   required
@@ -358,7 +359,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               </label>
 
               <label>
-                <span>Mobile Number (WhatsApp)</span>
+                <span>{t("Mobile Number (WhatsApp)")}</span>
                 <input
                   type="tel"
                   placeholder="e.g. 9434012345"
@@ -376,18 +377,18 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                     checked={isAdult}
                     onChange={(e) => setIsAdult(e.target.checked)}
                   />
-                  <span>I am 18 years of age or older</span>
+                  <span>{t("I am 18 years of age or older")}</span>
                 </label>
                 <small className="dpdp-notice text-xs text-muted block mt-1">
-                  Compliant with India&apos;s Digital Personal Data Protection (DPDP) Act.
+                  {t("Compliant with India's Digital Personal Data Protection (DPDP) Act.")}
                 </small>
                 {!isAdult && (
                   <div className="guardian-field mt-2">
                     <label>
-                      <span>Parent / Guardian Name (Required under DPDP Act 2023)</span>
+                      <span>{t("Parent / Guardian Name (Required under DPDP Act 2023)")}</span>
                       <input
                         type="text"
-                        placeholder="e.g. Subir Roy (Guardian)"
+                        placeholder={t("e.g. Subir Roy (Guardian)")}
                         value={guardianName}
                         onChange={(e) => setGuardianName(e.target.value)}
                         required={!isAdult}
@@ -398,10 +399,10 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               </div>
 
               <label>
-                <span>Why do you want to join Breakthrough Science Society?</span>
+                <span>{t("Why do you want to join Breakthrough Science Society?")}</span>
                 <textarea
                   rows={3}
-                  placeholder="Share your interests (e.g. school science demonstration camps, telescope sessions, debunking miracles)..."
+                  placeholder={t("Share your interests (e.g. school science demonstration camps, telescope sessions, debunking miracles)...")}
                   value={appReason}
                   onChange={(e) => setAppReason(e.target.value)}
                   required
@@ -411,14 +412,14 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
 
             <div className="onboarding-actions">
               <Button type="submit" disabled={loading}>
-                {loading ? "Submitting application..." : "Submit Membership Application"}
+                {loading ? t("Submitting application...") : t("Submit Membership Application")}
               </Button>
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() => setMode("login")}
               >
-                Cancel & Return
+                {t("Cancel & Return")}
               </button>
             </div>
           </form>
@@ -427,7 +428,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
         {/* Footer info */}
         <div className="login-footer">
           <ShieldCheck size={14} className="security-icon" />
-          <span>Zero-Knowledge Server Projection · Zero Plaintext Storage · DPDP Act 2023 Compliant</span>
+          <span>{t("Zero-Knowledge Server Projection · Zero Plaintext Storage · DPDP Act 2023 Compliant")}</span>
         </div>
       </div>
       {toast && (

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { identity } from "@/lib/identity";
-import { type Profile, money } from "@/lib/types";
+import { type Profile } from "@/lib/types";
 import { getMemberDesignations } from "@/lib/teams";
 import { Avatar } from "@/components/ui";
 import { UnitOfficialSeal } from "@/components/unit-seal";
@@ -68,6 +68,7 @@ function BrandedQR({
   memberCode: string;
   designation: string;
 }) {
+  const { t } = useI18n();
   const [svgMarkup, setSvgMarkup] = useState<string>("");
 
   const payload = [
@@ -123,7 +124,7 @@ function BrandedQR({
         </div>
       </div>
       <div className="branded-qr-caption">
-        <span className="branded-qr-scan-label mono">SCAN WITH PHONE CAMERA TO VERIFY CREDENTIAL</span>
+        <span className="branded-qr-scan-label mono">{t("SCAN WITH PHONE CAMERA TO VERIFY CREDENTIAL")}</span>
         <span className="branded-qr-id mono">{identity.receiptPrefix}-{memberCode}</span>
       </div>
     </div>
@@ -133,24 +134,23 @@ function BrandedQR({
 export function VirtualIdCard({ member, memberCode = "JPG-001", onClose }: IdCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [copied, setCopied] = useState(false);
-  const { locale, t } = useI18n();
+  const { locale, t, money, fmtDate, roleName } = useI18n();
   const designations = getMemberDesignations(member.fullName);
   const joinDate = new Date(member.createdAt);
-  const validThrough = "March 2027";
+  const validThrough = t("March 2027");
   const designationText = locale === "bn" ? designations.primaryTitleBn : designations.primaryTitleEn;
 
-  const getShareText = () => {
-    return `🪪 *LIGHT OF SCIENCE — OFFICIAL MEMBER CREDENTIAL*
-Breakthrough Science Society · Jalpaiguri Unit
-
-👤 *Member:* ${member.fullName}
-🆔 *ID Code:* ${memberCode}
-🎖️ *Role:* ${member.role.toUpperCase()}
-⭐ *Designation:* ${designationText}
-🏛️ *Reg No:* ${identity.registrationNo}
-✊ *Motto:* ${identity.bengaliMotto}
-📍 *Unit:* ${identity.city}, ${identity.state}`;
-  };
+  const getShareText = () =>
+    t("🪪 *LIGHT OF SCIENCE — OFFICIAL MEMBER CREDENTIAL*\nBreakthrough Science Society · Jalpaiguri Unit\n\n👤 *Member:* {name}\n🆔 *ID Code:* {code}\n🎖️ *Role:* {role}\n⭐ *Designation:* {designation}\n🏛️ *Reg No:* {registration}\n✊ *Motto:* {motto}\n📍 *Unit:* {city}, {state}", {
+      name: member.fullName,
+      code: memberCode,
+      role: locale === "bn" ? roleName(member.role) : member.role.toUpperCase(),
+      designation: designationText,
+      registration: identity.registrationNo,
+      motto: identity.bengaliMotto,
+      city: t(identity.city),
+      state: t(identity.state),
+    });
 
   const handleShare = () => {
     shareViaWhatsApp(getShareText());
@@ -182,15 +182,15 @@ Breakthrough Science Society · Jalpaiguri Unit
             {/* Header */}
             <div className="id-card-header">
               <div className="id-card-brand">
-                <img src="/images/bss-logo.svg" alt="BSS Logo" className="id-card-logo" />
+                <img src="/images/bss-logo.svg" alt={t("BSS Logo")} className="id-card-logo" />
                 <div>
-                  <h3 className="id-card-society-title">{identity.organisation}</h3>
-                  <h2 className="id-card-unit-title">{identity.name} · {identity.city}</h2>
+                  <h3 className="id-card-society-title">{t(identity.organisation)}</h3>
+                  <h2 className="id-card-unit-title">{t(identity.name)} · {t(identity.city)}</h2>
                 </div>
               </div>
               <div className="id-card-header-right">
-                <span className="id-card-credential-label">MEMBER CREDENTIAL</span>
-                <span className="id-card-reg-pill mono">REG {identity.registrationNo.split(" ")[0]}</span>
+                <span className="id-card-credential-label">{t("MEMBER CREDENTIAL")}</span>
+                <span className="id-card-reg-pill mono">{t("REG {number}", { number: identity.registrationNo.split(" ")[0] })}</span>
               </div>
             </div>
 
@@ -202,7 +202,7 @@ Breakthrough Science Society · Jalpaiguri Unit
                 </div>
                 <div className="id-card-badge-token">
                   <ShieldCheck size={10} strokeWidth={2.5} />
-                  <span>VERIFIED</span>
+                  <span>{t("VERIFIED")}</span>
                 </div>
               </div>
 
@@ -210,7 +210,7 @@ Breakthrough Science Society · Jalpaiguri Unit
                 <div className="id-card-code-row">
                   <span className="id-card-code mono">{memberCode}</span>
                   <span className={`id-card-role-tag role-${member.role}`}>
-                    {member.role.toUpperCase()}
+                    {locale === "bn" ? roleName(member.role) : member.role.toUpperCase()}
                   </span>
                 </div>
 
@@ -221,7 +221,7 @@ Breakthrough Science Society · Jalpaiguri Unit
                   <div className="id-card-team-pills">
                     {designations.teams.slice(0, 3).map((team) => (
                       <span key={team} className="id-card-team-pill">
-                        {team}
+                        {t(team)}
                       </span>
                     ))}
                   </div>
@@ -231,8 +231,8 @@ Breakthrough Science Society · Jalpaiguri Unit
                   {member.phone && (
                     <span><Phone size={9} strokeWidth={2} /> +91 {member.phone}</span>
                   )}
-                  <span><CalendarDays size={9} strokeWidth={2} /> Joined {joinDate.toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
-                  <span><MapPin size={9} strokeWidth={2} /> {identity.city}, {identity.state}</span>
+                  <span><CalendarDays size={9} strokeWidth={2} /> {t("Joined {date}", { date: fmtDate(joinDate, { month: "short", year: "numeric" }) })}</span>
+                  <span><MapPin size={9} strokeWidth={2} /> {t(identity.city)}, {t(identity.state)}</span>
                 </div>
               </div>
             </div>
@@ -245,11 +245,11 @@ Breakthrough Science Society · Jalpaiguri Unit
                     <span key={i} className={`barcode-line w-${w}`} />
                   ))}
                 </div>
-                <span className="mono id-card-session">SESSION 2026–27 · VALID THROUGH {validThrough.toUpperCase()}</span>
+                <span className="mono id-card-session">{t("SESSION 2026–27 · VALID THROUGH {date}", { date: validThrough.toUpperCase() })}</span>
               </div>
               <span className="id-card-flip-prompt" onClick={() => setFlipped(!flipped)}>
                 <RefreshCw size={10} />
-                Flip to scan QR
+                {t("Flip to scan QR")}
               </span>
             </div>
           </div>
@@ -274,22 +274,22 @@ Breakthrough Science Society · Jalpaiguri Unit
                 {/* Motto */}
                 <div className="id-card-back-motto">
                   <p className="id-card-back-motto-bn">&ldquo;{identity.bengaliMotto}&rdquo;</p>
-                  <p className="id-card-back-motto-en">&ldquo;{identity.motto}&rdquo;</p>
+                  {locale !== "bn" && <p className="id-card-back-motto-en">&ldquo;{t(identity.motto)}&rdquo;</p>}
                 </div>
 
                 {/* Compact detail rows */}
                 <div className="id-card-back-details">
                   <div className="id-card-back-row">
-                    <span>HQ</span>
-                    <strong>{identity.headquarters}</strong>
+                    <span>{t("HQ")}</span>
+                    <strong>{t(identity.headquarters)}</strong>
                   </div>
                   <div className="id-card-back-row">
-                    <span>Pledge</span>
-                    <strong>{money(member.monthlyPledge)}/mo</strong>
+                    <span>{t("Pledge")}</span>
+                    <strong>{t("{amount}/mo", { amount: money(member.monthlyPledge) })}</strong>
                   </div>
                   <div className="id-card-back-row">
-                    <span>Valid</span>
-                    <strong>Through {validThrough}</strong>
+                    <span>{t("Valid")}</span>
+                    <strong>{t("Through {validThrough}", { validThrough })}</strong>
                   </div>
                 </div>
 
@@ -300,8 +300,8 @@ Breakthrough Science Society · Jalpaiguri Unit
                   </div>
                   <div className="id-card-signatory">
                     <div className="id-card-sign-line" />
-                    <strong>Pritam Sarkar</strong>
-                    <small>Secretary · Signatory</small>
+                    <strong>{t("Pritam Sarkar")}</strong>
+                    <small>{t("Secretary · Signatory")}</small>
                   </div>
                 </div>
               </div>
@@ -309,8 +309,7 @@ Breakthrough Science Society · Jalpaiguri Unit
 
             {/* Notice footer */}
             <div className="id-card-back-notice">
-              This card certifies membership of {identity.name}, {identity.organisation} (WB Reg. {identity.registrationNo}).
-              If found, return to unit office or email {identity.unitContact}.
+              {t("This card certifies membership of {name}, {organisation} (WB Reg. {registrationNo}). If found, return to unit office or email {unitContact}.", { name: t(identity.name), organisation: t(identity.organisation), registrationNo: identity.registrationNo, unitContact: identity.unitContact })}
             </div>
           </div>
         </div>
@@ -320,22 +319,22 @@ Breakthrough Science Society · Jalpaiguri Unit
       <div className="id-card-actions">
         <button className="id-action-btn" onClick={() => setFlipped(!flipped)}>
           <RefreshCw size={14} />
-          {flipped ? "Show Front" : "Flip Card"}
+          {flipped ? t("Show Front") : t("Flip Card")}
         </button>
 
         <button className="id-action-btn id-action-whatsapp" onClick={handleShare}>
           <MessageCircle size={14} />
-          Share
+          {t("Share")}
         </button>
 
         <button className="id-action-btn" onClick={handleCopy}>
           {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("Copied!") : t("Copy")}
         </button>
 
         <button className="id-action-btn id-action-print" onClick={handlePrint}>
           <Printer size={14} />
-          Print
+          {t("Print")}
         </button>
       </div>
     </div>

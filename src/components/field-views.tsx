@@ -3,10 +3,11 @@
 import { identity } from "@/lib/identity";
 import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { type WorkspaceData, type Procurement, type PerformAction, money } from "@/lib/types";
+import { type WorkspaceData, type Procurement, type PerformAction } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
 import type { Navigate, OpenModal } from "@/components/overview";
 import { resources, type Resource, getSanitizedResources } from "@/lib/resources";
+import { isEnvironmentDayText, isMashkalaibari, localizeResource } from "@/lib/localize-content";
 import { useI18n } from "@/lib/i18n";
 import { authClient } from "@/lib/auth-client";
 import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
@@ -15,7 +16,7 @@ import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
 
 export function EventsView({ data, open }: Props) {
-  const { locale } = useI18n();
+  const { locale, t, tx, num, fmtDate, fmtTime } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"campaigns" | "upcoming" | "all">("campaigns");
   const [roadmapExpanded, setRoadmapExpanded] = useState(false);
@@ -39,15 +40,15 @@ export function EventsView({ data, open }: Props) {
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow="GRASSROOTS ADVOCACY · UNIT CAMPAIGNS & CALENDAR"
-        title="Field programmes & active campaigns."
-        description={`Scheduled outreach programmes, active environmental campaigns, and cadre meetings for ${identity.fullName}.`}
+        eyebrow={t("GRASSROOTS ADVOCACY · UNIT CAMPAIGNS & CALENDAR")}
+        title={t("Field programmes & active campaigns.")}
+        description={t("Scheduled outreach programmes, active environmental campaigns, and cadre meetings for {fullName}.", { fullName: t(identity.fullName) })}
       >
-        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>Create event</Button>}
+        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>{t("Create event")}</Button>}
       </PageHeading>
 
-      {/* TOTALLY REDESIGNED: Executive 3-Card Field Switchboard */}
-      <nav aria-label="Field programmes view selector" className="events-command-deck mb-7">
+      {/* Executive 3-Card Field Switchboard */}
+      <nav aria-label={t("Field programmes view selector")} className="events-command-deck mb-7">
         <div className="events-deck-grid" role="tablist">
           {/* 1. Active Campaigns Card */}
           <button
@@ -62,12 +63,12 @@ export function EventsView({ data, open }: Props) {
               {ongoingCampaigns.length > 0 && <span className="deck-live-pulse" />}
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">Active Campaigns</span>
-              <span className="events-deck-desc">Ongoing civic movements</span>
+              <span className="events-deck-title">{t("Active Campaigns")}</span>
+              <span className="events-deck-desc">{t("Ongoing civic movements")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-campaigns">
-                {ongoingCampaigns.length} Active
+                {t("{count} Active", { count: ongoingCampaigns.length })}
               </span>
             </div>
           </button>
@@ -84,12 +85,12 @@ export function EventsView({ data, open }: Props) {
               <CalendarDays size={20} />
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">Outreach Calendar</span>
-              <span className="events-deck-desc">Scheduled field programmes</span>
+              <span className="events-deck-title">{t("Outreach Calendar")}</span>
+              <span className="events-deck-desc">{t("Scheduled field programmes")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-calendar">
-                {upcomingScheduled.length} Scheduled
+                {t("{count} Scheduled", { count: upcomingScheduled.length })}
               </span>
             </div>
           </button>
@@ -106,12 +107,12 @@ export function EventsView({ data, open }: Props) {
               <History size={20} />
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">Archive & Past</span>
-              <span className="events-deck-desc">Concluded awareness actions</span>
+              <span className="events-deck-title">{t("Archive & Past")}</span>
+              <span className="events-deck-desc">{t("Concluded awareness actions")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-archive">
-                {scheduledEvents.length} Concluded
+                {t("{count} Concluded", { count: scheduledEvents.length })}
               </span>
             </div>
           </button>
@@ -122,19 +123,19 @@ export function EventsView({ data, open }: Props) {
           <div className="events-deck-current-label">
             <span className="current-dot" />
             <span className="current-text">
-              {filter === "campaigns" && `Viewing ${ongoingCampaigns.length} active environmental campaign (Mashkalaibari)`}
-              {filter === "upcoming" && `Viewing ${upcomingScheduled.length} scheduled outreach programmes`}
-              {filter === "all" && `Viewing ${scheduledEvents.length} concluded awareness actions (World Environment Day 2026)`}
+              {filter === "campaigns" && t("Viewing {count} active environmental campaign (Mashkalaibari)", { count: ongoingCampaigns.length })}
+              {filter === "upcoming" && t("Viewing {count} scheduled outreach programmes", { count: upcomingScheduled.length })}
+              {filter === "all" && t("Viewing {count} concluded awareness actions (World Environment Day 2026)", { count: scheduledEvents.length })}
             </span>
           </div>
           <div className="events-deck-search">
             <SearchInput
               placeholder={
                 filter === "campaigns"
-                  ? "Search active campaigns, milestones or locations…"
+                  ? t("Search active campaigns, milestones or locations…")
                   : filter === "upcoming"
-                  ? "Search upcoming dates, topics or venues…"
-                  : "Search archived actions, Environment Day or past rallies…"
+                  ? t("Search upcoming dates, topics or venues…")
+                  : t("Search archived actions, Environment Day or past rallies…")
               }
               value={search}
               onChange={setSearch}
@@ -165,7 +166,7 @@ export function EventsView({ data, open }: Props) {
                     />
                     <span className="campaign-live-tag">
                       <span className="live-dot" />
-                      ONGOING CIVIC CAMPAIGN
+                      {t("ONGOING CIVIC CAMPAIGN")}
                     </span>
                     <span className="campaign-location-pill">
                       <MapPin size={12} />
@@ -176,10 +177,10 @@ export function EventsView({ data, open }: Props) {
                   <div className="campaign-hero-content">
                     <div>
                       <div className="campaign-meta-row">
-                        <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
+                        <span className="eyebrow text-rust">{t("ACTIVE ENVIRONMENTAL MOVEMENT")}</span>
                         <span className="campaign-volunteers-tag">
                           <Users size={13} />
-                          {campaign.volunteers} Active Advocates
+                          {t("{count} Active Advocates", { count: campaign.volunteers })}
                         </span>
                       </div>
 
@@ -191,10 +192,10 @@ export function EventsView({ data, open }: Props) {
                     <div className="campaign-progress-box">
                       <div className="campaign-progress-header">
                         <span className="campaign-progress-label mono">
-                          CAMPAIGN TARGET: <strong>{campaign.progressPercent || 20}% REACHED</strong>
+                          {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })}
                         </span>
                         <span className="campaign-phase-badge">
-                          PHASE {currentMilestone?.phase || 2}: {currentMilestone?.title || "In Progress"}
+                          {t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })}
                         </span>
                       </div>
                       <div className="campaign-progress-track">
@@ -205,11 +206,11 @@ export function EventsView({ data, open }: Props) {
                       </div>
                       <div className="campaign-progress-footer">
                         <span>
-                          ✓ {completedMilestones} of {totalMilestones} milestones achieved
+                          {t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
                         </span>
                         {campaign.targetGoal && (
                           <span className="campaign-target-goal" title={campaign.targetGoal}>
-                            Goal: {campaign.targetGoal}
+                            {t("Goal: {goal}", { goal: campaign.targetGoal })}
                           </span>
                         )}
                       </div>
@@ -222,11 +223,11 @@ export function EventsView({ data, open }: Props) {
                           onClick={() => setRoadmapExpanded(!roadmapExpanded)}
                           aria-expanded={roadmapExpanded}
                         >
-                          <span>{roadmapExpanded ? "Collapse Phased Roadmap" : "Inspect 4-Phase Action Plan"}</span>
+                          <span>{roadmapExpanded ? t("Collapse Phased Roadmap") : t("Inspect 4-Phase Action Plan")}</span>
                           {roadmapExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                         </button>
                         <span className="mono text-[10.5px] text-ink-mute">
-                          Next Milestone: Municipal Deputation
+                          {t("Next Milestone: Municipal Deputation")}
                         </span>
                       </div>
 
@@ -245,7 +246,7 @@ export function EventsView({ data, open }: Props) {
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <span className="font-bold mono text-[10.5px]">
-                                  PHASE 0{m.phase} · {m.title}
+                                  {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
                                 </span>
                                 <span
                                   className={`text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono ${
@@ -256,7 +257,7 @@ export function EventsView({ data, open }: Props) {
                                       : "bg-stone-200 text-stone-600"
                                   }`}
                                 >
-                                  {m.status === "completed" ? "✓ Done" : m.status === "in_progress" ? "● Active" : "○ Planned"}
+                                  {m.status === "completed" ? t("✓ Done") : m.status === "in_progress" ? t("● Active") : t("○ Planned")}
                                 </span>
                               </div>
                               <p className="text-[11px] text-ink-2 leading-relaxed">{m.description}</p>
@@ -268,25 +269,25 @@ export function EventsView({ data, open }: Props) {
 
                     <div className="campaign-hero-actions">
                       <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                        View Campaign Gallery & Plan
+                        {t("View Campaign Gallery & Plan")}
                       </Button>
                       <Button
                         variant="secondary"
                         icon={FileText}
                         onClick={() => {
-                          const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
+                          const mashCircular = data.circulars.find((c) => isMashkalaibari(c.title));
                           if (mashCircular) open("circular", mashCircular);
                         }}
                       >
-                        Read Investigation Report & Photos
+                        {t("Read Investigation Report & Photos")}
                       </Button>
                       <button
                         className="button button-secondary button-whatsapp"
                         onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
-                        title="Mobilize on WhatsApp"
+                        title={t("Mobilize on WhatsApp")}
                       >
                         <MessageCircle size={15} />
-                        Share Campaign
+                        {t("Share Campaign")}
                       </button>
                     </div>
                   </div>
@@ -302,15 +303,15 @@ export function EventsView({ data, open }: Props) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded mono">
-                      ✓ Concluded Awareness Action
+                      {t("✓ Concluded Awareness Action")}
                     </span>
-                    <span className="text-[11px] mono text-ink-mute">5th June 2026 · World Environment Day</span>
+                    <span className="text-[11px] mono text-ink-mute">{t("5th June 2026 · World Environment Day")}</span>
                   </div>
                   <h3 className="text-base font-bold text-ink">
-                    World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground
+                    {t("World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground")}
                   </h3>
                   <p className="text-xs text-ink-2 mt-1 leading-relaxed max-w-2xl">
-                    Completed mass awareness rally and civic demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society, demanding urgent desiltation of River Karala and relocation of toxic municipal dumping grounds.
+                    {t("Completed mass awareness rally and civic demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society, demanding urgent desiltation of River Karala and relocation of toxic municipal dumping grounds.")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
@@ -318,14 +319,14 @@ export function EventsView({ data, open }: Props) {
                     variant="primary"
                     icon={ArrowUpRight}
                     onClick={() => {
-                      const envEvent = scheduledEvents.find((e) => e.id === "20000000-0000-4000-8000-000000000006" || e.title.includes("Environment Day"));
+                      const envEvent = scheduledEvents.find((e) => e.id === "20000000-0000-4000-8000-000000000006" || isEnvironmentDayText(e.title));
                       if (envEvent) open("event", envEvent);
                     }}
                   >
-                    View Field Photos & Report
+                    {t("View Field Photos & Report")}
                   </Button>
                   <Button variant="secondary" onClick={() => setFilter("all")}>
-                    Inspect in Archive ({scheduledEvents.length}) →
+                    {t("Inspect in Archive ({count}) →", { count: scheduledEvents.length })}
                   </Button>
                 </div>
               </div>
@@ -338,16 +339,16 @@ export function EventsView({ data, open }: Props) {
                 <Flame size={24} />
               </div>
               <h4 className="text-base font-bold text-ink mb-1">
-                {search ? `No campaigns matching "${search}"` : "No active campaigns currently logged"}
+                {search ? t('No campaigns matching "{search}"', { search }) : t("No active campaigns currently logged")}
               </h4>
               <p className="text-xs text-ink-mute max-w-md mx-auto mb-4 leading-relaxed">
                 {search
-                  ? "Try clearing your search term or searching by area name."
-                  : "New environmental or civic campaigns initiated by the unit will be featured here."}
+                  ? t("Try clearing your search term or searching by area name.")
+                  : t("New environmental or civic campaigns initiated by the unit will be featured here.")}
               </p>
               {search && (
                 <Button variant="secondary" onClick={() => setSearch("")}>
-                  Clear search
+                  {t("Clear search")}
                 </Button>
               )}
             </section>
@@ -379,42 +380,42 @@ export function EventsView({ data, open }: Props) {
                           e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
                         }}
                       />
-                      <span className="event-category">{event.category}</span>
+                      <span className="event-category">{t(event.category)}</span>
                       <span className="event-card-date">
-                        <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>
-                        <strong>{date.getDate()}</strong>
+                        <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
+                        <strong>{num(date.getDate())}</strong>
                       </span>
-                      {isNear && <span className="event-urgent-tag">HAPPENING IN &lt;48H</span>}
+                      {isNear && <span className="event-urgent-tag">{t("HAPPENING IN <48H")}</span>}
                     </button>
 
                     <div className="event-card-body">
                       <span className="event-card-time">
                         <CalendarDays size={13} />
-                        {date.toLocaleDateString("en-IN", { weekday: "long" })} <span>·</span> {date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                        {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
                       </span>
                       <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
                       <p className="event-card-description">{event.description}</p>
                       <span className="event-location"><MapPin size={14} />{event.location}</span>
 
                       <div className="event-card-footer">
-                        <span><Users size={14} />{event.volunteers} active volunteers</span>
+                        <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
                         {needed > 0 ? (
-                          <span className="stamp-needed font-bold text-[length:max(8px,var(--fs-floor,0px))]">{needed} REQUISITIONS NEEDED</span>
+                          <span className="stamp-needed font-bold text-[length:max(8px,var(--fs-floor,0px))]">{t("{needed} REQUISITIONS NEEDED", { needed })}</span>
                         ) : (
-                          <span className="stamp-verified font-bold text-[length:max(8px,var(--fs-floor,0px))]">{verified} ITEMS PEER-VERIFIED</span>
+                          <span className="stamp-verified font-bold text-[length:max(8px,var(--fs-floor,0px))]">{t("{verified} ITEMS PEER-VERIFIED", { verified })}</span>
                         )}
                       </div>
 
                       <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                         <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                          View programme briefing & checklist
+                          {t("View programme briefing & checklist")}
                           <ArrowUpRight size={15} />
                         </Button>
                         <button
                           className="button button-secondary button-whatsapp"
                           style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                           onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
-                          title="Mobilize volunteers on WhatsApp"
+                          title={t("Mobilize volunteers on WhatsApp")}
                         >
                           <MessageCircle size={15} />
                         </button>
@@ -431,21 +432,21 @@ export function EventsView({ data, open }: Props) {
                   <Flame size={18} />
                 </span>
                 <div>
-                  <span className="eyebrow text-rust text-[10px] block">ACTIVE FIELD PRIORITY</span>
-                  <h4 className="text-base font-bold text-ink">All Unit Capacity Mobilized for Mashkalaibari</h4>
+                  <span className="eyebrow text-rust text-[10px] block">{t("ACTIVE FIELD PRIORITY")}</span>
+                  <h4 className="text-base font-bold text-ink">{t("All Unit Capacity Mobilized for Mashkalaibari")}</h4>
                 </div>
               </div>
               <p className="text-xs text-ink-mute leading-relaxed max-w-xl mb-4">
-                Our Jalpaiguri unit is dedicating active volunteer and cadre capacity to the ongoing <strong>Clean Mashkalaibari Campaign</strong>. Single-day conventions and rallies resume following the technical deputation to Jalpaiguri Municipality.
+                {tx("Our Jalpaiguri unit is dedicating active volunteer and cadre capacity to the ongoing <strong>Clean Mashkalaibari Campaign</strong>. Single-day conventions and rallies resume following the technical deputation to Jalpaiguri Municipality.")}
               </p>
               <div className="flex items-center gap-3 flex-wrap">
                 {ongoingCampaigns[0] && (
                   <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", ongoingCampaigns[0])}>
-                    Open Mashkalaibari Campaign Action Plan
+                    {t("Open Mashkalaibari Campaign Action Plan")}
                   </Button>
                 )}
                 <Button variant="secondary" onClick={() => setFilter("campaigns")}>
-                  View Active Campaigns Tab →
+                  {t("View Active Campaigns Tab →")}
                 </Button>
               </div>
             </div>
@@ -460,8 +461,6 @@ export function EventsView({ data, open }: Props) {
             <div className="event-cards-grid">
               {filteredAll.map((event) => {
                 const date = new Date(event.startsAt);
-                const needed = data.procurements.filter((p) => p.eventId === event.id && p.status === "needed").length;
-                const verified = data.procurements.filter((p) => p.eventId === event.id && p.status === "verified").length;
 
                 return (
                   <article className="event-card panel print-tech-slip" key={event.id}>
@@ -473,39 +472,39 @@ export function EventsView({ data, open }: Props) {
                           e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
                         }}
                       />
-                      <span className="event-category">{event.category}</span>
+                      <span className="event-category">{t(event.category)}</span>
                       <span className="event-card-date">
-                        <small>{date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase()}</small>
-                        <strong>{date.getDate()}</strong>
+                        <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
+                        <strong>{num(date.getDate())}</strong>
                       </span>
                     </button>
 
                     <div className="event-card-body">
                       <span className="event-card-time">
                         <CalendarDays size={13} />
-                        {date.toLocaleDateString("en-IN", { weekday: "long" })} <span>·</span> {date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                        {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
                       </span>
                       <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
                       <p className="event-card-description">{event.description}</p>
                       <span className="event-location"><MapPin size={14} />{event.location}</span>
 
                       <div className="event-card-footer">
-                        <span><Users size={14} />{event.volunteers} active volunteers</span>
+                        <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
                         <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
-                          ✓ Concluded Action
+                          {t("✓ Concluded Action")}
                         </span>
                       </div>
 
                       <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                         <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                          View programme briefing & field photos
+                          {t("View programme briefing & field photos")}
                           <ArrowUpRight size={15} />
                         </Button>
                         <button
                           className="button button-secondary button-whatsapp"
                           style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                           onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
-                          title="Share on WhatsApp"
+                          title={t("Share on WhatsApp")}
                         >
                           <MessageCircle size={15} />
                         </button>
@@ -517,7 +516,7 @@ export function EventsView({ data, open }: Props) {
             </div>
           ) : (
             <section className="panel my-6">
-              <EmptyState icon={CalendarDays} title="No events found" description="Try clearing your search query." />
+              <EmptyState icon={CalendarDays} title={t("No events found")} description={t("Try clearing your search query.")} />
             </section>
           )}
         </div>
@@ -526,7 +525,7 @@ export function EventsView({ data, open }: Props) {
       <div className="info-strip">
         <HeartHandshake size={18} />
         <span>
-          <strong>Field coordination protocol:</strong> Unit volunteers arrive one hour before start time for demonstration safety checks, crowd boundaries, and peer procurement verification.
+          {tx("<strong>Field coordination protocol:</strong> Unit volunteers arrive one hour before start time for demonstration safety checks, crowd boundaries, and peer procurement verification.")}
         </span>
       </div>
     </div>
@@ -539,6 +538,7 @@ export function ProcurementView({
   eventFilter,
   setEventFilter,
 }: Props & { eventFilter: string; setEventFilter: (id: string) => void }) {
+  const { t, tx, num, money } = useI18n();
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [nowMs] = useState(() => Date.now());
@@ -573,13 +573,13 @@ export function ProcurementView({
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow="MODULE C · REAL-TIME PROCUREMENT & DUAL-VERIFICATION CHECKLIST"
-        title="Event Requisition Vouchers & Field Spend."
-        description="3-stage state machine: needed → purchased → verified. Out-of-pocket exact spend logging with peer-verification finality. Anti-collusion rule enforced."
+        eyebrow={t("MODULE C · REAL-TIME PROCUREMENT & DUAL-VERIFICATION CHECKLIST")}
+        title={t("Event Requisition Vouchers & Field Spend.")}
+        description={t("3-stage state machine: needed → purchased → verified. Out-of-pocket exact spend logging with peer-verification finality. Anti-collusion rule enforced.")}
       >
         {canWork && (
           <Button icon={Plus} onClick={() => open("procurement", { eventId: eventFilter !== "all" ? eventFilter : data.events[0]?.id })}>
-            Add requisition item
+            {t("Add requisition item")}
           </Button>
         )}
       </PageHeading>
@@ -588,25 +588,25 @@ export function ProcurementView({
         <div>
           <span className="summary-icon"><Package size={22} /></span>
           <div>
-            <small>REQUISITION REGISTER</small>
+            <small>{t("REQUISITION REGISTER")}</small>
             <strong>
-              {allItems.length} vouchers <span>across {eventFilter === "all" ? new Set(allItems.map((p) => p.eventId)).size : 1} active programmes</span>
+              {t("{allItemsCount} vouchers", { allItemsCount: allItems.length })} <span>{t("across")} {eventFilter === "all" ? new Set(allItems.map((p) => p.eventId)).size : 1} {t("active programmes")}</span>
             </strong>
           </div>
         </div>
         <div>
           <div>
-            <small>ESTIMATED REFERENCE BUDGET</small>
+            <small>{t("ESTIMATED REFERENCE BUDGET")}</small>
             <strong className="mono">{money(estimate)}</strong>
           </div>
           <div>
-            <small>EXACT OUT-OF-POCKET SPEND</small>
+            <small>{t("EXACT OUT-OF-POCKET SPEND")}</small>
             <strong className="mono text-rust">{money(spent)}</strong>
           </div>
           <div>
-            <small>CLOSED VIA PEER VERIFICATION</small>
+            <small>{t("CLOSED VIA PEER VERIFICATION")}</small>
             <strong className="green-text mono">
-              {allItems.filter((p) => p.status === "verified").length} <span>/ {allItems.length} complete</span>
+              {num(allItems.filter((p) => p.status === "verified").length)} <span>{t("/ {allItemsCount} complete", { allItemsCount: allItems.length })}</span>
             </strong>
           </div>
         </div>
@@ -614,13 +614,13 @@ export function ProcurementView({
 
       <div className="standalone-toolbar mb-6">
         <div className="flex flex-wrap items-center gap-3">
-          <Select label="Filter by event" value={eventFilter} onChange={setEventFilter}>
-            <option value="all">All science events ({data.events.length})</option>
+          <Select label={t("Filter by event")} value={eventFilter} onChange={setEventFilter}>
+            <option value="all">{t("All science events ({eventsCount})", { eventsCount: data.events.length })}</option>
             {data.events.map((e) => (
               <option value={e.id} key={e.id}>{e.title}</option>
             ))}
           </Select>
-          <div className="tabs tabs-segmented" role="tablist" aria-label="Procurement voucher filter">
+          <div className="tabs tabs-segmented" role="tablist" aria-label={t("Procurement voucher filter")}>
             <button
               type="button"
               role="tab"
@@ -628,8 +628,8 @@ export function ProcurementView({
               className={`tab-btn ${stageFilter === "all" ? "active" : ""}`}
               onClick={() => setStageFilter("all")}
             >
-              <span className="tab-label">All vouchers</span>
-              <span className="tab-count-badge">{allItems.length}</span>
+              <span className="tab-label">{t("All vouchers")}</span>
+              <span className="tab-count-badge">{num(allItems.length)}</span>
             </button>
             {urgentCount > 0 && (
               <button
@@ -639,8 +639,8 @@ export function ProcurementView({
                 className={`tab-btn ${stageFilter === "urgent" ? "active" : ""}`}
                 onClick={() => setStageFilter("urgent")}
               >
-                <span className="tab-label">Urgent (&lt;48h)</span>
-                <span className="tab-count-badge bg-rust text-white">{urgentCount}</span>
+                <span className="tab-label">{t("Urgent (<48h)")}</span>
+                <span className="tab-count-badge bg-rust text-white">{num(urgentCount)}</span>
               </button>
             )}
             <button
@@ -650,8 +650,8 @@ export function ProcurementView({
               className={`tab-btn ${stageFilter === "ready" ? "active" : ""}`}
               onClick={() => setStageFilter("ready")}
             >
-              <span className="tab-label">Ready for check</span>
-              <span className="tab-count-badge">{allItems.filter((p) => p.status === "purchased").length}</span>
+              <span className="tab-label">{t("Ready for check")}</span>
+              <span className="tab-count-badge">{num(allItems.filter((p) => p.status === "purchased").length)}</span>
             </button>
             <button
               type="button"
@@ -660,12 +660,12 @@ export function ProcurementView({
               className={`tab-btn ${stageFilter === "closed" ? "active" : ""}`}
               onClick={() => setStageFilter("closed")}
             >
-              <span className="tab-label">Verified & closed</span>
-              <span className="tab-count-badge">{allItems.filter((p) => p.status === "verified").length}</span>
+              <span className="tab-label">{t("Verified & closed")}</span>
+              <span className="tab-count-badge">{num(allItems.filter((p) => p.status === "verified").length)}</span>
             </button>
           </div>
         </div>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search requisition item…" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t("Search requisition item…")} />
       </div>
 
       <div className="procurement-board">
@@ -676,13 +676,13 @@ export function ProcurementView({
               <div className="board-column-heading">
                 <span className="board-status-dot" />
                 <h2>
-                  {status === "needed" ? "Stage 1: Requisition Needed" : status === "purchased" ? "Stage 2: Ready for Peer Check" : "Stage 3: Peer Verified & Closed"}
+                  {status === "needed" ? t("Stage 1: Requisition Needed") : status === "purchased" ? t("Stage 2: Ready for Peer Check") : t("Stage 3: Peer Verified & Closed")}
                 </h2>
-                <span className="board-count">{colItems.length}</span>
+                <span className="board-count">{num(colItems.length)}</span>
                 {status === "needed" && canWork && (
                   <button
                     className="icon-button"
-                    aria-label="Add needed item"
+                    aria-label={t("Add needed item")}
                     onClick={() => open("procurement", { eventId: eventFilter !== "all" ? eventFilter : data.events[0]?.id })}
                   >
                     <Plus size={17} />
@@ -691,10 +691,10 @@ export function ProcurementView({
               </div>
               <p className="board-description">
                 {status === "needed"
-                  ? "Items posted with estimated reference budget. Volunteers may purchase out of pocket."
+                  ? t("Items posted with estimated reference budget. Volunteers may purchase out of pocket.")
                   : status === "purchased"
-                  ? "Exact spend recorded. A peer volunteer must inspect the item at the venue."
-                  : "Verified physically at venue. Vouchers closed with finality (no bottleneck)."}
+                  ? t("Exact spend recorded. A peer volunteer must inspect the item at the venue.")
+                  : t("Verified physically at venue. Vouchers closed with finality (no bottleneck).")}
               </p>
 
               <div className="board-cards">
@@ -707,10 +707,10 @@ export function ProcurementView({
                     {status === "verified" ? <CheckCheck size={25} /> : <Package size={25} />}
                     <p>
                       {status === "needed"
-                        ? "No requisitions currently needed. Field kit ready!"
+                        ? t("No requisitions currently needed. Field kit ready!")
                         : status === "purchased"
-                        ? "No purchases pending peer verification."
-                        : "Verified items will settle here."}
+                        ? t("No purchases pending peer verification.")
+                        : t("Verified items will settle here.")}
                     </p>
                   </div>
                 )}
@@ -723,7 +723,7 @@ export function ProcurementView({
       <div className="info-strip">
         <ShieldCheck size={19} />
         <span>
-          <strong>Anti-Collusion & Verification Finality Rule:</strong> Enforced database constraint <code>CHECK (verified_by != purchased_by)</code>. A volunteer cannot verify their own purchase. Peer verification alone marks procurement complete and closed—no multi-level administrative reimbursement approval bottleneck is required.
+          {tx("<strong>Anti-Collusion & Verification Finality Rule:</strong> Enforced database constraint <code>CHECK (verified_by != purchased_by)</code>. A volunteer cannot verify their own purchase. Peer verification alone marks procurement complete and closed—no multi-level administrative reimbursement approval bottleneck is required.")}
         </span>
       </div>
     </div>
@@ -743,6 +743,7 @@ function ProcurementCard({
   canWork: boolean;
   index: number;
 }) {
+  const { t, tx, money } = useI18n();
   const event = data.events.find((e) => e.id === item.eventId);
   const buyer = data.profiles.find((p) => p.id === item.purchasedBy);
   const creator = data.profiles.find((p) => p.id === item.createdBy);
@@ -763,13 +764,13 @@ function ProcurementCard({
       <div className="procurement-card-topbar">
         <span className="voucher-code-tag">{voucherCode}</span>
         {isUrgent && item.status === "needed" && (
-          <span className="stamp-needed stamp-urgent">URGENT &lt;48H</span>
+          <span className="stamp-needed stamp-urgent">{t("URGENT <48H")}</span>
         )}
       </div>
 
       <span className="procurement-event">
         <CalendarDays size={12} />
-        {event?.title || "Field programme"}
+        {event?.title || t("Field programme")}
       </span>
 
       <h3>{item.itemName}</h3>
@@ -780,12 +781,12 @@ function ProcurementCard({
 
       <div className="procurement-costs">
         <div>
-          <small>REFERENCE ESTIMATE</small>
+          <small>{t("REFERENCE ESTIMATE")}</small>
           <strong className="mono">{money(item.estimatedCost)}</strong>
         </div>
         {item.actualCost !== null && (
           <div>
-            <small>EXACT SPEND PAID</small>
+            <small>{t("EXACT SPEND PAID")}</small>
             <strong className="mono text-rust">{money(item.actualCost)}</strong>
           </div>
         )}
@@ -795,14 +796,14 @@ function ProcurementCard({
         <div className="spend-delta-note">
           {costDelta > 0 ? (
             <span className="delta-over">
-              +₹{costDelta} over estimate (logged without cap)
+              {t("+₹{costDelta} over estimate (logged without cap)", { costDelta })}
             </span>
           ) : costDelta < 0 ? (
             <span className="delta-under">
-              -₹{Math.abs(costDelta)} under estimate
+              {t("-₹{abs} under estimate", { abs: Math.abs(costDelta) })}
             </span>
           ) : (
-            <span className="delta-exact">Exact match with reference budget</span>
+            <span className="delta-exact">{t("Exact match with reference budget")}</span>
           )}
         </div>
       )}
@@ -810,22 +811,22 @@ function ProcurementCard({
       {item.status === "needed" && creator && (
         <div className="procurement-person">
           <Avatar person={creator} size="small" />
-          <span>Requisitioned by <strong>{creator.fullName.split(" ")[0]}</strong></span>
-          <small>{relativeTime(item.createdAt)}</small>
+          <span>{tx("Requisitioned by <strong>{name}</strong>", { name: creator.fullName.split(" ")[0] })}</span>
+          <small>{relativeTime(item.createdAt, t)}</small>
         </div>
       )}
 
       {buyer && (
         <div className="procurement-person">
           <Avatar person={buyer} size="small" />
-          <span>Purchased by <strong>{buyer.fullName.split(" ")[0]}</strong></span>
-          {item.purchasedAt && <small>{relativeTime(item.purchasedAt)}</small>}
+          <span>{tx("Purchased by <strong>{name}</strong>", { name: buyer.fullName.split(" ")[0] })}</span>
+          {item.purchasedAt && <small>{relativeTime(item.purchasedAt, t)}</small>}
         </div>
       )}
 
       {item.status === "needed" && canWork && (
         <Button variant="secondary" className="full-width board-action" icon={Plus} onClick={() => open("purchase", item)}>
-          Log out-of-pocket purchase
+          {t("Log out-of-pocket purchase")}
         </Button>
       )}
 
@@ -835,13 +836,12 @@ function ProcurementCard({
             <div className="peer-lock-notice">
               <ShieldAlert size={14} />
               <span>
-                <strong>Buyer self-verification blocked.</strong><br />
-                Rule: <code>verified_by ≠ purchased_by</code>. Awaiting peer at venue.
+                {tx("<strong>Buyer self-verification blocked.</strong><br/>Rule: <code>verified_by ≠ purchased_by</code>. Awaiting peer at venue.")}
               </span>
             </div>
           ) : (
             <Button variant="secondary" className="full-width board-action" icon={ClipboardCheck} onClick={() => open("verify", item)}>
-              Inspect & peer verify at venue
+              {t("Inspect & peer verify at venue")}
             </Button>
           )}
         </>
@@ -849,11 +849,11 @@ function ProcurementCard({
 
       {item.status === "verified" && verifier && (
         <div className="verified-closed-box">
-          <div className="stamp-verified">PEER VERIFIED AT VENUE</div>
+          <div className="stamp-verified">{t("PEER VERIFIED AT VENUE")}</div>
           <div className="verified-byline">
             <Check size={12} />
             <span>
-              Inspected by <strong>{verifier.fullName}</strong> ({verifier.role})
+              {tx("Inspected by <strong>{fullName}</strong> ({role})", { fullName: verifier.fullName, role: verifier.role })}
             </span>
           </div>
         </div>
@@ -863,7 +863,7 @@ function ProcurementCard({
 }
 
 export function CircularsView({ data, open }: Props) {
-  const { locale } = useI18n();
+  const { locale, t, fmtDate, roleName } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All notices");
   const user = data.profiles.find((p) => p.id === data.currentUserId);
@@ -875,30 +875,30 @@ export function CircularsView({ data, open }: Props) {
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow="MODULE E · UNIT CIRCULARS & ADVOCACY"
-        title="Official unit notice board."
-        description={`Formal circulars, meeting agendas, and campaign resolutions published by ${identity.fullName}.`}
+        eyebrow={t("MODULE E · UNIT CIRCULARS & ADVOCACY")}
+        title={t("Official unit notice board.")}
+        description={t("Formal circulars, meeting agendas, and campaign resolutions published by {fullName}.", { fullName: t(identity.fullName) })}
       >
-        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("publishCircular")}>Publish circular</Button>}
+        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("publishCircular")}>{t("Publish circular")}</Button>}
       </PageHeading>
 
       <div className="standalone-toolbar mb-6">
-        <div className="tabs tabs-segmented" role="tablist" aria-label="Notice board filter">
-          {["All notices", "Pinned"].map((t) => (
+        <div className="tabs tabs-segmented" role="tablist" aria-label={t("Notice board filter")}>
+          {["All notices", "Pinned"].map((tab) => (
             <button
-              key={t}
+              key={tab}
               type="button"
               role="tab"
-              aria-selected={filter === t}
-              onClick={() => setFilter(t)}
-              className={`tab-btn ${filter === t ? "active" : ""}`}
+              aria-selected={filter === tab}
+              onClick={() => setFilter(tab)}
+              className={`tab-btn ${filter === tab ? "active" : ""}`}
             >
-              <span className="tab-label">{t}</span>
-              {t === "Pinned" && <Pin size={13} className="tab-icon text-rust" />}
+              <span className="tab-label">{t(tab)}</span>
+              {tab === "Pinned" && <Pin size={13} className="tab-icon text-rust" />}
             </button>
           ))}
         </div>
-        <SearchInput placeholder="Search unit circulars and agendas…" value={search} onChange={setSearch} />
+        <SearchInput placeholder={t("Search unit circulars and agendas…")} value={search} onChange={setSearch} />
       </div>
 
       <div className="circulars-grid">
@@ -915,9 +915,9 @@ export function CircularsView({ data, open }: Props) {
                 <span className="circular-ref-code mono">{circularNum}</span>
                 <span className="circular-category">
                   <Megaphone size={13} />
-                  {notice.category}
+                  {t(notice.category)}
                 </span>
-                {notice.pinned && <span className="stamp-verified stamp-needed">PINNED</span>}
+                {notice.pinned && <span className="stamp-verified stamp-needed">{t("PINNED")}</span>}
               </div>
 
               <h2><button onClick={() => open("circular", notice)}>{notice.title}</button></h2>
@@ -928,8 +928,8 @@ export function CircularsView({ data, open }: Props) {
                     <span className="circular-author">
                       <Avatar person={author} size="small" />
                       <span>
-                        {author.fullName} ({author.role})
-                        <small>{new Date(notice.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</small>
+                        {author.fullName} ({roleName(author.role)})
+                        <small>{fmtDate(notice.createdAt, { day: "numeric", month: "short", year: "numeric" })}</small>
                       </span>
                     </span>
                   )}
@@ -938,13 +938,13 @@ export function CircularsView({ data, open }: Props) {
                       className="button button-secondary button-whatsapp"
                       style={{ fontSize: "11px", padding: "4px 9px", height: "27px", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       onClick={() => shareViaWhatsApp(formatCircularBroadcast(notice, locale))}
-                      title="Share to WhatsApp group"
+                      title={t("Share to WhatsApp group")}
                     >
                       <MessageCircle size={13} />
-                      WhatsApp
+                      {t("WhatsApp")}
                     </button>
                     <button className="arrow-link" onClick={() => open("circular", notice)}>
-                      Read circular
+                      {t("Read circular")}
                       <ArrowUpRight size={14} />
                     </button>
                   </div>
@@ -956,7 +956,7 @@ export function CircularsView({ data, open }: Props) {
 
       {!notices.length && (
         <section className="panel">
-          <EmptyState icon={Megaphone} title="No notices found" description="Try another search or publish a new circular." />
+          <EmptyState icon={Megaphone} title={t("No notices found")} description={t("Try another search or publish a new circular.")} />
         </section>
       )}
     </div>
@@ -964,11 +964,13 @@ export function CircularsView({ data, open }: Props) {
 }
 
 export function ResourcesView({ open, data }: { open: OpenModal; data?: WorkspaceData }) {
+  const i18n = useI18n();
+  const { t } = i18n;
   const [category, setCategory] = useState("All resources");
   const [search, setSearch] = useState("");
   const [expandedProtocol, setExpandedProtocol] = useState<string | null>("fire-miracle");
   const isAuthenticated = Boolean(data?.currentUserId);
-  const allResources = getSanitizedResources(isAuthenticated);
+  const allResources = getSanitizedResources(isAuthenticated).map((r) => localizeResource(r, i18n));
 
   const list = allResources.filter(
     (r) => (category === "All resources" || r.category === category) && `${r.title} ${r.description}`.toLowerCase().includes(search.toLowerCase())
@@ -980,9 +982,9 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow="MODULE E · RESOURCE ARCHIVE & SCIENCE OUTREACH"
-        title="Field Repertoire & Anti-Superstition Lab."
-        description={`Curated repository of anti-superstition chemical demonstration scripts, convention presentation templates, and environmental campaign literature for ${identity.fullName}.`}
+        eyebrow={t("MODULE E · RESOURCE ARCHIVE & SCIENCE OUTREACH")}
+        title={t("Field Repertoire & Anti-Superstition Lab.")}
+        description={t("Curated repository of anti-superstition chemical demonstration scripts, convention presentation templates, and environmental campaign literature for {fullName}.", { fullName: t(identity.fullName) })}
       />
 
       {/* Editorial Hero Feature: Conference Poster Archive & Constitutional Mandate */}
@@ -994,9 +996,9 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
 
         <div className="hero-poster-col">
           <div className="poster-frame">
-            <img src="/images/conference-poster.jpg" alt="All India Science Conference 2025 Original Poster" />
-            <button className="poster-zoom-btn" onClick={() => open("resource", resources.find((r) => r.id === "poster-2025"))}>
-              <Eye size={14} /> Inspect High-Res Poster
+            <img src="/images/conference-poster.jpg" alt={t("All India Science Conference 2025 Original Poster")} />
+            <button className="poster-zoom-btn" onClick={() => open("resource", allResources.find((r) => r.id === "poster-2025") ?? resources.find((r) => r.id === "poster-2025"))}>
+              <Eye size={14} /> {t("Inspect High-Res Poster")}
             </button>
           </div>
         </div>
@@ -1004,24 +1006,24 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
         <div className="hero-manifesto-col">
           <div className="manifesto-eyebrow">
             <span className="bengali-mark text-rust mr-2">{identity.bengali}</span>
-            <span>ARTICLE 51A(h) · CONSTITUTION OF INDIA</span>
+            <span>{t("ARTICLE 51A(h) · CONSTITUTION OF INDIA")}</span>
           </div>
-          <h2>&ldquo;To develop the scientific temper, humanism and the spirit of inquiry and reform.&rdquo;</h2>
+          <h2>{t("“To develop the scientific temper, humanism and the spirit of inquiry and reform.”")}</h2>
           <p>
-            Breakthrough Science Society was established in 1995 as a voluntary movement to take the method of science directly to the common masses, question entrenched dogmas, and demand equitable public funding for basic research.
+            {t("Breakthrough Science Society was established in 1995 as a voluntary movement to take the method of science directly to the common masses, question entrenched dogmas, and demand equitable public funding for basic research.")}
           </p>
 
           <div className="manifesto-meta-grid">
             <div>
-              <small>PARENT SOCIETY REGD.</small>
+              <small>{t("PARENT SOCIETY REGD.")}</small>
               <strong className="mono">{identity.registrationNo}</strong>
             </div>
             <div>
-              <small>UNIT JURISDICTION</small>
-              <strong>{identity.unit} ({identity.state})</strong>
+              <small>{t("UNIT JURISDICTION")}</small>
+              <strong>{t(identity.unit)} ({t(identity.state)})</strong>
             </div>
             <div>
-              <small>FOUNDING YEAR</small>
+              <small>{t("FOUNDING YEAR")}</small>
               <strong className="mono">{identity.established}</strong>
             </div>
           </div>
@@ -1029,7 +1031,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
       </section>
 
       <div className="standalone-toolbar mt-6 mb-6">
-        <div className="tabs tabs-segmented resource-tabs" role="tablist" aria-label="Science resources category filter">
+        <div className="tabs tabs-segmented resource-tabs" role="tablist" aria-label={t("Science resources category filter")}>
           {["All resources", "Demonstrations", "Advocacy", "Environment", "Publications", "Organising"].map((c) => (
             <button
               key={c}
@@ -1039,11 +1041,11 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
               onClick={() => setCategory(c)}
               className={`tab-btn ${category === c ? "active" : ""}`}
             >
-              <span className="tab-label">{c}</span>
+              <span className="tab-label">{t(c)}</span>
             </button>
           ))}
         </div>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search demonstration protocols or toolkits…" />
+        <SearchInput value={search} onChange={setSearch} placeholder={t("Search demonstration protocols or toolkits…")} />
       </div>
 
       {/* Section 1: Anti-Superstition Demonstration Lab (Interactive Protocols) */}
@@ -1052,9 +1054,9 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
           <div className="section-label-bar">
             <h3>
               <FlaskConical size={18} className="text-rust" />
-              Anti-Superstition Demonstration Lab — Chemical & Physical Protocols
+              {t("Anti-Superstition Demonstration Lab — Chemical & Physical Protocols")}
             </h3>
-            <span className="mono text-[length:max(10px,var(--fs-floor,0px))] text-muted">Busting Godmen Tricks with Laboratory Evidence</span>
+            <span className="mono text-[length:max(10px,var(--fs-floor,0px))] text-muted">{t("Busting Godmen Tricks with Laboratory Evidence")}</span>
           </div>
 
           <div className="demo-protocols-list">
@@ -1064,13 +1066,13 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
                 <article className="demo-protocol-card panel print-tech-slip" key={r.id}>
                   <div className="protocol-card-head" onClick={() => setExpandedProtocol(isExpanded ? null : r.id)}>
                     <div className="protocol-title-group">
-                      <span className="stamp-verified stamp-needed text-[length:max(7px,var(--fs-floor,0px))]">EXPOSING FRAUD</span>
+                      <span className="stamp-verified stamp-needed text-[length:max(7px,var(--fs-floor,0px))]">{t("EXPOSING FRAUD")}</span>
                       <h4>{r.title}</h4>
                       <p>{r.description}</p>
                     </div>
                     <div className="protocol-head-actions">
                       <span className="read-time-pill mono">{r.readTime}</span>
-                      <button className="icon-button" aria-label="Toggle details">
+                      <button className="icon-button" aria-label={t("Toggle details")}>
                         {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                       </button>
                     </div>
@@ -1080,14 +1082,14 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
                     <div className="protocol-card-body">
                       {r.keyQuestion && (
                         <div className="protocol-key-q">
-                          <strong>INQUIRY PROMPT:</strong> <span>{r.keyQuestion}</span>
+                          <strong>{t("INQUIRY PROMPT:")}</strong> <span>{r.keyQuestion}</span>
                         </div>
                       )}
 
                       <div className="protocol-reagents-grid">
                         {r.materials && (
                           <div className="reagents-checklist">
-                            <h5>REAGENTS & PROPS</h5>
+                            <h5>{t("REAGENTS & PROPS")}</h5>
                             <ul>
                               {r.materials.map((m, i) => (
                                 <li key={i}><Check size={12} />{m}</li>
@@ -1097,7 +1099,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
                         )}
                         {r.safetyNotes && (
                           <div className="safety-protocols-box">
-                            <h5><ShieldAlert size={14} /> FIELD SAFETY PROTOCOL</h5>
+                            <h5><ShieldAlert size={14} /> {t("FIELD SAFETY PROTOCOL")}</h5>
                             <ul>
                               {r.safetyNotes.map((s, i) => (
                                 <li key={i}>{s}</li>
@@ -1109,7 +1111,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
 
                       <div className="protocol-action-bar">
                         <Button variant="secondary" icon={BookOpen} onClick={() => open("resource", r)}>
-                          Open complete narration script & explanation
+                          {t("Open complete narration script & explanation")}
                         </Button>
                       </div>
                     </div>
@@ -1127,7 +1129,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
           <div className="section-label-bar">
             <h3>
               <Leaf size={18} className="text-olive" />
-              Campaign Toolkits, Policy Briefs & Journal Archives
+              {t("Campaign Toolkits, Policy Briefs & Journal Archives")}
             </h3>
           </div>
 
@@ -1139,7 +1141,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
                     <span className="resource-card-icon">
                       {r.icon === "leaf" ? <Leaf size={24} /> : r.icon === "shield" ? <ShieldCheck size={24} /> : r.icon === "presentation" ? <Presentation size={24} /> : <BookOpen size={24} />}
                     </span>
-                    <span>{r.category}</span>
+                    <span>{t(r.category)}</span>
                   </div>
                   <small className="resource-kind">{r.kind}</small>
                   <h2><button onClick={() => open("resource", r)}>{r.title}</button></h2>
@@ -1147,7 +1149,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
                   <div className="resource-card-footer">
                     <span>{r.readTime}</span>
                     <button className="arrow-link" onClick={() => open("resource", r)}>
-                      {r.url ? "Explore" : "Open briefing"}
+                      {r.url ? t("Explore") : t("Open briefing")}
                       <ArrowUpRight size={15} />
                     </button>
                   </div>
@@ -1159,15 +1161,15 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
       )}
 
       {!list.length && (
-        <EmptyState icon={BookOpen} title="No resources found" description="Try selecting 'All resources' or clearing your search term." />
+        <EmptyState icon={BookOpen} title={t("No resources found")} description={t("Try selecting 'All resources' or clearing your search term.")} />
       )}
 
       <div className="resource-attribution mt-8">
         <Info size={14} />
         <p>
-          Working demonstration protocols and field guides are curated for Light of Science, Jalpaiguri Unit. Official photographs and conference poster: Breakthrough Science Society.{" "}
+          {t("Working demonstration protocols and field guides are curated for Light of Science, Jalpaiguri Unit. Official photographs and conference poster: Breakthrough Science Society.")}
           <a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer">
-            Official All-India Portal <ExternalLink size={11} />
+            {t("Official All-India Portal")} <ExternalLink size={11} />
           </a>
         </p>
       </div>
@@ -1195,9 +1197,10 @@ export function SettingsView({
   installApp: () => void;
   busy: boolean;
 }) {
+  const { t, tx, roleName } = useI18n();
   const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0] || {
     id: "",
-    fullName: "Public Visitor",
+    fullName: t("Public Visitor"),
     phone: null,
     role: "guest",
     status: "active",
@@ -1224,7 +1227,7 @@ export function SettingsView({
   const duesReminder = duesReminderOverride !== null ? duesReminderOverride : storedDuesReminder;
 
   const handleLogout = async () => {
-    if (confirm("Log out of the unit workspace on this device?")) {
+    if (confirm(t("Log out of the unit workspace on this device?"))) {
       await perform("logout", {});
       try {
         await authClient.signOut();
@@ -1236,29 +1239,29 @@ export function SettingsView({
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow="CONFIGURATION & CADRE PREFERENCES"
-        title="Unit workspace settings."
-        description={`${identity.organisation} · ${identity.unit}, ${identity.state}.`}
+        eyebrow={t("CONFIGURATION & CADRE PREFERENCES")}
+        title={t("Unit workspace settings.")}
+        description={`${t(identity.organisation)} · ${t(identity.unit)}, ${t(identity.state)}.`}
       />
 
       <div className="settings-grid">
         <section className="panel settings-panel">
-          <h2><Users size={18} />Your member account & designated role</h2>
+          <h2><Users size={18} />{t("Your member account & designated role")}</h2>
           <div className="settings-profile">
             <Avatar person={current} size="large" />
             <div>
               <h3>{current.fullName}</h3>
               <span>
-                {current.role === "admin" ? "Unit Executive / Office-Bearer" : current.role.charAt(0).toUpperCase() + current.role.slice(1)} · {identity.unit}
+                {current.role === "admin" ? t("Unit Executive / Office-Bearer") : roleName(current.role)} · {t(identity.unit)}
               </span>
             </div>
-            <Badge tone="green">{current.status === "active" ? "Active" : "Dues pending"}</Badge>
+            <Badge tone="green">{current.status === "active" ? t("Active") : t("Dues pending")}</Badge>
           </div>
 
           <div className="settings-auth-block">
-            <h3><ShieldCheck size={17} /> Authentication & Security</h3>
+            <h3><ShieldCheck size={17} /> {t("Authentication & Security")}</h3>
             <p className="settings-help-text">
-              Your member account is secured with Google OAuth 2.0. PIN authentication has been deprecated and permanently retired.
+              {t("Your member account is secured with Google OAuth 2.0. PIN authentication has been deprecated and permanently retired.")}
             </p>
 
             <div className="linked-google-card">
@@ -1270,17 +1273,17 @@ export function SettingsView({
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
                 <div>
-                  <strong>{current.googleEmail || "Your Google account"}</strong>
-                  <span className="auth-status-badge">● Linked & Verified Google Account</span>
+                  <strong>{current.googleEmail || t("Your Google account")}</strong>
+                  <span className="auth-status-badge">{t("● Linked & Verified Google Account")}</span>
                 </div>
               </div>
-              <Badge tone="green">Google OAuth Active</Badge>
+              <Badge tone="green">{t("Google OAuth Active")}</Badge>
             </div>
 
             <div className="security-notice-callout">
               <KeyRound size={15} />
               <span>
-                <strong>Zero-PIN Security:</strong> Member accounts are bound to Google credentials. If a Google account is lost or changed, an executive can unlink and issue a single-use Crockford invite code in person.
+                {tx("<strong>Zero-PIN Security:</strong> Member accounts are bound to Google credentials. If a Google account is lost or changed, an executive can unlink and issue a single-use Crockford invite code in person.")}
               </span>
             </div>
 
@@ -1288,40 +1291,40 @@ export function SettingsView({
 
             <div className="settings-logout-block">
               <div>
-                <strong>Sign Out of Workspace</strong>
-                <p>Signs out of this device session. You can sign straight back in with your linked Google account.</p>
+                <strong>{t("Sign Out of Workspace")}</strong>
+                <p>{t("Signs out of this device session. You can sign straight back in with your linked Google account.")}</p>
               </div>
               <Button variant="secondary" icon={LogOut} onClick={handleLogout}>
-                Log Out
+                {t("Log Out")}
               </Button>
             </div>
           </div>
         </section>
 
         <section className="panel settings-panel">
-          <h2><Bell size={18} />Real-time notification engine (PWA & Push)</h2>
+          <h2><Bell size={18} />{t("Real-time notification engine (PWA & Push)")}</h2>
           <div className="setting-row">
             <div>
-              <strong>In-app activity stream</strong>
-              <p>Real-time audit log of dues collections, exact spend logs, peer verifications, and public donations.</p>
+              <strong>{t("In-app activity stream")}</strong>
+              <p>{t("Real-time audit log of dues collections, exact spend logs, peer verifications, and public donations.")}</p>
             </div>
-            <Badge tone="green">Always on</Badge>
+            <Badge tone="green">{t("Always on")}</Badge>
           </div>
 
           <div className="setting-row">
             <div>
-              <strong>Browser Web Push API</strong>
-              <p>VAPID service worker background alerts for urgent procurements (&lt;48h) and dues receipts.</p>
+              <strong>{t("Browser Web Push API")}</strong>
+              <p>{t("VAPID service worker background alerts for urgent procurements (<48h) and dues receipts.")}</p>
             </div>
             <Button variant="secondary" icon={pushEnabled ? Check : Bell} onClick={enablePush} disabled={pushEnabled}>
-              {pushEnabled ? "Push enabled" : "Enable Web Push"}
+              {pushEnabled ? t("Push enabled") : t("Enable Web Push")}
             </Button>
           </div>
 
           <div className="setting-row">
             <div>
-              <strong>Audible field tone</strong>
-              <p>A quiet notification chime when new unit activity arrives while the workspace is open.</p>
+              <strong>{t("Audible field tone")}</strong>
+              <p>{t("A quiet notification chime when new unit activity arrives while the workspace is open.")}</p>
             </div>
             <label className="toggle">
               <input
@@ -1332,7 +1335,7 @@ export function SettingsView({
                   localStorage.setItem("bss-sound", String(e.target.checked));
                   window.dispatchEvent(new Event("storage"));
                 }}
-                aria-label="Notification sound"
+                aria-label={t("Notification sound")}
               />
               <span />
             </label>
@@ -1340,8 +1343,8 @@ export function SettingsView({
 
           <div className="setting-row">
             <div>
-              <strong>Membership dues reminder badge</strong>
-              <p>Highlights monthly dues status if pending on personal profile.</p>
+              <strong>{t("Membership dues reminder badge")}</strong>
+              <p>{t("Highlights monthly dues status if pending on personal profile.")}</p>
             </div>
             <label className="toggle">
               <input
@@ -1352,7 +1355,7 @@ export function SettingsView({
                   localStorage.setItem("bss-dues-reminder", String(e.target.checked));
                   window.dispatchEvent(new Event("storage"));
                 }}
-                aria-label="Show dues reminder"
+                aria-label={t("Show dues reminder")}
               />
               <span />
             </label>
@@ -1360,62 +1363,62 @@ export function SettingsView({
         </section>
 
         <section className="panel settings-panel">
-          <h2><Info size={18} />Application release & system information</h2>
+          <h2><Info size={18} />{t("Application release & system information")}</h2>
           <div className="unit-detail-row">
-            <span>Platform Release</span>
+            <span>{t("Platform Release")}</span>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <strong className="mono">v{identity.version}</strong>
-              <Badge tone="rust">{identity.releaseName}</Badge>
+              <Badge tone="rust">{t(identity.releaseName)}</Badge>
             </div>
           </div>
           <div className="unit-detail-row">
-            <span>Build Identification</span>
+            <span>{t("Build Identification")}</span>
             <strong className="mono">{identity.build}</strong>
           </div>
           <div className="unit-detail-row">
-            <span>PWA Offline Cache</span>
-            <strong className="mono">light-of-science-workspace-v5</strong>
+            <span>{t("PWA Offline Cache")}</span>
+            <strong className="mono">{t("light-of-science-workspace-v5")}</strong>
           </div>
           <div className="unit-detail-row">
-            <span>Database Backend</span>
-            <strong>PostgreSQL (Neon Serverless · Active)</strong>
+            <span>{t("Database Backend")}</span>
+            <strong>{t("PostgreSQL (Neon Serverless · Active)")}</strong>
           </div>
           <div className="unit-detail-row">
-            <span>Local Offline Queue</span>
-            <strong>IndexedDB (Auto-reconnect sync)</strong>
+            <span>{t("Local Offline Queue")}</span>
+            <strong>{t("IndexedDB (Auto-reconnect sync)")}</strong>
           </div>
           <div className="unit-detail-row">
-            <span>Target Jurisdiction</span>
-            <strong>{identity.unit} · {identity.state}</strong>
+            <span>{t("Target Jurisdiction")}</span>
+            <strong>{t(identity.unit)} · {t(identity.state)}</strong>
           </div>
         </section>
 
         <section className="panel settings-panel">
-          <h2><MapPin size={18} />Society legal & unit registration</h2>
-          <div className="unit-detail-row"><span>Unit Name</span><strong>{identity.name}</strong></div>
-          <div className="unit-detail-row"><span>Parent Body</span><strong>{identity.organisation}</strong></div>
-          <div className="unit-detail-row"><span>Society Registration</span><strong className="mono">{identity.registrationNo}</strong></div>
-          <div className="unit-detail-row"><span>Governing Act</span><strong>{identity.act}</strong></div>
-          <div className="unit-detail-row"><span>Headquarters</span><strong>{identity.headquarters}</strong></div>
-          <div className="unit-detail-row"><span>Baseline Monthly Dues</span><strong className="mono">₹20 / month (No upper cap)</strong></div>
+          <h2><MapPin size={18} />{t("Society legal & unit registration")}</h2>
+          <div className="unit-detail-row"><span>{t("Unit Name")}</span><strong>{t(identity.name)}</strong></div>
+          <div className="unit-detail-row"><span>{t("Parent Body")}</span><strong>{t(identity.organisation)}</strong></div>
+          <div className="unit-detail-row"><span>{t("Society Registration")}</span><strong className="mono">{identity.registrationNo}</strong></div>
+          <div className="unit-detail-row"><span>{t("Governing Act")}</span><strong>{t(identity.act)}</strong></div>
+          <div className="unit-detail-row"><span>{t("Headquarters")}</span><strong>{t(identity.headquarters)}</strong></div>
+          <div className="unit-detail-row"><span>{t("Baseline Monthly Dues")}</span><strong className="mono">{t("₹20 / month (No upper cap)")}</strong></div>
           <a href="https://breakthroughindia.org/" className="arrow-link mt-4" target="_blank" rel="noreferrer">
-            Official Breakthrough Science Society Portal <ArrowUpRight size={15} />
+            {t("Official Breakthrough Science Society Portal")} <ArrowUpRight size={15} />
           </a>
         </section>
 
         <section className="panel settings-panel">
-          <h2><Smartphone size={18} />Progressive Web App (PWA) field install</h2>
+          <h2><Smartphone size={18} />{t("Progressive Web App (PWA) field install")}</h2>
           <p className="install-description">
-            Add Light of Science to your Android or desktop home screen for offline field readiness. Service workers cache critical unit resources, and the offline fallback guarantees no out-of-sync phantom writes.
+            {t("Add Light of Science to your Android or desktop home screen for offline field readiness. Service workers cache critical unit resources, and the offline fallback guarantees no out-of-sync phantom writes.")}
           </p>
           <Button variant="secondary" icon={Download} onClick={installApp}>
-            Install PWA on device
+            {t("Install PWA on device")}
           </Button>
 
           <div className="settings-credit">
-            <img src="/images/bss-logo.svg" alt="BSS emblem" />
+            <img src="/images/bss-logo.svg" alt={t("BSS emblem")} />
             <p>
-              Emblem by Breakthrough Science Society (CC BY-SA). Platform developed for {identity.fullName}.
+              {t("Emblem by Breakthrough Science Society (CC BY-SA). Platform developed for {fullName}.", { fullName: t(identity.fullName) })}
             </p>
           </div>
         </section>

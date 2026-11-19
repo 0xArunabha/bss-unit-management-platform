@@ -7,6 +7,7 @@ import { db, isDatabaseConfigured } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { resolveProfileFromGoogle } from "@/lib/google-identity";
+import { LOCALE_COOKIE, parseLocale } from "@/lib/locale";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +31,15 @@ export default async function HomePage() {
     }
   }
 
+  const cookieStore = await cookies();
+  // The saved language is in a cookie so the very first paint is already in the right language.
+  const initialLocale = parseLocale(cookieStore.get(LOCALE_COOKIE)?.value);
+
   if (!authenticatedUserId) {
-    const cookieStore = await cookies();
     const rawCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value || cookieStore.get("bss_demo_user")?.value;
     authenticatedUserId = await verifySessionToken(rawCookie);
   }
 
   const data = await getWorkspace(authenticatedUserId || undefined);
-  return <Workspace initialData={data} initialGoogleEmail={pendingGoogleEmail} />;
+  return <Workspace initialData={data} initialGoogleEmail={pendingGoogleEmail} initialLocale={initialLocale} />;
 }

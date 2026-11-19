@@ -1,15 +1,19 @@
 "use client";
 
 import { identity } from "@/lib/identity";
+import { useI18n } from "@/lib/i18n";
 
 export function UnitOfficialSeal({ size = 110, className = "" }: { size?: number; className?: string }) {
+  const { t, locale } = useI18n();
+  // Bengali conjuncts need to stay together, so the wide letter-spacing used for the Latin ring is dropped.
+  const ring = locale === "bn" ? 0.4 : undefined;
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 200 200"
       className={`unit-official-seal ${className}`}
-      aria-label={`${identity.organisation} - ${identity.unit} Official Seal`}
+      aria-label={t("{organisation} - {unit} Official Seal", { organisation: t(identity.organisation), unit: t(identity.unit) })}
       role="img"
     >
       <defs>
@@ -31,16 +35,16 @@ export function UnitOfficialSeal({ size = 110, className = "" }: { size?: number
       <circle cx="100" cy="100" r="54" fill="none" stroke="currentColor" strokeWidth="1.5" />
       
       {/* Top curved text */}
-      <text fill="currentColor" fontSize="11.5" fontWeight="700" letterSpacing="2.2" fontFamily="var(--mono)">
+      <text fill="currentColor" fontSize="11.5" fontWeight="700" letterSpacing={ring ?? 2.2} fontFamily="var(--mono)">
         <textPath href="#seal-top-curve" startOffset="50%" textAnchor="middle">
-          ★ BREAKTHROUGH SCIENCE SOCIETY ★
+          {t("★ BREAKTHROUGH SCIENCE SOCIETY ★")}
         </textPath>
       </text>
 
       {/* Bottom curved text */}
-      <text fill="currentColor" fontSize="11" fontWeight="700" letterSpacing="2.5" fontFamily="var(--mono)">
+      <text fill="currentColor" fontSize="11" fontWeight="700" letterSpacing={ring ?? 2.5} fontFamily="var(--mono)">
         <textPath href="#seal-bottom-curve" startOffset="50%" textAnchor="middle">
-          ★ JALPAIGURI UNIT · ESTD 1995 ★
+          {t("★ JALPAIGURI UNIT · ESTD 1995 ★")}
         </textPath>
       </text>
 
@@ -69,7 +73,7 @@ export function UnitOfficialSeal({ size = 110, className = "" }: { size?: number
           letterSpacing="0.8"
           fontFamily="var(--mono)"
         >
-          LIGHT OF SCIENCE
+          {t("LIGHT OF SCIENCE")}
         </text>
       </g>
     </svg>
@@ -85,6 +89,7 @@ export function TreasurerSignatureBlock({
   roleTitle?: string;
   date?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="treasurer-sign-block">
       <div className="sign-pen-stroke" aria-hidden="true">
@@ -101,9 +106,9 @@ export function TreasurerSignatureBlock({
       </div>
       <div className="sign-details">
         <strong>{officerName}</strong>
-        <span>{roleTitle}</span>
-        <small>{identity.fullName}</small>
-        {date && <time className="sign-date">Dated: {date}</time>}
+        <span>{t(roleTitle)}</span>
+        <small>{t(identity.fullName)}</small>
+        {date && <time className="sign-date">{t("Dated: {date}", { date })}</time>}
       </div>
     </div>
   );

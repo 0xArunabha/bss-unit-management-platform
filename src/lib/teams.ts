@@ -149,16 +149,18 @@ export function getMemberDesignations(fullName: string): {
 
   // Find member teams
   const matchedTeams: string[] = [];
+  const matchedTeamsBn: string[] = [];
   for (const team of OPERATIONAL_TEAMS) {
     if (team.memberNames.some((m) => m.toLowerCase().includes(normalized) || normalized.includes(m.toLowerCase()))) {
       matchedTeams.push(team.nameEn.replace(" Team", ""));
+      matchedTeamsBn.push(team.nameBn.replace(" টিম", ""));
     }
   }
 
   if (matchedTeams.length > 0) {
     return {
       primaryTitleEn: `Member (${matchedTeams.join(", ")})`,
-      primaryTitleBn: `সদস্য (${matchedTeams.join(", ")})`,
+      primaryTitleBn: `সদস্য (${matchedTeamsBn.join(", ")})`,
       teams: matchedTeams,
     };
   }

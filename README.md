@@ -65,6 +65,18 @@ The platform rejects generic AI-slop tropes (Inter defaults, purple gradients, u
 
 ---
 
+## Bengali (বাংলা) Support
+
+The **EN | বাং** switch (login screen and top bar) turns the whole workspace into Bengali. The choice is remembered on the device, and English stays the default. The Bengali is written to read as Bengali, not word-for-word English: *চাঁদা* for dues, *অনুদান* for donations, *রসিদ* for receipts, Bengali digits for counts, amounts and dates, and *।* to end sentences.
+
+- **Where the text lives**: English wording is the key. `src/lib/i18n-bn.ts` maps each exact English string to its Bengali. A string with no entry simply shows in English, and in development the browser console warns once and lists it in `window.__i18nMissing`.
+- **Writing new screens**: `const { t, tx, num, money, fmtDate } = useI18n();` then `t("Add member")`, `t("{count} members", { count })` for placeholders, `tx(...)` for text containing `<strong>`/`<em>`, and `num()`, `money()` and `fmtDate()` for numbers, rupees and dates. Wrap text when it is rendered. Never wrap values that are stored, compared or sent to the server (state values, `<option value>`, IDs, CSV, QR payloads).
+- **Messages from the server** that carry names or amounts (`"Application from {name} was rejected."`) go in the `BN_SERVER` table at the bottom of the same file, with the same `{placeholders}` in the Bengali.
+- **Content that ships with the app** (events, circulars, resources, sample activity) is translated by its exact English text in the same dictionary. `src/lib/localize-content.ts` applies it in one place, so anything a member types themselves is shown exactly as typed.
+- **Left in English on purpose**: member and donor names, phone numbers, e-mail addresses, IDs, SMS text, CSV and QR contents, and the text of browser push notifications.
+
+---
+
 ## Technical Validation
 
 The project passes the platform's full validation sequence:

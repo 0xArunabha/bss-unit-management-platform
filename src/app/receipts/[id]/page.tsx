@@ -1,29 +1,50 @@
 import { identity } from "@/lib/identity";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { db, isDatabaseConfigured } from "@/db";
 import { donations, events, profiles } from "@/db/schema";
 import { ensureSeed } from "@/db/seed";
 import { eq } from "drizzle-orm";
 import { CircleCheck, HeartHandshake, ShieldCheck } from "lucide-react";
-import { money } from "@/lib/types";
+import { createI18n } from "@/lib/i18n-core";
+import { I18nProvider } from "@/lib/i18n";
+import { LOCALE_COOKIE, parseLocale } from "@/lib/locale";
 import ReceiptActions from "@/components/receipt-actions";
 import { TreasurerSignatureBlock, UnitOfficialSeal } from "@/components/unit-seal";
 import { getInMemoryState } from "@/lib/demo-data";
 import { isProductionRuntime } from "@/lib/runtime";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: `Donation receipt · ${identity.name} · ${identity.unit}` };
+
+/**
+ * A receipt opens in Bengali when the link says so (?lang=bn, which the app adds when it shares from a Bengali
+ * session, so the donor sees what the sender saw) or when this browser has chosen Bengali. Otherwise English.
+ */
+async function receiptLanguage(searchParams: Promise<{ lang?: string }>) {
+  const query = await searchParams;
+  const requested = parseLocale(query.lang) ?? parseLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  return { requested, locale: requested ?? "en" };
+}
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
+  const { t } = createI18n((await receiptLanguage(searchParams)).locale, () => {});
+  return { title: t("Donation receipt · {name} · {unit}", { name: t(identity.name), unit: t(identity.unit) }) };
+}
 
 export default async function ReceiptPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ print?: string }>;
+  searchParams: Promise<{ print?: string; lang?: string }>;
 }) {
   const { id } = await params;
   const query = await searchParams;
+  const { requested, locale } = await receiptLanguage(searchParams);
+  const { t, money, fmtDate } = createI18n(locale, () => {});
+  // Capitals read well in Latin script; Bengali has none, so names are shown as they are there.
+  const upper = (value: string) => (locale === "bn" ? t(value) : value.toUpperCase());
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
   // Demo receipts exist only in development. A production server without a database must not show one.
   if (!isDatabaseConfigured && isProductionRuntime()) notFound();
@@ -60,17 +81,19 @@ export default async function ReceiptPage({
     }
   }
 
-  const dateFormatted = new Date(donation.createdAt).toLocaleDateString("en-IN", {
+  const dateFormatted = fmtDate(donation.createdAt, {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
+  const paymentMode = donation.paymentMode === "bank_transfer" ? "Bank Transfer" : donation.paymentMode === "upi" ? "UPI" : "Cash";
 
   return (
-    <main className="public-receipt-page" id="main-content">
+    <I18nProvider initialLocale={requested}>
+    <main className="public-receipt-page" id="main-content" lang={locale}>
       <Link href="/" className="receipt-home-link">
         <img src="/images/bss-logo.svg" alt="" />
-        {identity.name.toUpperCase()} · UNIT WORKSPACE
+        {t("{name} · UNIT WORKSPACE", { name: upper(identity.name) })}
       </Link>
 
       <article className="public-receipt print-tech-slip">
@@ -83,33 +106,33 @@ export default async function ReceiptPage({
         {/* Official Society Header & Registration */}
         <header className="public-receipt-header">
           <div className="public-receipt-brand">
-            <img src="/images/bss-logo.svg" alt="Breakthrough Science Society emblem" />
+            <img src="/images/bss-logo.svg" alt={t("Breakthrough Science Society emblem")} />
             <div>
-              <h1>{identity.name}</h1>
-              <p className="receipt-org-sub">{identity.organisation}</p>
-              <p className="receipt-unit-sub">{identity.unit} · {identity.state}</p>
+              <h1>{t(identity.name)}</h1>
+              <p className="receipt-org-sub">{t(identity.organisation)}</p>
+              <p className="receipt-unit-sub">{t(identity.unit)} · {t(identity.state)}</p>
             </div>
           </div>
           <div className="receipt-reg-badge">
-            <small>SOCIETY REGISTRATION</small>
+            <small>{t("SOCIETY REGISTRATION")}</small>
             <strong>{identity.registrationNo}</strong>
-            <span>{identity.act}</span>
+            <span>{t(identity.act)}</span>
           </div>
         </header>
 
         <div className="receipt-divider double-rule" />
 
         <div className="public-receipt-label">
-          <span>OFFICIAL DONATION ACKNOWLEDGEMENT SLIP</span>
+          <span>{t("OFFICIAL DONATION ACKNOWLEDGEMENT SLIP")}</span>
           <span className="receipt-status-stamp">
             <CircleCheck size={14} />
-            Verified & Entered in Ledger
+            {t("Verified & Entered in Ledger")}
           </span>
         </div>
 
         <div className="receipt-amount-row">
           <div>
-            <span className="receipt-amount-label">AMOUNT RECEIVED WITH THANKS</span>
+            <span className="receipt-amount-label">{t("AMOUNT RECEIVED WITH THANKS")}</span>
             <div className="public-receipt-amount">{money(donation.amount)}</div>
           </div>
           <div className="receipt-seal-slot">
@@ -117,66 +140,62 @@ export default async function ReceiptPage({
           </div>
         </div>
 
-        <h2>Received from: {donation.donorName}</h2>
+        <h2>{t("Received from: {donorName}", { donorName: donation.donorName })}</h2>
         <p className="public-receipt-intro">
-          Contribution acknowledged with heartfelt gratitude towards grassroots scientific temper, anti-superstition advocacy, and science education.
+          {t("Contribution acknowledged with heartfelt gratitude towards grassroots scientific temper, anti-superstition advocacy, and science education.")}
         </p>
 
         <dl>
           <div>
-            <dt>Official Receipt No.</dt>
+            <dt>{t("Official Receipt No.")}</dt>
             <dd className="mono font-bold text-rust">{donation.receiptNo}</dd>
           </div>
           <div>
-            <dt>Contribution Date</dt>
+            <dt>{t("Contribution Date")}</dt>
             <dd>{dateFormatted}</dd>
           </div>
           <div>
-            <dt>Payment Instrument</dt>
+            <dt>{t("Payment Instrument")}</dt>
             <dd className="uppercase font-semibold">
-              {donation.paymentMode === "bank_transfer"
-                ? "Bank Transfer"
-                : donation.paymentMode === "upi"
-                ? "UPI"
-                : "Cash"}
-              {donation.transactionRef && <span className="block text-[length:max(10px,var(--fs-floor,0px))] text-muted font-mono mt-1">Ref: {donation.transactionRef}</span>}
+              {t(paymentMode)}
+              {donation.transactionRef && <span className="block text-[length:max(10px,var(--fs-floor,0px))] text-muted font-mono mt-1">{t("Ref: {ref}", { ref: donation.transactionRef })}</span>}
             </dd>
           </div>
           <div>
-            <dt>Allocated Purpose</dt>
-            <dd>{event?.title || "General Science Outreach & Unit Fund"}</dd>
+            <dt>{t("Allocated Purpose")}</dt>
+            <dd>{event?.title || t("General Science Outreach & Unit Fund")}</dd>
           </div>
           <div>
-            <dt>Authorized Receiver</dt>
-            <dd>{collector?.fullName || "Unit Executive / Treasurer"}</dd>
+            <dt>{t("Authorized Receiver")}</dt>
+            <dd>{collector?.fullName || t("Unit Executive / Treasurer")}</dd>
           </div>
         </dl>
 
         {/* Signatures & Seal Section */}
         <div className="receipt-sign-row">
           <TreasurerSignatureBlock
-            officerName={collector?.fullName || "Arunabha Ghosh"}
-            roleTitle={collector?.role === "admin" ? "Unit Executive / Convener" : "Authorized Collector / Organizer"}
+            officerName={collector?.fullName || t("Arunabha Ghosh")}
+            roleTitle={collector?.role === "admin" ? t("Unit Executive / Convener") : t("Authorized Collector / Organizer")}
             date={dateFormatted}
           />
           <div className="receipt-motto-seal">
             <HeartHandshake size={24} strokeWidth={1.4} />
             <p>
-              Science for Man. Science for Society.<br />
-              <strong>Science in Thinking.</strong>
+              {t("Science for Man. Science for Society.")}<br />
+              <strong>{t("Science in Thinking.")}</strong>
             </p>
           </div>
         </div>
 
         {/* Perforated tear-off section */}
         <div className="perforated-tear-line">
-          <span>✄ ----------------- UNIT ARCHIVE COPY / TEAR-OFF SLIP ----------------- ✄</span>
+          <span>✄ ----------------- {t("UNIT ARCHIVE COPY / TEAR-OFF SLIP")} ----------------- ✄</span>
         </div>
 
         <div className="public-receipt-disclaimer">
-          <strong>OFFICIAL CONTRIBUTION RECEIPT · BREAKTHROUGH SCIENCE SOCIETY · {identity.unit.toUpperCase()}</strong>
+          <strong>{t("OFFICIAL CONTRIBUTION RECEIPT · BREAKTHROUGH SCIENCE SOCIETY · {unit}", { unit: upper(identity.unit) })}</strong>
           <p>
-            This digital slip acknowledges a recorded entry in the Light of Science unit ledger. Headquarters: {identity.headquarters}. Registered under {identity.act}.
+            {t("This digital slip acknowledges a recorded entry in the Light of Science unit ledger. Headquarters: {headquarters}. Registered under {act}.", { headquarters: t(identity.headquarters), act: t(identity.act) })}
           </p>
         </div>
       </article>
@@ -189,8 +208,9 @@ export default async function ReceiptPage({
       />
 
       <p className="public-receipt-footer">
-        A transparent public ledger. Powered by grassroots solidarity.
+        {t("A transparent public ledger. Powered by grassroots solidarity.")}
       </p>
     </main>
+    </I18nProvider>
   );
 }

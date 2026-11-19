@@ -2,14 +2,21 @@
 
 import { useEffect } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { I18nProvider, useI18n } from "@/lib/i18n";
 
-export default function ErrorBoundary({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+type ErrorProps = { error: Error & { digest?: string }; reset: () => void };
+
+// The error screen replaces the whole workspace, so it has to bring its own language provider.
+export default function ErrorBoundary(props: ErrorProps) {
+  return (
+    <I18nProvider>
+      <ErrorView {...props} />
+    </I18nProvider>
+  );
+}
+
+function ErrorView({ error, reset }: ErrorProps) {
+  const { t } = useI18n();
   useEffect(() => {
     console.error("Application error:", error);
   }, [error]);
@@ -48,10 +55,10 @@ export default function ErrorBoundary({
           <AlertCircle size={24} />
         </div>
         <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#1c1917", marginBottom: "8px" }}>
-          Something went wrong
+          {t("Something went wrong")}
         </h2>
         <p style={{ fontSize: "14px", color: "#57534e", lineHeight: "1.5", marginBottom: "24px" }}>
-          The unit management platform encountered an unexpected error. Please reload the view or return to the overview.
+          {t("The unit management platform encountered an unexpected error. Please reload the view or return to the overview.")}
         </p>
         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
           <button
@@ -71,7 +78,7 @@ export default function ErrorBoundary({
             }}
           >
             <RefreshCw size={15} />
-            Try again
+            {t("Try again")}
           </button>
           <button
             onClick={() => { window.location.href = "/"; }}
@@ -88,7 +95,7 @@ export default function ErrorBoundary({
               cursor: "pointer",
             }}
           >
-            Reload workspace
+            {t("Reload workspace")}
           </button>
         </div>
       </div>

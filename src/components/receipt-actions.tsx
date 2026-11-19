@@ -2,6 +2,7 @@
 
 import { Check, Copy, MessageCircle, Printer, Send } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export default function ReceiptActions({
   autoPrint,
@@ -14,6 +15,7 @@ export default function ReceiptActions({
   amountFormatted?: string;
   receiptNo?: string;
 }) {
+  const { t, locale } = useI18n();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -25,12 +27,20 @@ export default function ReceiptActions({
     }
   }, [autoPrint]);
 
-  const getUrl = () => (typeof window !== "undefined" ? window.location.href.split("?")[0] : "");
-
-  const getShareText = () => {
-    const url = getUrl();
-    return `Light of Science (Breakthrough Science Society, Jalpaiguri Unit)\nDonation Acknowledgement Slip\nDonor: ${donorName || "Patron"}\nAmount: ${amountFormatted || ""}\nReceipt No: ${receiptNo || ""}\nVerify digital slip: ${url}\nScience for Man. Science for Society. Science in Thinking.`;
+  // A link shared from a Bengali session opens in Bengali for whoever receives it.
+  const getUrl = () => {
+    if (typeof window === "undefined") return "";
+    const base = window.location.href.split("?")[0];
+    return locale === "bn" ? `${base}?lang=bn` : base;
   };
+
+  const getShareText = () =>
+    t("Light of Science (Breakthrough Science Society, Jalpaiguri Unit)\nDonation Acknowledgement Slip\nDonor: {donor}\nAmount: {amount}\nReceipt No: {receipt}\nVerify digital slip: {url}\nScience for Man. Science for Society. Science in Thinking.", {
+      donor: donorName || t("Patron"),
+      amount: amountFormatted || "",
+      receipt: receiptNo || "",
+      url: getUrl(),
+    });
 
   const shareWhatsApp = () => {
     const text = encodeURIComponent(getShareText());
@@ -53,40 +63,40 @@ export default function ReceiptActions({
             setCopied(true);
             setTimeout(() => setCopied(false), 2500);
           } catch {
-            window.prompt("Copy this receipt link", getUrl());
+            window.prompt(t("Copy this receipt link"), getUrl());
           }
         }}
-        title="Copy direct verification link"
+        title={t("Copy direct verification link")}
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}
-        {copied ? "Link copied" : "Copy link"}
+        {copied ? t("Link copied") : t("Copy link")}
       </button>
 
       <button
         className="button button-secondary button-whatsapp"
         onClick={shareWhatsApp}
-        title="Share slip via WhatsApp"
+        title={t("Share slip via WhatsApp")}
       >
         <MessageCircle size={14} />
-        WhatsApp
+        {t("WhatsApp")}
       </button>
 
       <button
         className="button button-secondary button-telegram"
         onClick={shareTelegram}
-        title="Share slip via Telegram"
+        title={t("Share slip via Telegram")}
       >
         <Send size={14} />
-        Telegram
+        {t("Telegram")}
       </button>
 
       <button
         className="button button-primary"
         onClick={() => window.print()}
-        title="Print official receipt or save as PDF"
+        title={t("Print official receipt or save as PDF")}
       >
         <Printer size={14} />
-        Print / PDF
+        {t("Print / PDF")}
       </button>
     </div>
   );

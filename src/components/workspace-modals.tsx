@@ -3,7 +3,7 @@
 import { identity } from "@/lib/identity";
 import { ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Copy, Download, ExternalLink, HeartHandshake, Info, MapPin, MessageCircle, MessageSquare, Package, Printer, ReceiptText, Send, ShieldAlert, ShieldCheck, Users, Wallet } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { type WorkspaceData, type Donation, type UnitEvent, type Procurement, type Circular, type DuesRecord, type PerformAction, money, months } from "@/lib/types";
+import { type WorkspaceData, type Donation, type UnitEvent, type Procurement, type Circular, type DuesRecord, type PerformAction, months } from "@/lib/types";
 import { type Resource } from "@/lib/resources";
 import { Avatar, Badge, Button, FormField, Modal, SubmitButton } from "@/components/ui";
 import { TreasurerSignatureBlock, UnitOfficialSeal } from "@/components/unit-seal";
@@ -11,6 +11,8 @@ import { VirtualIdCard } from "@/components/id-card";
 import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 import type { Profile } from "@/lib/types";
 import type { Navigate, OpenModal } from "@/components/overview";
+import { useI18n } from "@/lib/i18n";
+import { isDhimanSessionText, isEnvironmentDayText, isMashkalaibari } from "@/lib/localize-content";
 import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 export type ModalState = { type: string; record?: unknown } | null;
@@ -29,6 +31,7 @@ function SmsPreviewModal({
   save: (action: string, values: Record<string, unknown>) => Promise<void>;
   busy: boolean;
 }) {
+  const { t, tx, fmtTime } = useI18n();
   const [recipientPhone, setRecipientPhone] = useState(donation.donorPhone || "");
   const receiptUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/receipts/${donation.id}`;
   const smsMessage = `[${identity.name.toUpperCase()} · ${identity.organisationShort}] Received with thanks ₹${donation.amount.toLocaleString("en-IN")} from ${donation.donorName} on ${new Date(donation.createdAt).toLocaleDateString("en-IN")}. Official Receipt No: ${donation.receiptNo}. Digital verification slip: ${receiptUrl} — Breakthrough Science Society, ${identity.unit}.`;
@@ -36,28 +39,28 @@ function SmsPreviewModal({
   const copySms = async () => {
     try {
       await navigator.clipboard.writeText(smsMessage);
-      notify("SMS text copied to clipboard.");
+      notify(t("SMS text copied to clipboard."));
     } catch {
-      notify("Please copy the text manually from the screen.");
+      notify(t("Please copy the text manually from the screen."));
     }
   };
 
   return (
-    <Modal title="SMS Notification Gateway" subtitle="DLT-compliant automated SMS receipt dispatched to donor mobile" onClose={close}>
+    <Modal title={t("SMS Notification Gateway")} subtitle={t("DLT-compliant automated SMS receipt dispatched to donor mobile")} onClose={close}>
       <div className="sms-handset-preview">
         <div className="sms-header">
           <MessageSquare size={16} />
-          <span>OUTBOUND CARRIER GATEWAY (FAST2SMS / MSG91)</span>
+          <span>{t("OUTBOUND CARRIER GATEWAY (FAST2SMS / MSG91)")}</span>
           <Badge tone={donation.smsSent ? "green" : "yellow"}>
-            {donation.smsSent ? "Dispatched" : "Ready to Send"}
+            {donation.smsSent ? t("Dispatched") : t("Ready to Send")}
           </Badge>
         </div>
 
         <div className="sms-recipient-line" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <span>To (Indian Mobile):</span>
+          <span>{t("To (Indian Mobile):")}</span>
           <input
             type="tel"
-            placeholder="+91 98320 XXXXX"
+            placeholder={t("+91 98320 XXXXX")}
             value={recipientPhone}
             onChange={(e) => setRecipientPhone(e.target.value)}
             disabled={donation.smsSent}
@@ -71,24 +74,24 @@ function SmsPreviewModal({
               minWidth: "180px",
             }}
           />
-          <small>· DLT Header: <strong>BSSJPG</strong></small>
+          <small>{tx("· DLT Header: <strong>BSSJPG</strong>")}</small>
         </div>
 
         <div className="sms-bubble">
           <p>{smsMessage}</p>
           <time className="sms-timestamp">
-            {new Date(donation.createdAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+            {fmtTime(donation.createdAt, { hour: "numeric", minute: "2-digit" })}
           </time>
         </div>
 
         <div className="sms-meta-strip">
           <ShieldCheck size={14} />
-          <span>Sender ID: <strong>BSSJPG</strong> · Length: {smsMessage.length} chars · DLT Transactional Route</span>
+          <span>{tx("Sender ID: <strong>BSSJPG</strong> · Length: {smsMessageCount} chars · DLT Transactional Route", { smsMessageCount: smsMessage.length })}</span>
         </div>
       </div>
 
       <div className="modal-actions">
-        <Button variant="secondary" icon={Copy} onClick={() => void copySms()}>Copy SMS text</Button>
+        <Button variant="secondary" icon={Copy} onClick={() => void copySms()}>{t("Copy SMS text")}</Button>
         {!donation.smsSent && (
           <Button
             icon={Send}
@@ -97,10 +100,10 @@ function SmsPreviewModal({
             }}
             disabled={busy}
           >
-            Dispatch SMS receipt
+            {t("Dispatch SMS receipt")}
           </Button>
         )}
-        <Button variant="secondary" onClick={close}>Close</Button>
+        <Button variant="secondary" onClick={close}>{t("Close")}</Button>
       </div>
     </Modal>
   );
@@ -214,30 +217,36 @@ function EventDetailModal({
   notify: (msg: string) => void;
   navigate: Navigate;
 }) {
+  const { t, tx, num, fmtDate, fmtDateTime } = useI18n();
   const event = hydrateCampaignEvent(rawEvent);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const touchStartX = useRef<number | null>(null);
-  const isMashkalaibari = isCampaignEvent(event);
-  const isEnvironmentDay =
-    event.id === "20000000-0000-4000-8000-000000000006" ||
-    event.title.toLowerCase().includes("environment day") ||
-    event.title.toLowerCase().includes("karala");
-  const isDhimanSession =
-    event.id === "20000000-0000-4000-8000-000000000007" ||
-    event.title.toLowerCase().includes("dhiman") ||
-    event.title.includes("ধীমান") ||
-    event.title.toLowerCase().includes("robotics");
+  const isCampaign = isCampaignEvent(event);
+  const isEnvironmentDay = event.id === "20000000-0000-4000-8000-000000000006" || isEnvironmentDayText(event.title);
+  const isDhimanSession = event.id === "20000000-0000-4000-8000-000000000007" || isDhimanSessionText(event.title);
   const galleryPhotos = isDhimanSession
     ? DHIMAN_SESSION_PHOTOS
     : isEnvironmentDay
     ? ENVIRONMENT_DAY_PHOTOS
-    : isMashkalaibari
+    : isCampaign
     ? MASHKALAIBARI_PHOTOS
     : null;
   const eventItems = data.procurements.filter((p) => p.eventId === event.id);
   const date = new Date(event.startsAt);
   const currentPhoto = galleryPhotos ? galleryPhotos[activePhotoIdx] : null;
   const totalPhotos = galleryPhotos?.length || 0;
+  const openReport = () => {
+    const c = data.circulars.find((cir) => isMashkalaibari(cir.title));
+    close();
+    if (c) open("circular", c);
+  };
+  const openEnvironmentReport = () => {
+    const c = data.circulars.find((cir) => cir.id === "50000000-0000-4000-8000-000000000006" || isEnvironmentDayText(cir.title));
+    if (c) {
+      close();
+      open("circular", c);
+    }
+  };
 
   // Keyboard navigation for photo gallery
   useEffect(() => {
@@ -273,7 +282,7 @@ function EventDetailModal({
   return (
     <Modal
       title={event.title}
-      subtitle={`${event.isOngoing ? "Ongoing Civic Campaign" : event.category} · ${identity.unit}`}
+      subtitle={`${event.isOngoing ? t("Ongoing Civic Campaign") : t(event.category)} · ${t(identity.unit)}`}
       onClose={close}
       wide
     >
@@ -289,7 +298,7 @@ function EventDetailModal({
             <div className="relative flex items-center justify-center min-h-[280px] sm:min-h-[400px] max-h-[500px] bg-black/50">
               <img
                 src={currentPhoto?.src || event.image}
-                alt={currentPhoto?.caption || event.title}
+                alt={currentPhoto ? t(currentPhoto.caption) : event.title}
                 onError={(e) => {
                   e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
                 }}
@@ -303,7 +312,7 @@ function EventDetailModal({
                   setActivePhotoIdx((idx) => (idx > 0 ? idx - 1 : totalPhotos - 1))
                 }
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
-                aria-label="Previous photograph (or press Left Arrow)"
+                aria-label={t("Previous photograph (or press Left Arrow)")}
               >
                 <ChevronLeft size={22} />
               </button>
@@ -313,14 +322,14 @@ function EventDetailModal({
                   setActivePhotoIdx((idx) => (idx < totalPhotos - 1 ? idx + 1 : 0))
                 }
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/95 text-white flex items-center justify-center transition-all hover:scale-105 shadow-xl border border-white/20"
-                aria-label="Next photograph (or press Right Arrow)"
+                aria-label={t("Next photograph (or press Right Arrow)")}
               >
                 <ChevronRight size={22} />
               </button>
 
               {/* Photo Counter Pill */}
               <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-white text-[11px] px-2.5 py-1 rounded font-mono font-bold tracking-wider border border-white/15">
-                PHOTO 0{activePhotoIdx + 1} OF 0{totalPhotos} · {currentPhoto?.tag}
+                {t("PHOTO 0{n} OF 0{total} · {tag}", { n: activePhotoIdx + 1, total: totalPhotos, tag: currentPhoto ? t(currentPhoto.tag) : "" })}
               </span>
 
               {/* Full-Res Link */}
@@ -329,20 +338,20 @@ function EventDetailModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="absolute top-3 right-3 bg-black/80 hover:bg-black text-white text-[11px] px-2.5 py-1 rounded font-mono font-medium flex items-center gap-1.5 border border-white/15 transition-colors"
-                title="Open uncompressed photograph in new browser tab"
+                title={t("Open uncompressed photograph in new browser tab")}
               >
                 <ExternalLink size={12} />
-                <span>Full-Res</span>
+                <span>{t("Full-Res")}</span>
               </a>
             </div>
 
             {/* Photo Caption Strip */}
             <div className="p-3 bg-[#151c10] border-t border-white/10 text-xs text-[#ece6d8] flex items-center justify-between gap-3">
               <span className="leading-relaxed">
-                <strong className="text-rust-tint font-bold font-mono mr-1.5">{currentPhoto?.fig}:</strong>
-                {currentPhoto?.caption}
+                <strong className="text-rust-tint font-bold font-mono mr-1.5">{t("FIG 0{n}", { n: activePhotoIdx + 1 })}:</strong>
+                {currentPhoto ? t(currentPhoto.caption) : null}
               </span>
-              <span className="mono text-[10px] text-ink-mute shrink-0 hidden sm:inline">Use ← / → keys or swipe</span>
+              <span className="mono text-[10px] text-ink-mute shrink-0 hidden sm:inline">{t("Use ← / → keys or swipe")}</span>
             </div>
           </div>
 
@@ -351,10 +360,10 @@ function EventDetailModal({
             <div className="flex items-center justify-between mb-1.5 px-0.5">
               <span className="mono text-[11px] font-bold uppercase text-rust tracking-wider">
                 {isEnvironmentDay
-                  ? "All 6 World Environment Day Rally Photographs"
-                  : "All 6 Field Inspection Photographs"}
+                  ? t("All 6 World Environment Day Rally Photographs")
+                  : t("All 6 Field Inspection Photographs")}
               </span>
-              <span className="mono text-[10.5px] text-ink-mute">Click thumbnail or swipe</span>
+              <span className="mono text-[10.5px] text-ink-mute">{t("Click thumbnail or swipe")}</span>
             </div>
             <div className="campaign-thumb-strip">
               {galleryPhotos.map((photo, idx) => (
@@ -367,11 +376,11 @@ function EventDetailModal({
                       ? "border-rust ring-2 ring-rust/50 scale-[1.03]"
                       : "border-rule-soft opacity-75 hover:opacity-100 hover:border-ink-mute"
                   }`}
-                  title={photo.caption}
+                  title={t(photo.caption)}
                 >
-                  <img src={photo.src} alt={photo.caption} className="w-full h-full object-cover" />
+                  <img src={photo.src} alt={t(photo.caption)} className="w-full h-full object-cover" />
                   <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-white text-center py-0.5 mono font-bold">
-                    0{idx + 1}
+                    {num(0)}{num(idx + 1)}
                   </span>
                 </button>
               ))}
@@ -396,11 +405,11 @@ function EventDetailModal({
           <span>
             <CalendarDays size={17} />
             {event.isOngoing
-              ? `Initiated: ${date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Active Campaign`
-              : date.toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}
+              ? t("Initiated: {date} · Active Campaign", { date: fmtDate(date, { day: "numeric", month: "short", year: "numeric" }) })
+              : fmtDateTime(date, { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" })}
           </span>
           <span><MapPin size={17} />{event.location}</span>
-          <span><Users size={17} />{event.volunteers} active {event.isOngoing ? "advocates mobilizing" : "volunteers assigned"}</span>
+          <span><Users size={17} />{event.isOngoing ? t("{volunteers} active advocates mobilizing", { volunteers: event.volunteers }) : t("{volunteers} active volunteers assigned", { volunteers: event.volunteers })}</span>
         </div>
 
         <p className="event-detail-description">{event.description}</p>
@@ -410,10 +419,10 @@ function EventDetailModal({
           <div className="campaign-progress-box my-4">
             <div className="campaign-progress-header">
               <span className="campaign-progress-label mono">
-                CAMPAIGN TARGET: <strong>{event.progressPercent || 20}% REACHED</strong>
+                {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: event.progressPercent || 20 })}
               </span>
               <span className="campaign-phase-badge">
-                PHASE {event.milestones?.find((m) => m.status === "in_progress")?.phase || 2} IN PROGRESS
+                {t("PHASE {phase} IN PROGRESS", { phase: event.milestones?.find((m) => m.status === "in_progress")?.phase || 2 })}
               </span>
             </div>
             <div className="campaign-progress-track">
@@ -424,7 +433,7 @@ function EventDetailModal({
             </div>
             {event.targetGoal && (
               <div className="campaign-progress-footer">
-                <span>Goal: {event.targetGoal}</span>
+                <span>{t("Goal: {goal}", { goal: event.targetGoal })}</span>
               </div>
             )}
           </div>
@@ -435,10 +444,10 @@ function EventDetailModal({
           <div className="campaign-milestones-section my-5 pt-4 border-t border-rule-soft">
             <div className="flex items-center justify-between mb-3">
               <h4 className="mono text-xs font-bold text-rust uppercase tracking-wider">
-                Campaign Action Plan & Milestone Roadmap
+                {t("Campaign Action Plan & Milestone Roadmap")}
               </h4>
               <span className="text-[11px] text-ink-faint mono">
-                {event.milestones.filter((m) => m.status === "completed").length} of {event.milestones.length} Completed
+                {t("{done} of {total} Completed", { done: event.milestones.filter((m) => m.status === "completed").length, total: event.milestones.length })}
               </span>
             </div>
             <div className="space-y-2.5">
@@ -455,7 +464,7 @@ function EventDetailModal({
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="mono text-[11px] font-bold">
-                      PHASE 0{m.phase} · {m.title}
+                      {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
                     </span>
                     <span
                       className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded mono ${
@@ -466,13 +475,13 @@ function EventDetailModal({
                           : "bg-stone-200 text-stone-600"
                       }`}
                     >
-                      {m.status === "completed" ? "✓ Completed" : m.status === "in_progress" ? "● In Progress" : "○ Planned"}
+                      {m.status === "completed" ? t("✓ Completed") : m.status === "in_progress" ? t("● In Progress") : t("○ Planned")}
                     </span>
                   </div>
                   <p className="text-xs text-ink-2 leading-relaxed">{m.description}</p>
                   {m.completedDate && (
                     <small className="text-[10px] text-ink-faint mono block mt-1">
-                      Completed: {m.completedDate}
+                      {t("Completed: {date}", { date: m.completedDate })}
                     </small>
                   )}
                 </div>
@@ -482,24 +491,14 @@ function EventDetailModal({
         )}
 
         {/* Shortcut to full investigation circular */}
-        {event.title.includes("Mashkalaibari") && (
+        {isMashkalaibari(event.title) && (
           <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg my-4 flex items-center justify-between gap-3">
             <div>
-              <strong className="text-xs text-ink block font-semibold">Official Field Investigation Report on Record</strong>
-              <span className="text-[11px] text-ink-mute">Read the comprehensive fact-finding charter submitted to Jalpaiguri Municipality</span>
+              <strong className="text-xs text-ink block font-semibold">{t("Official Field Investigation Report on Record")}</strong>
+              <span className="text-[11px] text-ink-mute">{t("Read the comprehensive fact-finding charter submitted to Jalpaiguri Municipality")}</span>
             </div>
-            <Button
-              variant="secondary"
-              icon={ArrowUpRight}
-              onClick={() => {
-                const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
-                if (c) {
-                  close();
-                  open("circular", c);
-                }
-              }}
-            >
-              Read Full Report
+            <Button variant="secondary" icon={ArrowUpRight} onClick={openReport}>
+              {t("Read Full Report")}
             </Button>
           </div>
         )}
@@ -508,21 +507,11 @@ function EventDetailModal({
         {isEnvironmentDay && (
           <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-lg my-4 flex items-center justify-between gap-3">
             <div>
-              <strong className="text-xs text-ink block font-semibold">Official Field Action Report on Record</strong>
-              <span className="text-[11px] text-ink-mute">Read the June 5, 2026 rally resolutions, River Karala demands, and civic addresses</span>
+              <strong className="text-xs text-ink block font-semibold">{t("Official Field Action Report on Record")}</strong>
+              <span className="text-[11px] text-ink-mute">{t("Read the June 5, 2026 rally resolutions, River Karala demands, and civic addresses")}</span>
             </div>
-            <Button
-              variant="secondary"
-              icon={ArrowUpRight}
-              onClick={() => {
-                const c = data.circulars.find((cir) => cir.id === "50000000-0000-4000-8000-000000000006" || cir.title.includes("Environment Day"));
-                if (c) {
-                  close();
-                  open("circular", c);
-                }
-              }}
-            >
-              Read Action Report
+            <Button variant="secondary" icon={ArrowUpRight} onClick={openEnvironmentReport}>
+              {t("Read Action Report")}
             </Button>
           </div>
         )}
@@ -531,8 +520,8 @@ function EventDetailModal({
           <div className="event-checklist-summary">
             <Package size={20} />
             <div>
-              <strong>Field Requisition Status</strong>
-              <p>{eventItems.length} items logged · {eventItems.filter((p) => p.status === "needed").length} needed · {eventItems.filter((p) => p.status === "verified").length} verified</p>
+              <strong>{t("Field Requisition Status")}</strong>
+              <p>{t("{total} items logged · {needed} needed · {verified} verified", { total: eventItems.length, needed: eventItems.filter((p) => p.status === "needed").length, verified: eventItems.filter((p) => p.status === "verified").length })}</p>
             </div>
             <ArrowRight size={17} />
           </div>
@@ -542,40 +531,30 @@ function EventDetailModal({
       <div className="modal-actions">
         <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatEventBroadcast(event))}>
           <MessageCircle size={15} />
-          Mobilize on WhatsApp
+          {t("Mobilize on WhatsApp")}
         </button>
         {event.isOngoing ? (
-          <Button
-            variant="primary"
-            onClick={() => {
-              const c = data.circulars.find((cir) => cir.title.includes("Mashkalaibari"));
-              if (c) {
-                close();
-                open("circular", c);
-              } else {
-                close();
-              }
-            }}
-          >
-            Read Investigation Report
+          <Button variant="primary" onClick={openReport}>
+            {t("Read Investigation Report")}
           </Button>
         ) : (
           <>
-            <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify("iCal event file downloaded."); }}>
-              Add to calendar
+            <Button variant="secondary" icon={Download} onClick={() => { downloadCalendar(event); notify(t("iCal event file downloaded.")); }}>
+              {t("Add to calendar")}
             </Button>
             <Button icon={Package} onClick={() => { close(); navigate("procurement", event.id); }}>
-              Open procurement checklist
+              {t("Open procurement checklist")}
             </Button>
           </>
         )}
-        <Button variant="secondary" onClick={close}>Close</Button>
+        <Button variant="secondary" onClick={close}>{t("Close")}</Button>
       </div>
     </Modal>
   );
 }
 
 export function WorkspaceModals(props: Props) {
+  const { t, tx, num, money, fmtDate, fmtDateTime, monthShort, roleName } = useI18n();
   const { modal, data, close, open, perform, busy, error, navigate, notify } = props;
   if (!modal) return null;
   const formProps = { busy, error, close };
@@ -593,21 +572,21 @@ export function WorkspaceModals(props: Props) {
     const record = modal.record as { code: string; message?: string };
     const code = record?.code || "";
     return (
-      <Modal title="Single-Use Member Invite Code" subtitle="Hand over in person or via direct WhatsApp" onClose={close}>
+      <Modal title={t("Single-Use Member Invite Code")} subtitle={t("Hand over in person or via direct WhatsApp")} onClose={close}>
         <div className="invite-code-modal-content">
           <div className="invite-code-box">
-            <span className="invite-code-eyebrow">8-CHARACTER CROCKFORD BASE32 CODE</span>
+            <span className="invite-code-eyebrow">{t("8-CHARACTER CROCKFORD BASE32 CODE")}</span>
             <div className="invite-code-digits">{code}</div>
-            <span className="invite-code-validity">Single-use · Expires in 14 days · Stored hashed</span>
+            <span className="invite-code-validity">{t("Single-use · Expires in 14 days · Stored hashed")}</span>
           </div>
 
           <div className="invite-handover-card">
-            <h4>In-Person Handover Checklist:</h4>
+            <h4>{t("In-Person Handover Checklist:")}</h4>
             <ul>
-              <li>Give this code directly to the member in person or via verified WhatsApp.</li>
-              <li>Member taps <strong>Member Login with Google</strong> on their device.</li>
-              <li>They enter <strong>{code}</strong> to link their permanent Google ID.</li>
-              <li>Once linked, this code permanently stops working. No recovery flow to attack!</li>
+              <li>{t("Give this code directly to the member in person or via verified WhatsApp.")}</li>
+              <li>{tx("Member taps <strong>Member Login with Google</strong> on their device.")}</li>
+              <li>{tx("They enter <strong>{code}</strong> to link their permanent Google ID.", { code })}</li>
+              <li>{t("Once linked, this code permanently stops working. No recovery flow to attack!")}</li>
             </ul>
           </div>
 
@@ -617,15 +596,15 @@ export function WorkspaceModals(props: Props) {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(code);
-                  notify("Code copied to clipboard!");
+                  notify(t("Code copied to clipboard!"));
                 } catch {
-                  notify("Please copy the code manually.");
+                  notify(t("Please copy the code manually."));
                 }
               }}
             >
-              Copy Code
+              {t("Copy Code")}
             </Button>
-            <Button variant="secondary" onClick={close}>Done</Button>
+            <Button variant="secondary" onClick={close}>{t("Done")}</Button>
           </div>
         </div>
       </Modal>
@@ -636,10 +615,10 @@ export function WorkspaceModals(props: Props) {
     const apps = data.applications || [];
     const pending = apps.filter((a) => a.status === "pending");
     return (
-      <Modal title="Pending Membership Applications" subtitle="Review and approve public applicants" onClose={close}>
+      <Modal title={t("Pending Membership Applications")} subtitle={t("Review and approve public applicants")} onClose={close}>
         <div className="applications-modal-content">
           {pending.length === 0 ? (
-            <p className="empty-text">No pending membership applications at this time.</p>
+            <p className="empty-text">{t("No pending membership applications at this time.")}</p>
           ) : (
             pending.map((app) => (
               <div key={app.id} className="application-item-card">
@@ -648,41 +627,41 @@ export function WorkspaceModals(props: Props) {
                     <strong>{app.fullName}</strong>
                     <span className="app-sub-meta">📱 +91 {app.phone} · 📧 {app.googleEmail}</span>
                   </div>
-                  <Badge tone={app.isMinor ? "orange" : "blue"}>{app.isMinor ? "Under 18 (Minor)" : "18+ Adult"}</Badge>
+                  <Badge tone={app.isMinor ? "orange" : "blue"}>{app.isMinor ? t("Under 18 (Minor)") : t("18+ Adult")}</Badge>
                 </div>
                 {app.isMinor && app.guardianName && (
                   <div className="guardian-notice">
-                    <span>Parent/Guardian: <strong>{app.guardianName}</strong> (DPDP Act Verified)</span>
+                    <span>{tx("Parent/Guardian: <strong>{guardianName}</strong> (DPDP Act Verified)", { guardianName: app.guardianName })}</span>
                   </div>
                 )}
                 <div className="app-reason-box">
-                  <small>STATEMENT OF INTEREST:</small>
+                  <small>{t("STATEMENT OF INTEREST:")}</small>
                   <p>&ldquo;{app.reason}&rdquo;</p>
                 </div>
                 <div className="app-item-buttons">
                   <Button
                     onClick={async () => {
                       await perform("reviewApplication", { applicationId: app.id, status: "approved" });
-                      notify(`Enrolled ${app.fullName} as unit member!`);
+                      notify(t("Enrolled {fullName} as unit member!", { fullName: app.fullName }));
                     }}
                   >
-                    Approve & Enroll
+                    {t("Approve & Enroll")}
                   </Button>
                   <Button
                     variant="secondary"
                     onClick={async () => {
                       await perform("reviewApplication", { applicationId: app.id, status: "rejected" });
-                      notify(`Declined application for ${app.fullName}.`);
+                      notify(t("Declined application for {fullName}.", { fullName: app.fullName }));
                     }}
                   >
-                    Decline
+                    {t("Decline")}
                   </Button>
                 </div>
               </div>
             ))
           )}
           <div className="modal-actions">
-            <Button variant="secondary" onClick={close}>Close</Button>
+            <Button variant="secondary" onClick={close}>{t("Close")}</Button>
           </div>
         </div>
       </Modal>
@@ -694,7 +673,7 @@ export function WorkspaceModals(props: Props) {
     const member = raw && typeof raw === "object" && "member" in raw ? raw.member : (raw as Profile);
     const memberCode = raw && typeof raw === "object" && "memberCode" in raw && raw.memberCode ? raw.memberCode : `JPG-${String(Math.max(1, data.profiles.findIndex((p) => p.id === member.id) + 1)).padStart(3, "0")}`;
     return (
-      <Modal title="Member Credential Card" subtitle="Official Light of Science Digital ID Badge" onClose={close}>
+      <Modal title={t("Member Credential Card")} subtitle={t("Official Light of Science Digital ID Badge")} onClose={close}>
         <VirtualIdCard member={member} memberCode={memberCode} onClose={close} />
       </Modal>
     );
@@ -706,10 +685,10 @@ export function WorkspaceModals(props: Props) {
     const payment = modal.record as DuesRecord;
     const member = data.profiles.find((p) => p.id === payment.memberId)!;
     const collector = data.profiles.find((p) => p.id === payment.collectedBy);
-    const dateFormatted = new Date(payment.paidAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+    const dateFormatted = fmtDateTime(payment.paidAt, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 
     return (
-      <Modal title="Treasury Receipt Audit Slip" subtitle={`${months[payment.month - 1]} ${payment.year} · Member Contribution`} onClose={close}>
+      <Modal title={t("Treasury Receipt Audit Slip")} subtitle={t("{month} {year} · Member Contribution", { month: monthShort(payment.month - 1), year: payment.year })} onClose={close}>
         <div className="payment-detail print-tech-slip">
           <span className="print-mark print-mark-tl slip-mark" />
           <span className="print-mark print-mark-tr slip-mark" />
@@ -717,29 +696,29 @@ export function WorkspaceModals(props: Props) {
           <span className="print-mark print-mark-br slip-mark" />
 
           <div className="payment-brand-row">
-            <span className="stamp-verified">AUDITED ENTRY</span>
-            <span className="mono text-[length:max(10px,var(--fs-floor,0px))] text-muted">{identity.unit}</span>
+            <span className="stamp-verified">{t("AUDITED ENTRY")}</span>
+            <span className="mono text-[length:max(10px,var(--fs-floor,0px))] text-muted">{t(identity.unit)}</span>
           </div>
 
           <h3 className="mono">{money(payment.amount)}</h3>
-          <p>{months[payment.month - 1]} {payment.year} Membership Contribution</p>
+          <p>{t("{month} {year} Membership Contribution", { month: monthShort(payment.month - 1), year: payment.year })}</p>
 
           <div className="receipt-details">
-            <div><span>Member Name</span><strong>{member.fullName}</strong></div>
-            <div><span>Pledge Rate</span><strong>{money(member.monthlyPledge)} / month</strong></div>
-            <div><span>Payment Mode</span><strong className="uppercase">{payment.paymentMode.replace("bank_transfer", "Bank Transfer")}</strong></div>
-            <div><span>Collector Stamp</span><strong>{collector?.fullName || "Unit Executive"} ({collector?.role || "Admin"})</strong></div>
-            <div><span>Logged In Ledger</span><strong className="mono">{dateFormatted}</strong></div>
-            <div><span>Unit Treasury</span><strong>{identity.fullName}</strong></div>
+            <div><span>{t("Member Name")}</span><strong>{member.fullName}</strong></div>
+            <div><span>{t("Pledge Rate")}</span><strong>{t("{amount} / month", { amount: money(member.monthlyPledge) })}</strong></div>
+            <div><span>{t("Payment Mode")}</span><strong className="uppercase">{t(payment.paymentMode === "bank_transfer" ? "Bank Transfer" : payment.paymentMode)}</strong></div>
+            <div><span>{t("Collector Stamp")}</span><strong>{collector?.fullName || t("Unit Executive")} ({collector?.role || t("Admin")})</strong></div>
+            <div><span>{t("Logged In Ledger")}</span><strong className="mono">{dateFormatted}</strong></div>
+            <div><span>{t("Unit Treasury")}</span><strong>{t(identity.fullName)}</strong></div>
           </div>
 
           <div className="soft-info mt-4">
             <ShieldCheck size={16} />
-            <span>This contribution is locked in the unit&apos;s persistent ledger. Minimum ₹20 baseline with voluntary higher pledges.</span>
+            <span>{t("This contribution is locked in the unit's persistent ledger. Minimum ₹20 baseline with voluntary higher pledges.")}</span>
           </div>
         </div>
         <div className="modal-actions">
-          <Button variant="secondary" onClick={close}>Close audit slip</Button>
+          <Button variant="secondary" onClick={close}>{t("Close audit slip")}</Button>
         </div>
       </Modal>
     );
@@ -747,43 +726,43 @@ export function WorkspaceModals(props: Props) {
 
   if (modal.type === "donation") {
     return (
-      <Modal title="Record Public / Patron Donation" subtitle="Enter contribution details and issue an official verifiable receipt slip." onClose={close}>
-        <ActionForm action="addDonation" save={save} {...formProps} submit="Record & generate receipt">
-          <FormField label="Donor, school, or organization name" required>
-            <input name="donorName" placeholder="e.g. Jalpaiguri Science Patron / Town High School" maxLength={150} required />
+      <Modal title={t("Record Public / Patron Donation")} subtitle={t("Enter contribution details and issue an official verifiable receipt slip.")} onClose={close}>
+        <ActionForm action="addDonation" save={save} {...formProps} submit={t("Record & generate receipt")}>
+          <FormField label={t("Donor, school, or organization name")} required>
+            <input name="donorName" placeholder={t("e.g. Jalpaiguri Science Patron / Town High School")} maxLength={150} required />
           </FormField>
           <div className="form-columns">
-            <FormField label="Contribution amount (INR)" required>
+            <FormField label={t("Contribution amount (INR)")} required>
               <div className="currency-input large-input">
                 <span>₹</span>
                 <input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required />
               </div>
             </FormField>
-            <FormField label="Payment instrument" required>
+            <FormField label={t("Payment instrument")} required>
               <select name="paymentMode">
-                <option value="upi">UPI instant transfer</option>
-                <option value="cash">Cash in hand</option>
-                <option value="bank_transfer">Bank Transfer / NEFT</option>
+                <option value="upi">{t("UPI instant transfer")}</option>
+                <option value="cash">{t("Cash in hand")}</option>
+                <option value="bank_transfer">{t("Bank Transfer / NEFT")}</option>
               </select>
             </FormField>
           </div>
-          <FormField label="Donor mobile number (for SMS receipt gateway)" hint="Optional. Format: +91 94340 XXXXX. Automated SMS alert dispatched upon entry.">
+          <FormField label={t("Donor mobile number (for SMS receipt gateway)")} hint={t("Optional. Format: +91 94340 XXXXX. Automated SMS alert dispatched upon entry.")}>
             <input type="tel" name="donorPhone" placeholder="+91" maxLength={16} />
           </FormField>
-          <FormField label="Allocated outreach purpose">
+          <FormField label={t("Allocated outreach purpose")}>
             <select name="eventId">
-              <option value="">General Science Outreach & Unit Fund</option>
+              <option value="">{t("General Science Outreach & Unit Fund")}</option>
               {data.events.map((e) => (
                 <option key={e.id} value={e.id}>{e.title}</option>
               ))}
             </select>
           </FormField>
-          <FormField label="Transaction / cheque reference" hint="UPI Transaction ID, bank UTR, or physical receipt serial.">
-            <input name="transactionRef" placeholder="e.g. UPI/2026/918237" maxLength={100} />
+          <FormField label={t("Transaction / cheque reference")} hint={t("UPI Transaction ID, bank UTR, or physical receipt serial.")}>
+            <input name="transactionRef" placeholder={t("e.g. UPI/2026/918237")} maxLength={100} />
           </FormField>
           <div className="soft-info">
             <ReceiptText size={17} />
-            <span>Digital slip is signed with the official society registration ({identity.registrationNo}) and optimized for WhatsApp, Telegram & print.</span>
+            <span>{t("Digital slip is signed with the official society registration ({registrationNo}) and optimized for WhatsApp, Telegram & print.", { registrationNo: identity.registrationNo })}</span>
           </div>
         </ActionForm>
       </Modal>
@@ -808,24 +787,24 @@ export function WorkspaceModals(props: Props) {
 
   if (modal.type === "member") {
     return (
-      <Modal title="Enroll New Member" subtitle={`Add advocate or volunteer organizer to ${identity.fullName}`} onClose={close}>
-        <ActionForm action="addMember" save={save} {...formProps} submit="Enroll member">
-          <FormField label="Full name" required>
-            <input name="fullName" placeholder="Member’s full legal name" required maxLength={150} />
+      <Modal title={t("Enroll New Member")} subtitle={t("Add advocate or volunteer organizer to {fullName}", { fullName: t(identity.fullName) })} onClose={close}>
+        <ActionForm action="addMember" save={save} {...formProps} submit={t("Enroll member")}>
+          <FormField label={t("Full name")} required>
+            <input name="fullName" placeholder={t("Member’s full legal name")} required maxLength={150} />
           </FormField>
-          <FormField label="Mobile number (optional)">
-            <input name="phone" type="tel" placeholder="10-digit mobile number" maxLength={30} />
+          <FormField label={t("Mobile number (optional)")}>
+            <input name="phone" type="tel" placeholder={t("10-digit mobile number")} maxLength={30} />
           </FormField>
           <div className="form-columns">
-            <FormField label="Designated role">
+            <FormField label={t("Designated role")}>
               <select name="role">
-                <option value="member">General Member / Student</option>
-                <option value="volunteer">Active Volunteer</option>
-                <option value="organizer">Field Organizer</option>
-                <option value="admin">Unit Executive / Office-Bearer</option>
+                <option value="member">{t("General Member / Student")}</option>
+                <option value="volunteer">{t("Active Volunteer")}</option>
+                <option value="organizer">{t("Field Organizer")}</option>
+                <option value="admin">{t("Unit Executive / Office-Bearer")}</option>
               </select>
             </FormField>
-            <FormField label="Monthly contribution pledge" hint="Strict baseline minimum: ₹20/month. No upper cap." required>
+            <FormField label={t("Monthly contribution pledge")} hint={t("Strict baseline minimum: ₹20/month. No upper cap.")} required>
               <div className="currency-input">
                 <span>₹</span>
                 <input name="monthlyPledge" type="number" min="20" step="0.01" defaultValue="20" required />
@@ -834,7 +813,7 @@ export function WorkspaceModals(props: Props) {
           </div>
           <div className="soft-info">
             <HeartHandshake size={17} />
-            <span>Members may contribute monthly or via multi-month advance lump-sums. 6 consecutive unpaid months flags Inactive on rosters.</span>
+            <span>{t("Members may contribute monthly or via multi-month advance lump-sums. 6 consecutive unpaid months flags Inactive on rosters.")}</span>
           </div>
         </ActionForm>
       </Modal>
@@ -844,26 +823,26 @@ export function WorkspaceModals(props: Props) {
   if (modal.type === "procurement") {
     const record = modal.record as { eventId?: string } | undefined;
     return (
-      <Modal title="New Requisition Voucher" subtitle="Post an item needed for an upcoming science programme" onClose={close}>
-        <ActionForm action="addProcurement" save={save} {...formProps} submit="Post requisition voucher">
-          <FormField label="Associated science event" required>
+      <Modal title={t("New Requisition Voucher")} subtitle={t("Post an item needed for an upcoming science programme")} onClose={close}>
+        <ActionForm action="addProcurement" save={save} {...formProps} submit={t("Post requisition voucher")}>
+          <FormField label={t("Associated science event")} required>
             <select name="eventId" defaultValue={record?.eventId || data.events[0]?.id || ""}>
               {data.events.map((e) => (
                 <option key={e.id} value={e.id}>{e.title}</option>
               ))}
               {!data.events.length && (
-                <option value="" disabled>No events scheduled — create an event first</option>
+                <option value="" disabled>{t("No events scheduled — create an event first")}</option>
               )}
             </select>
           </FormField>
-          <FormField label="Item description" required>
-            <input name="itemName" placeholder="e.g. Potassium permanganate reagent & dropper bottles" maxLength={150} required />
+          <FormField label={t("Item description")} required>
+            <input name="itemName" placeholder={t("e.g. Potassium permanganate reagent & dropper bottles")} maxLength={150} required />
           </FormField>
           <div className="form-columns">
-            <FormField label="Quantity required" required>
-              <input name="quantity" placeholder="e.g. 4 bottles / 500 leaflets" required maxLength={80} />
+            <FormField label={t("Quantity required")} required>
+              <input name="quantity" placeholder={t("e.g. 4 bottles / 500 leaflets")} required maxLength={80} />
             </FormField>
-            <FormField label="Estimated reference cost" required hint="Reference estimate only. Exact spend will be logged by buyer.">
+            <FormField label={t("Estimated reference cost")} required hint={t("Reference estimate only. Exact spend will be logged by buyer.")}>
               <div className="currency-input">
                 <span>₹</span>
                 <input name="estimatedCost" type="number" min="0" step="0.01" placeholder="0.00" required />
@@ -872,7 +851,7 @@ export function WorkspaceModals(props: Props) {
           </div>
           <div className="soft-info">
             <Info size={17} />
-            <span>If the event is within 48 hours, an urgent field alert is broadcast immediately to all active cadre.</span>
+            <span>{t("If the event is within 48 hours, an urgent field alert is broadcast immediately to all active cadre.")}</span>
           </div>
         </ActionForm>
       </Modal>
@@ -882,8 +861,8 @@ export function WorkspaceModals(props: Props) {
   if (modal.type === "purchase") {
     const item = modal.record as Procurement;
     return (
-      <Modal title="Log Out-of-Pocket Purchase" subtitle="Record exact spend paid by buyer. No pre-approval ceiling blocks procurement." onClose={close}>
-        <ActionForm action="purchase" save={save} {...formProps} submit="Log exact purchase">
+      <Modal title={t("Log Out-of-Pocket Purchase")} subtitle={t("Record exact spend paid by buyer. No pre-approval ceiling blocks procurement.")} onClose={close}>
+        <ActionForm action="purchase" save={save} {...formProps} submit={t("Log exact purchase")}>
           <input type="hidden" name="id" value={item.id} />
           <div className="item-detail-summary">
             <span className="stat-icon stat-icon-orange"><Package size={22} /></span>
@@ -893,13 +872,13 @@ export function WorkspaceModals(props: Props) {
             </div>
           </div>
           <div className="reference-line">
-            <span>Reference Estimated Cost</span>
+            <span>{t("Reference Estimated Cost")}</span>
             <strong className="mono">{money(item.estimatedCost)}</strong>
           </div>
           <FormField
-            label="Exact amount paid by buyer"
+            label={t("Exact amount paid by buyer")}
             required
-            hint="Record the real amount spent, whether below, matching, or exceeding the estimated budget. No pre-approval restriction blocks logging."
+            hint={t("Record the real amount spent, whether below, matching, or exceeding the estimated budget. No pre-approval restriction blocks logging.")}
           >
             <div className="currency-input large-input">
               <span>₹</span>
@@ -908,7 +887,7 @@ export function WorkspaceModals(props: Props) {
           </FormField>
           <div className="soft-info">
             <Users size={17} />
-            <span>Status changes to &apos;Ready to verify&apos;. A second volunteer must physically inspect the item at the venue to close it.</span>
+            <span>{t("Status changes to 'Ready to verify'. A second volunteer must physically inspect the item at the venue to close it.")}</span>
           </div>
         </ActionForm>
       </Modal>
@@ -921,18 +900,18 @@ export function WorkspaceModals(props: Props) {
     const buyer = data.profiles.find((p) => p.id === item.purchasedBy);
 
     return (
-      <Modal title="Peer Physical Inspection & Verification" subtitle="Dual-verification protocol: peer confirmation alone closes the voucher" onClose={close}>
-        <ActionForm action="verify" save={save} {...formProps} submit="Confirm peer verification & close voucher" disabled={own || item.status !== "purchased"}>
+      <Modal title={t("Peer Physical Inspection & Verification")} subtitle={t("Dual-verification protocol: peer confirmation alone closes the voucher")} onClose={close}>
+        <ActionForm action="verify" save={save} {...formProps} submit={t("Confirm peer verification & close voucher")} disabled={own || item.status !== "purchased"}>
           <input type="hidden" name="id" value={item.id} />
           <div className="item-detail-summary">
             <span className="stat-icon stat-icon-sage"><ShieldCheck size={22} /></span>
             <div>
               <h3>{item.itemName}</h3>
-              <p>{item.quantity} · Buyer: <strong>{buyer?.fullName || "Volunteer"}</strong></p>
+              <p>{t("{quantity} · Buyer:", { quantity: item.quantity })} <strong>{buyer?.fullName || t("Volunteer")}</strong></p>
             </div>
           </div>
           <div className="reference-line">
-            <span>Exact Out-of-Pocket Spend Recorded</span>
+            <span>{t("Exact Out-of-Pocket Spend Recorded")}</span>
             <strong className="mono text-rust">{money(item.actualCost || 0)}</strong>
           </div>
 
@@ -940,25 +919,25 @@ export function WorkspaceModals(props: Props) {
             <div className="form-warning">
               <ShieldAlert size={22} />
               <div>
-                <strong>Anti-Collusion Enforcement: Self-verification blocked.</strong>
+                <strong>{t("Anti-Collusion Enforcement: Self-verification blocked.")}</strong>
                 <p>
-                  Database constraint <code>CHECK (verified_by != purchased_by)</code> is strictly enforced. You logged this purchase, so another active volunteer must physically inspect it at the venue.
+                  {tx("Database constraint <code>CHECK (verified_by != purchased_by)</code> is strictly enforced. You logged this purchase, so another active volunteer must physically inspect it at the venue.")}
                 </p>
               </div>
             </div>
           ) : item.status !== "purchased" ? (
-            <div className="form-warning">Only purchased items can be verified by a peer.</div>
+            <div className="form-warning">{t("Only purchased items can be verified by a peer.")}</div>
           ) : (
             <>
               <label className="confirmation-check">
                 <input type="checkbox" required />
                 <span>
-                  I have physically examined this item at the venue, checked its quantity, condition, and confirm it is ready for the programme.
+                  {t("I have physically examined this item at the venue, checked its quantity, condition, and confirm it is ready for the programme.")}
                 </span>
               </label>
               <div className="soft-info">
                 <CircleCheck size={17} />
-                <span>Verification finality: peer confirmation marks the voucher complete and closed. No multi-level approval bottleneck required.</span>
+                <span>{t("Verification finality: peer confirmation marks the voucher complete and closed. No multi-level approval bottleneck required.")}</span>
               </div>
             </>
           )}
@@ -969,30 +948,30 @@ export function WorkspaceModals(props: Props) {
 
   if (modal.type === "createEvent") {
     return (
-      <Modal title="Schedule Unit Programme / Convention" subtitle="Publish field activity, school camp, or public convention to calendar" onClose={close}>
-        <ActionForm action="createEvent" save={save} {...formProps} submit="Publish to unit calendar">
-          <FormField label="Programme title" required>
-            <input name="title" placeholder="e.g. Anti-Superstition Demonstration Camp" maxLength={150} required />
+      <Modal title={t("Schedule Unit Programme / Convention")} subtitle={t("Publish field activity, school camp, or public convention to calendar")} onClose={close}>
+        <ActionForm action="createEvent" save={save} {...formProps} submit={t("Publish to unit calendar")}>
+          <FormField label={t("Programme title")} required>
+            <input name="title" placeholder={t("e.g. Anti-Superstition Demonstration Camp")} maxLength={150} required />
           </FormField>
           <div className="form-columns">
-            <FormField label="Date & start time" required>
+            <FormField label={t("Date & start time")} required>
               <input name="startsAt" type="datetime-local" required />
             </FormField>
-            <FormField label="Programme category">
+            <FormField label={t("Programme category")}>
               <select name="category">
-                <option>Outreach</option>
-                <option>Unit meeting</option>
-                <option>Campaign</option>
-                <option>Workshop</option>
-                <option>Convention</option>
+                <option value="Outreach">{t("Outreach")}</option>
+                <option value="Unit meeting">{t("Unit meeting")}</option>
+                <option value="Campaign">{t("Campaign")}</option>
+                <option value="Workshop">{t("Workshop")}</option>
+                <option value="Convention">{t("Convention")}</option>
               </select>
             </FormField>
           </div>
-          <FormField label="Venue / field location" required>
-            <input name="location" placeholder="e.g. Jalpaiguri Town Club Ground" maxLength={200} required />
+          <FormField label={t("Venue / field location")} required>
+            <input name="location" placeholder={t("e.g. Jalpaiguri Town Club Ground")} maxLength={200} required />
           </FormField>
-          <FormField label="Programme agenda & briefing for cadre" required>
-            <textarea name="description" placeholder="Briefing notes, objectives, volunteer arrival time..." rows={4} maxLength={4000} required />
+          <FormField label={t("Programme agenda & briefing for cadre")} required>
+            <textarea name="description" placeholder={t("Briefing notes, objectives, volunteer arrival time...")} rows={4} maxLength={4000} required />
           </FormField>
         </ActionForm>
       </Modal>
@@ -1011,28 +990,27 @@ export function WorkspaceModals(props: Props) {
       />
     );
   }
-
   if (modal.type === "publishCircular") {
     return (
-      <Modal title="Publish Digital Circular" subtitle="Issue official unit notice, meeting agenda, or urgent campaign circular" onClose={close}>
-        <ActionForm action="publishCircular" save={save} {...formProps} submit="Publish circular">
-          <FormField label="Circular title" required>
-            <input name="title" placeholder="e.g. Call for Volunteers: World Environment Day Rally" maxLength={150} required />
+      <Modal title={t("Publish Digital Circular")} subtitle={t("Issue official unit notice, meeting agenda, or urgent campaign circular")} onClose={close}>
+        <ActionForm action="publishCircular" save={save} {...formProps} submit={t("Publish circular")}>
+          <FormField label={t("Circular title")} required>
+            <input name="title" placeholder={t("e.g. Call for Volunteers: World Environment Day Rally")} maxLength={150} required />
           </FormField>
-          <FormField label="Classification">
+          <FormField label={t("Classification")}>
             <select name="category">
-              <option>Unit circular</option>
-              <option>Meeting agenda</option>
-              <option>Resource update</option>
-              <option>Urgent update</option>
+              <option value="Unit circular">{t("Unit circular")}</option>
+              <option value="Meeting agenda">{t("Meeting agenda")}</option>
+              <option value="Resource update">{t("Resource update")}</option>
+              <option value="Urgent update">{t("Urgent update")}</option>
             </select>
           </FormField>
-          <FormField label="Circular text" required>
-            <textarea name="content" rows={7} placeholder="Text of the resolution or notice..." maxLength={10000} required />
+          <FormField label={t("Circular text")} required>
+            <textarea name="content" rows={7} placeholder={t("Text of the resolution or notice...")} maxLength={10000} required />
           </FormField>
           <label className="confirmation-check">
             <input name="pinned" type="checkbox" />
-            <span>Pin this circular to the top of the unit notice board.</span>
+            <span>{t("Pin this circular to the top of the unit notice board.")}</span>
           </label>
         </ActionForm>
       </Modal>
@@ -1044,46 +1022,46 @@ export function WorkspaceModals(props: Props) {
     const author = data.profiles.find((p) => p.id === notice.authorId);
 
     return (
-      <Modal title={notice.title} subtitle={`${notice.category} · Official Circular`} onClose={close} wide>
+      <Modal title={notice.title} subtitle={t("{category} · Official Circular", { category: t(notice.category) })} onClose={close} wide>
         <article className="circular-reader print-tech-slip">
           {author && (
             <div className="reader-byline">
               <Avatar person={author} size="small" />
               <span>
-                {author.fullName} ({author.role})
-                <small>{new Date(notice.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</small>
+                {author.fullName} ({roleName(author.role)})
+                <small>{fmtDate(notice.createdAt, { day: "numeric", month: "long", year: "numeric" })}</small>
               </span>
-              {notice.pinned && <span className="stamp-verified stamp-needed">PINNED</span>}
+              {notice.pinned && <span className="stamp-verified stamp-needed">{t("PINNED")}</span>}
             </div>
           )}
           <div className="reader-content">{notice.content}</div>
-          {notice.title.includes("Mashkalaibari") && (
+          {isMashkalaibari(notice.title) && (
             <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
               <div className="flex items-center justify-between mb-2">
                 <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
-                  On-Site Photographic Evidence (03/11/2026)
+                  {t("On-Site Photographic Evidence (03/11/2026)")}
                 </span>
-                <span className="text-[11px] text-ink-faint">6 Photographic Records</span>
+                <span className="text-[11px] text-ink-faint">{t("6 Photographic Records")}</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {[1, 2, 3, 4, 5, 6].map((num) => {
-                  const p = MASHKALAIBARI_PHOTOS[num - 1];
+                {[1, 2, 3, 4, 5, 6].map((n) => {
+                  const p = MASHKALAIBARI_PHOTOS[n - 1];
                   return (
                     <a
-                      key={num}
-                      href={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
+                      key={n}
+                      href={`/images/field-reports/mashkalaibari/inspection-${n}.jpg`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
-                      title={p ? `${p.fig}: ${p.caption}` : `Inspection Photo ${num}`}
+                      title={p ? `${t("FIG 0{n}", { n })}: ${t(p.caption)}` : t("Inspection Photo {n}", { n })}
                     >
                       <img
-                        src={`/images/field-reports/mashkalaibari/inspection-${num}.jpg`}
-                        alt={p?.caption || `Mashkalaibari Crematorium Inspection Photo ${num}`}
+                        src={`/images/field-reports/mashkalaibari/inspection-${n}.jpg`}
+                        alt={p ? t(p.caption) : t("Mashkalaibari Crematorium Inspection Photo {n}", { n })}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                       <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
-                        FIG. 0{num}
+                        {t("FIG. 0{n}", { n })}
                       </span>
                     </a>
                   );
@@ -1092,13 +1070,13 @@ export function WorkspaceModals(props: Props) {
             </div>
           )}
 
-          {notice.title.includes("Environment Day") && (
+          {isEnvironmentDayText(notice.title) && (
             <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
               <div className="flex items-center justify-between mb-2">
                 <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
-                  World Environment Day Rally Records (05/06/2026)
+                  {t("World Environment Day Rally Records (05/06/2026)")}
                 </span>
-                <span className="text-[11px] text-ink-faint">6 Photographic Records</span>
+                <span className="text-[11px] text-ink-faint">{t("6 Photographic Records")}</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {ENVIRONMENT_DAY_PHOTOS.map((p, idx) => (
@@ -1108,15 +1086,15 @@ export function WorkspaceModals(props: Props) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
-                    title={`${p.fig}: ${p.caption}`}
+                    title={`${t("FIG 0{n}", { n: idx + 1 })}: ${t(p.caption)}`}
                   >
                     <img
                       src={p.src}
-                      alt={p.caption}
+                      alt={t(p.caption)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                     <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
-                      FIG. 0{idx + 1}
+                      {t("FIG. 0{n}", { n: idx + 1 })}
                     </span>
                   </a>
                 ))}
@@ -1124,13 +1102,13 @@ export function WorkspaceModals(props: Props) {
             </div>
           )}
 
-          {(notice.title.includes("Dhiman") || notice.title.includes("ধীমান") || notice.title.includes("Robotics")) && (
+          {isDhimanSessionText(notice.title) && (
             <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
               <div className="flex items-center justify-between mb-2">
                 <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
-                  Club Room Deliberation Records (01/05/2026)
+                  {t("Club Room Deliberation Records (01/05/2026)")}
                 </span>
-                <span className="text-[11px] text-ink-faint">2 Photographic Records</span>
+                <span className="text-[11px] text-ink-faint">{t("2 Photographic Records")}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {DHIMAN_SESSION_PHOTOS.map((p, idx) => (
@@ -1140,15 +1118,15 @@ export function WorkspaceModals(props: Props) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
-                    title={`${p.fig}: ${p.caption}`}
+                    title={`${t("FIG 0{n}", { n: idx + 1 })}: ${t(p.caption)}`}
                   >
                     <img
                       src={p.src}
-                      alt={p.caption}
+                      alt={t(p.caption)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                     <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
-                      FIG. 0{idx + 1}
+                      {t("FIG. 0{n}", { n: idx + 1 })}
                     </span>
                   </a>
                 ))}
@@ -1156,16 +1134,15 @@ export function WorkspaceModals(props: Props) {
             </div>
           )}
           <div className="reader-signoff">
-            In the cause of scientific temper and humanism,<br />
-            <strong>{identity.name}<br />{identity.organisation} · {identity.unit}</strong>
+            {tx("In the cause of scientific temper and humanism,<br/><strong>{name}<br/>{organisation} · {unit}</strong>", { name: t(identity.name), organisation: t(identity.organisation), unit: t(identity.unit) })}
           </div>
         </article>
         <div className="modal-actions">
           <button className="button button-secondary button-whatsapp" onClick={() => shareViaWhatsApp(formatCircularBroadcast(notice))}>
             <MessageCircle size={15} />
-            Share to WhatsApp Group
+            {t("Share to WhatsApp Group")}
           </button>
-          <Button variant="secondary" onClick={close}>Back to board</Button>
+          <Button variant="secondary" onClick={close}>{t("Back to board")}</Button>
         </div>
       </Modal>
     );
@@ -1175,24 +1152,24 @@ export function WorkspaceModals(props: Props) {
     const r = modal.record as Resource;
 
     return (
-      <Modal title={r.title} subtitle={`${r.kind} · ${r.category}`} onClose={close} wide>
+      <Modal title={r.title} subtitle={`${t(r.kind)} · ${t(r.category)}`} onClose={close} wide>
         {r.image ? (
           <div className="poster-view">
-            <img src={r.image} alt="Official Breakthrough Science Society Conference Poster" />
-            <p>Original Poster Archive · Breakthrough Science Society</p>
+            <img src={r.image} alt={t("Official Breakthrough Science Society Conference Poster")} />
+            <p>{t("Original Poster Archive · Breakthrough Science Society")}</p>
           </div>
         ) : (
           <article className="resource-reader">
             {r.keyQuestion && (
               <div className="resource-key-question">
-                <strong>CORE SCIENTIFIC QUESTION:</strong>
+                <strong>{t("CORE SCIENTIFIC QUESTION:")}</strong>
                 <p>{r.keyQuestion}</p>
               </div>
             )}
 
             {r.materials && r.materials.length > 0 && (
               <div className="resource-materials-box">
-                <h4>REAGENTS & MATERIALS CHECKLIST</h4>
+                <h4>{t("REAGENTS & MATERIALS CHECKLIST")}</h4>
                 <ul>
                   {r.materials.map((m, idx) => (
                     <li key={idx}>
@@ -1205,7 +1182,7 @@ export function WorkspaceModals(props: Props) {
 
             {r.safetyNotes && r.safetyNotes.length > 0 && (
               <div className="resource-safety-box">
-                <h4><ShieldAlert size={15} /> MANDATORY FIELD SAFETY PROTOCOLS</h4>
+                <h4><ShieldAlert size={15} /> {t("MANDATORY FIELD SAFETY PROTOCOLS")}</h4>
                 <ul>
                   {r.safetyNotes.map((s, idx) => (
                     <li key={idx}>{s}</li>
@@ -1223,10 +1200,10 @@ export function WorkspaceModals(props: Props) {
         )}
 
         <div className="modal-actions">
-          <Button variant="secondary" onClick={close}>Close</Button>
+          <Button variant="secondary" onClick={close}>{t("Close")}</Button>
           {r.content ? (
-            <Button icon={Download} onClick={() => { downloadText(`${identity.filePrefix}-${r.id}-protocol.txt`, r.content!); notify("Field protocol downloaded."); }}>
-              Download protocol
+            <Button icon={Download} onClick={() => { downloadText(`${identity.filePrefix}-${r.id}-protocol.txt`, r.content!); notify(t("Field protocol downloaded.")); }}>
+              {t("Download protocol")}
             </Button>
           ) : (
             <a
@@ -1237,7 +1214,7 @@ export function WorkspaceModals(props: Props) {
               {...(r.image ? { download: "BSS-Conference-Poster.jpg" } : {})}
             >
               {r.image ? <Download size={15} /> : <ExternalLink size={15} />}
-              {r.image ? "Download high-res poster" : "Visit official portal"}
+              {r.image ? t("Download high-res poster") : t("Visit official portal")}
             </a>
           )}
         </div>
@@ -1247,14 +1224,14 @@ export function WorkspaceModals(props: Props) {
 
   if (modal.type === "help") {
     return (
-      <Modal title="Platform Architecture & Field Workflows" subtitle="Light of Science · Breakthrough Science Society, Jalpaiguri Unit" onClose={close} wide>
+      <Modal title={t("Platform Architecture & Field Workflows")} subtitle={t("Light of Science · Breakthrough Science Society, Jalpaiguri Unit")} onClose={close} wide>
         <div className="help-content">
           {[
-            ["Module A: Membership Dues & Treasury Ledger", "Baseline minimum of ₹20/month with no upper cap. Advance lump-sum allocations automatically distribute across consecutive upcoming unpaid months. Members with 6+ consecutive unpaid months are flagged as Inactive / Dues Pending on rosters."],
-            ["Module B: Donation Register & Extensible Receipts", "External patron contributions generate signed digital slips carrying the official society registration (S/86180 of 1996-97), unit seal, and authorized treasurer signature. Universal sharing is formatted for WhatsApp, Telegram, or A4 PDF print. Carrier SMS notification tracking is integrated."],
-            ["Module C: Real-Time Event Procurement & Dual Verification", "3-stage lifecycle: needed → purchased → verified. Buyers log exact out-of-pocket spend without pre-approval caps. Dual verification rule (CHECK verified_by != purchased_by) prevents self-verification. Peer physical inspection closes the item."],
-            ["Module D: Real-Time Notifications & Broadcasts", "Triggers include urgent procurements within 48 hours, peer verification confirmations to buyers, dues receipts, and high-priority broadcast circulars. Web Push API is integrated with service worker background delivery."],
-            ["Module E: Science Outreach & Miracle-Busting Lab", "Interactive repertoire of anti-superstition chemical demonstrations (spontaneous combustion, bleeding lemon, thermal conductivity of fire-walking, lever-arm rod bending) plus legislative policy drafts and astronomy manuals."],
+            [t("Module A: Membership Dues & Treasury Ledger"), t("Baseline minimum of ₹20/month with no upper cap. Advance lump-sum allocations automatically distribute across consecutive upcoming unpaid months. Members with 6+ consecutive unpaid months are flagged as Inactive / Dues Pending on rosters.")],
+            [t("Module B: Donation Register & Extensible Receipts"), t("External patron contributions generate signed digital slips carrying the official society registration (S/86180 of 1996-97), unit seal, and authorized treasurer signature. Universal sharing is formatted for WhatsApp, Telegram, or A4 PDF print. Carrier SMS notification tracking is integrated.")],
+            [t("Module C: Real-Time Event Procurement & Dual Verification"), t("3-stage lifecycle: needed → purchased → verified. Buyers log exact out-of-pocket spend without pre-approval caps. Dual verification rule (CHECK verified_by != purchased_by) prevents self-verification. Peer physical inspection closes the item.")],
+            [t("Module D: Real-Time Notifications & Broadcasts"), t("Triggers include urgent procurements within 48 hours, peer verification confirmations to buyers, dues receipts, and high-priority broadcast circulars. Web Push API is integrated with service worker background delivery.")],
+            [t("Module E: Science Outreach & Miracle-Busting Lab"), t("Interactive repertoire of anti-superstition chemical demonstrations (spontaneous combustion, bleeding lemon, thermal conductivity of fire-walking, lever-arm rod bending) plus legislative policy drafts and astronomy manuals.")],
           ].map(([title, desc], i) => (
             <details key={title} open={i === 0}>
               <summary>{title}<span className="help-plus">+</span></summary>
@@ -1263,7 +1240,7 @@ export function WorkspaceModals(props: Props) {
           ))}
           <div className="soft-info mt-3">
             <Info size={17} />
-            <span>Light of Science, Jalpaiguri Unit, West Bengal. Registered under West Bengal Societies Registration Act, 1961.</span>
+            <span>{t("Light of Science, Jalpaiguri Unit, West Bengal. Registered under West Bengal Societies Registration Act, 1961.")}</span>
           </div>
         </div>
       </Modal>
@@ -1274,6 +1251,7 @@ export function WorkspaceModals(props: Props) {
 }
 
 function ActionForm({ action, save, children, busy, error, close, submit, disabled = false }: { action: string; save: (action: string, values: Record<string, unknown>) => Promise<void>; children: ReactNode; busy: boolean; error: string; close: () => void; submit: string; disabled?: boolean }) {
+  const { t } = useI18n();
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const values: Record<string, unknown> = Object.fromEntries(new FormData(e.currentTarget));
@@ -1287,7 +1265,7 @@ function ActionForm({ action, save, children, busy, error, close, submit, disabl
         {error && <div className="form-error" role="alert">{error}</div>}
       </div>
       <div className="modal-actions">
-        <Button variant="secondary" onClick={close} disabled={busy}>Cancel</Button>
+        <Button variant="secondary" onClick={close} disabled={busy}>{t("Cancel")}</Button>
         {disabled ? <Button disabled>{submit}</Button> : <SubmitButton busy={busy}>{submit}</SubmitButton>}
       </div>
     </form>
@@ -1295,6 +1273,7 @@ function ActionForm({ action, save, children, busy, error, close, submit, disabl
 }
 
 function DuesCollector({ data, record, save, busy, error, close }: { data: WorkspaceData; record?: { memberId?: string; month?: number; year?: number }; save: (action: string, values: Record<string, unknown>) => Promise<void>; busy: boolean; error: string; close: () => void }) {
+  const { t, tx, num, money, monthShort, roleName } = useI18n();
   const now = new Date();
   const [memberId, setMemberId] = useState(record?.memberId || data.profiles[0]?.id || "");
   const selected = data.profiles.find((p) => p.id === memberId) || data.profiles[0];
@@ -1323,9 +1302,9 @@ function DuesCollector({ data, record, save, busy, error, close }: { data: Works
   const collector = data.profiles.find((p) => p.id === data.currentUserId);
 
   return (
-    <Modal title="Meeting Quick-Collector" subtitle="Record dues during unit meeting with automatic multi-month allocation" onClose={close}>
-      <ActionForm action="collectDues" save={save} busy={busy} error={error} close={close} submit="Record & map to ledger">
-        <FormField label="Member name" required>
+    <Modal title={t("Meeting Quick-Collector")} subtitle={t("Record dues during unit meeting with automatic multi-month allocation")} onClose={close}>
+      <ActionForm action="collectDues" save={save} busy={busy} error={error} close={close} submit={t("Record & map to ledger")}>
+        <FormField label={t("Member name")} required>
           <select
             name="memberId"
             value={memberId}
@@ -1338,20 +1317,20 @@ function DuesCollector({ data, record, save, busy, error, close }: { data: Works
           >
             {data.profiles.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.fullName} ({p.role.toUpperCase()}) — Pledge: ₹{p.monthlyPledge}/mo
+                {t("{name} ({role}) — Pledge: ₹{pledge}/mo", { name: p.fullName, role: roleName(p.role), pledge: p.monthlyPledge })}
               </option>
             ))}
           </select>
         </FormField>
 
         <div className="form-columns">
-          <FormField label="Total received (lump-sum allowed)" required>
+          <FormField label={t("Total received (lump-sum allowed)")} required>
             <div className="currency-input large-input">
               <span>₹</span>
               <input type="number" name="amount" value={amount} min="20" step="0.01" onChange={(e) => setAmount(e.target.value)} required />
             </div>
           </FormField>
-          <FormField label="Monthly dues rate" required hint="Strict baseline: min ₹20. Custom higher recurring pledge allowed.">
+          <FormField label={t("Monthly dues rate")} required hint={t("Strict baseline: min ₹20. Custom higher recurring pledge allowed.")}>
             <div className="currency-input large-input">
               <span>₹</span>
               <input type="number" name="monthlyAmount" value={monthly} min="20" step="0.01" onChange={(e) => setMonthly(e.target.value)} required />
@@ -1360,52 +1339,52 @@ function DuesCollector({ data, record, save, busy, error, close }: { data: Works
         </div>
 
         <div className="form-columns three-columns">
-          <FormField label="Start month">
+          <FormField label={t("Start month")}>
             <select name="month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
               {months.map((mon, i) => (
-                <option value={i + 1} key={mon}>{mon}</option>
+                <option value={i + 1} key={mon}>{monthShort(i)}</option>
               ))}
             </select>
           </FormField>
-          <FormField label="Ledger year">
+          <FormField label={t("Ledger year")}>
             <input name="year" type="number" min="2024" max="2100" value={year} onChange={(e) => setYear(Number(e.target.value))} required />
           </FormField>
-          <FormField label="Payment mode">
+          <FormField label={t("Payment mode")}>
             <select name="paymentMode">
-              <option value="cash">Cash in meeting</option>
-              <option value="upi">UPI transfer</option>
-              <option value="bank_transfer">Bank transfer</option>
+              <option value="cash">{t("Cash in meeting")}</option>
+              <option value="upi">{t("UPI transfer")}</option>
+              <option value="bank_transfer">{t("Bank transfer")}</option>
             </select>
           </FormField>
         </div>
 
         <div className="allocation-preview">
           <div>
-            <span><Wallet size={15} />ADVANCE MULTI-MONTH ALLOCATION</span>
-            <strong>{allocations.length} {allocations.length === 1 ? "month" : "months"} mapped</strong>
+            <span><Wallet size={15} />{t("ADVANCE MULTI-MONTH ALLOCATION")}</span>
+            <strong>{t(allocations.length === 1 ? "{count} month mapped" : "{count} months mapped", { count: allocations.length })}</strong>
           </div>
           {allocations.length ? (
             <>
               <div className="allocation-months">
                 {allocations.slice(0, 8).map((a) => (
                   <span key={`${a.year}-${a.month}`}>
-                    <small>{months[a.month - 1]} {a.year}</small>
+                    <small>{monthShort(a.month - 1)} {num(a.year)}</small>
                     <strong>{money(a.amount)}</strong>
                     <Check size={11} />
                   </span>
                 ))}
-                {allocations.length > 8 && <span className="allocation-more">+{allocations.length - 8} more</span>}
+                {allocations.length > 8 && <span className="allocation-more">{t("+{count} more", { count: allocations.length - 8 })}</span>}
               </div>
-              <p>Consecutive upcoming months are automatically occupied on the ledger matrix, skipping any previously settled months.</p>
+              <p>{t("Consecutive upcoming months are automatically occupied on the ledger matrix, skipping any previously settled months.")}</p>
             </>
           ) : (
-            <p>Enter at least ₹20 to preview how this payment distributes across consecutive months.</p>
+            <p>{t("Enter at least ₹20 to preview how this payment distributes across consecutive months.")}</p>
           )}
         </div>
 
         <p className="collector-stamp">
           <ShieldCheck size={14} />
-          Collector attribution stamp: <strong>{collector?.fullName}</strong> ({collector?.role})
+          {tx("Collector attribution stamp: <strong>{fullName}</strong> ({role})", { fullName: collector?.fullName, role: collector?.role })}
         </p>
       </ActionForm>
     </Modal>
@@ -1429,26 +1408,28 @@ function ReceiptModal({
   busy: boolean;
   open: OpenModal;
 }) {
+  const { t, tx, money, fmtDate, locale } = useI18n();
   if (!donation) return null;
-  const receiptUrl = () => `${typeof window !== "undefined" ? window.location.origin : ""}/receipts/${donation.id}`;
+  // A link shared from a Bengali session opens the receipt in Bengali for whoever receives it.
+  const receiptUrl = () => `${typeof window !== "undefined" ? window.location.origin : ""}/receipts/${donation.id}${locale === "bn" ? "?lang=bn" : ""}`;
 
   const shareText = () =>
-    `Light of Science (Breakthrough Science Society, Jalpaiguri Unit)\nDonation Acknowledgement\nDonor: ${donation.donorName}\nAmount: ${money(donation.amount)}\nReceipt No: ${donation.receiptNo}\nVerification slip: ${receiptUrl()}\nScience for Man. Science for Society. Science in Thinking.`;
+    t("Light of Science (Breakthrough Science Society, Jalpaiguri Unit)\nDonation Acknowledgement\nDonor: {donor}\nAmount: {amount}\nReceipt No: {receipt}\nVerification slip: {url}\nScience for Man. Science for Society. Science in Thinking.", { donor: donation.donorName, amount: money(donation.amount), receipt: donation.receiptNo, url: receiptUrl() });
 
   const share = async () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${identity.name} · donation receipt`,
+          title: t("{name} · donation receipt", { name: t(identity.name) }),
           text: shareText(),
           url: receiptUrl(),
         });
       } else {
         await navigator.clipboard.writeText(receiptUrl());
-        notify("Receipt link copied. Ready for WhatsApp, Telegram, or email.");
+        notify(t("Receipt link copied. Ready for WhatsApp, Telegram, or email."));
       }
     } catch (e) {
-      if ((e as Error).name !== "AbortError") notify("Open the receipt below to share its link from your browser.");
+      if ((e as Error).name !== "AbortError") notify(t("Open the receipt below to share its link from your browser."));
     }
   };
 
@@ -1464,14 +1445,14 @@ function ReceiptModal({
   };
 
   const collector = data.profiles.find((p) => p.id === donation.receivedBy);
-  const dateFormatted = new Date(donation.createdAt).toLocaleDateString("en-IN", {
+  const dateFormatted = fmtDate(donation.createdAt, {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 
   return (
-    <Modal title="Official Donation Digital Slip" subtitle="Multi-channel receipt with official society registration & unit seal" onClose={close}>
+    <Modal title={t("Official Donation Digital Slip")} subtitle={t("Multi-channel receipt with official society registration & unit seal")} onClose={close}>
       <div className="receipt-slip-wrap">
         <div className="receipt-slip print-tech-slip">
           <span className="print-mark print-mark-tl slip-mark" />
@@ -1481,51 +1462,51 @@ function ReceiptModal({
 
           {/* Letterhead */}
           <div className="receipt-brand">
-            <img src="/images/bss-logo.svg" alt="BSS emblem" />
+            <img src="/images/bss-logo.svg" alt={t("BSS emblem")} />
             <div>
-              <strong>{identity.name}</strong>
-              <span>{identity.organisation}</span>
-              <span>{identity.unit} · {identity.state}</span>
-              <small className="mono text-[length:max(8.5px,var(--fs-floor,0px))] text-muted block mt-0.5">Regd. No. {identity.registrationNo}</small>
+              <strong>{t(identity.name)}</strong>
+              <span>{t(identity.organisation)}</span>
+              <span>{t(identity.unit)} · {t(identity.state)}</span>
+              <small className="mono text-[length:max(8.5px,var(--fs-floor,0px))] text-muted block mt-0.5">{t("Regd. No. {registrationNo}", { registrationNo: identity.registrationNo })}</small>
             </div>
           </div>
 
           <div className="receipt-slip-title">
-            <span>OFFICIAL DONATION ACKNOWLEDGEMENT</span>
-            <span className="stamp-verified">RECORDED</span>
+            <span>{t("OFFICIAL DONATION ACKNOWLEDGEMENT")}</span>
+            <span className="stamp-verified">{t("RECORDED")}</span>
           </div>
 
           <div className="receipt-amount-row my-2">
             <div>
-              <span className="mono text-[length:max(8px,var(--fs-floor,0px))] text-muted block">CONTRIBUTION AMOUNT</span>
+              <span className="mono text-[length:max(8px,var(--fs-floor,0px))] text-muted block">{t("CONTRIBUTION AMOUNT")}</span>
               <div className="receipt-amount mono">{money(donation.amount)}</div>
             </div>
             <UnitOfficialSeal size={84} />
           </div>
 
           <p className="receipt-thanks">
-            Received with thanks from <strong>{donation.donorName}</strong> for grassroots science advocacy.
+            {tx("Received with thanks from <strong>{donorName}</strong> for grassroots science advocacy.", { donorName: donation.donorName })}
           </p>
 
           <div className="receipt-details">
-            <div><span>Receipt Serial</span><strong className="mono text-rust">{donation.receiptNo}</strong></div>
-            <div><span>Date Issued</span><strong>{dateFormatted}</strong></div>
-            <div><span>Payment Mode</span><strong className="uppercase">{donation.paymentMode === "bank_transfer" ? "Bank Transfer" : donation.paymentMode}</strong></div>
-            <div><span>Supporting Event</span><strong>{data.events.find((e) => e.id === donation.eventId)?.title || "General Science Fund"}</strong></div>
-            <div><span>Authorized Receiver</span><strong>{collector?.fullName || "Unit Treasurer"}</strong></div>
+            <div><span>{t("Receipt Serial")}</span><strong className="mono text-rust">{donation.receiptNo}</strong></div>
+            <div><span>{t("Date Issued")}</span><strong>{dateFormatted}</strong></div>
+            <div><span>{t("Payment Mode")}</span><strong className="uppercase">{t(donation.paymentMode === "bank_transfer" ? "Bank Transfer" : donation.paymentMode)}</strong></div>
+            <div><span>{t("Supporting Event")}</span><strong>{data.events.find((e) => e.id === donation.eventId)?.title || t("General Science Fund")}</strong></div>
+            <div><span>{t("Authorized Receiver")}</span><strong>{collector?.fullName || t("Unit Treasurer")}</strong></div>
           </div>
 
           <div className="my-2 border-t border-dashed border-rule-soft pt-2">
-            <TreasurerSignatureBlock officerName={collector?.fullName || "Arunabha Ghosh"} date={dateFormatted} />
+            <TreasurerSignatureBlock officerName={collector?.fullName || t("Arunabha Ghosh")} date={dateFormatted} />
           </div>
 
           <div className="receipt-bottom">
             <HeartHandshake size={18} />
-            <span>Science for Man. Science for Society. Science in Thinking.</span>
+            <span>{t("Science for Man. Science for Society. Science in Thinking.")}</span>
           </div>
 
           <div className="receipt-carbon">
-            {identity.unit} · {identity.organisation} — ARCHIVE COPY
+            {t("{unit} · {organisation} — ARCHIVE COPY", { unit: t(identity.unit), organisation: t(identity.organisation) })}
           </div>
         </div>
       </div>
@@ -1536,35 +1517,35 @@ function ReceiptModal({
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(receiptUrl());
-              notify("Receipt link copied.");
+              notify(t("Receipt link copied."));
             } catch {
-              notify("Copy URL from browser address bar.");
+              notify(t("Copy URL from browser address bar."));
             }
           }}
         >
-          <Copy size={15} />Copy link
+          <Copy size={15} />{t("Copy link")}
         </button>
 
         <button onClick={shareWhatsApp} className="text-[#25D366]">
-          <MessageCircle size={15} />WhatsApp
+          <MessageCircle size={15} />{t("WhatsApp")}
         </button>
 
         <button onClick={shareTelegram} className="text-[#0088cc]">
-          <Send size={15} />Telegram
+          <Send size={15} />{t("Telegram")}
         </button>
 
         <button onClick={() => open("smsPreview", donation)}>
-          <MessageSquare size={15} />SMS Gateway
+          <MessageSquare size={15} />{t("SMS Gateway")}
         </button>
 
-        <a href={`/receipts/${donation.id}?print=1`} target="_blank" rel="noreferrer">
-          <Printer size={15} />Print A4
+        <a href={`/receipts/${donation.id}?print=1${locale === "bn" ? "&lang=bn" : ""}`} target="_blank" rel="noreferrer">
+          <Printer size={15} />{t("Print A4")}
         </a>
       </div>
 
       <div className="modal-actions">
-        <Button variant="secondary" onClick={close}>Done</Button>
-        <Button icon={ArrowUpRight} onClick={() => void share()}>Share digital slip</Button>
+        <Button variant="secondary" onClick={close}>{t("Done")}</Button>
+        <Button icon={ArrowUpRight} onClick={() => void share()}>{t("Share digital slip")}</Button>
       </div>
     </Modal>
   );

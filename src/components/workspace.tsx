@@ -3,7 +3,7 @@
 import { identity } from "@/lib/identity";
 import { authClient } from "@/lib/auth-client";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
 import { Avatar, Badge, Button, Modal, ModalExiting, relativeTime, useModalExit } from "@/components/ui";
@@ -13,15 +13,16 @@ import { CircularsView, EventsView, ProcurementView, ResourcesView, SettingsView
 import { WorkspaceModals, type ModalState } from "@/components/workspace-modals";
 import { LoginScreen } from "@/components/login-screen";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
-import { I18nProvider, useI18n } from "@/lib/i18n";
+import { I18nProvider, useI18n, type Locale } from "@/lib/i18n";
+import { localizeData } from "@/lib/localize-content";
 import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 import { useFirstFlush, FirstFlushLeaves } from "@/components/first-flush-easter-egg";
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-export default function Workspace({ initialData, initialGoogleEmail }: { initialData: WorkspaceData; initialGoogleEmail?: string | null }) {
+export default function Workspace({ initialData, initialGoogleEmail, initialLocale }: { initialData: WorkspaceData; initialGoogleEmail?: string | null; initialLocale?: Locale }) {
   return (
-    <I18nProvider>
+    <I18nProvider initialLocale={initialLocale}>
       <WorkspaceInner initialData={initialData} initialGoogleEmail={initialGoogleEmail} />
     </I18nProvider>
   );
@@ -50,9 +51,11 @@ function subscribeStorage(callback: () => void) {
 }
 
 function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: WorkspaceData; initialGoogleEmail?: string | null }) {
-  const { locale, setLocale, t } = useI18n();
+  const { locale, setLocale, t, tx, ts, tc, num, fmtDate, roleName } = useI18n();
   const identityRef = identity;
   const [data, setData] = useState(initialData);
+  // What the screens show: the same data, with the app's own sample content and activity lines in the chosen language.
+  const shown = useMemo(() => localizeData(data, { locale, t, tc, ts }), [data, locale, t, tc, ts]);
   const [view, setView] = useState<View>("overview");
   const [eventFilter, setEventFilter] = useState("all");
   const [modal, setModal] = useState<ModalState>(null);
@@ -81,15 +84,15 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const isAuthorized = Boolean(data.currentUserId);
 
   const labels: Record<View, string> = {
-    overview: t("overview"),
-    members: t("members"),
-    dues: t("dues"),
-    donations: t("donations"),
-    events: t("events"),
-    procurement: t("procurement"),
-    circulars: t("circulars"),
-    resources: t("resources"),
-    settings: t("settings"),
+    overview: t("Overview"),
+    members: t("Members"),
+    dues: t("Membership dues"),
+    donations: t("Donations"),
+    events: t("Events & campaigns"),
+    procurement: t("Procurement"),
+    circulars: t("Circulars & notices"),
+    resources: t("Science resources"),
+    settings: t("Unit settings"),
   };
 
   const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
@@ -100,7 +103,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
 
   const user = currentUser || {
     id: "",
-    fullName: "Public Visitor",
+    fullName: t("Public Visitor"),
     phone: null,
     role: "guest" as Role,
     status: "active",
@@ -112,36 +115,36 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
 
   const navItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
     ? [
-        { view: "overview", label: t("overview"), icon: LayoutDashboard },
-        { view: "events", label: t("events"), icon: CalendarDays },
+        { view: "overview", label: t("Overview"), icon: LayoutDashboard },
+        { view: "events", label: t("Events & campaigns"), icon: CalendarDays },
       ]
     : userRole === "member"
     ? [
-        { view: "overview", label: t("overview"), icon: LayoutDashboard },
-        { view: "members", label: t("members"), icon: Users },
-        { view: "dues", label: t("dues"), icon: Wallet },
-        { view: "events", label: t("events"), icon: CalendarDays },
+        { view: "overview", label: t("Overview"), icon: LayoutDashboard },
+        { view: "members", label: t("Members"), icon: Users },
+        { view: "dues", label: t("Membership dues"), icon: Wallet },
+        { view: "events", label: t("Events & campaigns"), icon: CalendarDays },
       ]
     : [
-        { view: "overview", label: t("overview"), icon: LayoutDashboard },
-        { view: "members", label: t("members"), icon: Users },
-        { view: "dues", label: t("dues"), icon: Wallet },
-        { view: "donations", label: t("donations"), icon: HeartHandshake },
-        { view: "events", label: t("events"), icon: CalendarDays },
-        { view: "procurement", label: t("procurement"), icon: ClipboardList },
+        { view: "overview", label: t("Overview"), icon: LayoutDashboard },
+        { view: "members", label: t("Members"), icon: Users },
+        { view: "dues", label: t("Membership dues"), icon: Wallet },
+        { view: "donations", label: t("Donations"), icon: HeartHandshake },
+        { view: "events", label: t("Events & campaigns"), icon: CalendarDays },
+        { view: "procurement", label: t("Procurement"), icon: ClipboardList },
       ];
 
   const knowledgeItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
     ? [
-        { view: "resources", label: t("resources"), icon: BookOpen },
+        { view: "resources", label: t("Science resources"), icon: BookOpen },
       ]
     : [
-        { view: "circulars", label: t("circulars"), icon: Megaphone },
-        { view: "resources", label: t("resources"), icon: BookOpen },
+        { view: "circulars", label: t("Circulars & notices"), icon: Megaphone },
+        { view: "resources", label: t("Science resources"), icon: BookOpen },
       ];
   const needed = data.procurements.filter((p) => p.status === "needed").length;
   // Five tabs and a top bar share ~390px, so the long sidebar names ("Membership dues") get short forms on phones.
-  const shortLabels: Partial<Record<View, string>> = { members: t("membersShort"), dues: t("duesShort"), events: t("eventsShort"), circulars: t("circularsShort"), resources: t("resourcesShort"), settings: t("settingsShort") };
+  const shortLabels: Partial<Record<View, string>> = { members: t("Members"), dues: t("Dues"), events: t("Events"), circulars: t("Circulars"), resources: t("Resources"), settings: t("Settings") };
   const notify = useCallback((message: string) => setToast({ message }), []);
   const { leaves, triggerFirstFlush } = useFirstFlush(notify, locale);
   // Closing plays an exit animation first. Opening another modal while one is still leaving cancels that exit.
@@ -157,14 +160,14 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   }, [sidebarOpen]);
   const drawerTouch = useRef<{ x: number; y: number; dx: number; horizontal: boolean | null } | null>(null);
   const onDrawerTouchStart = (e: ReactTouchEvent<HTMLElement>) => {
-    const t = e.touches[0];
-    drawerTouch.current = { x: t.clientX, y: t.clientY, dx: 0, horizontal: null };
+    const touch = e.touches[0];
+    drawerTouch.current = { x: touch.clientX, y: touch.clientY, dx: 0, horizontal: null };
   };
   const onDrawerTouchMove = (e: ReactTouchEvent<HTMLElement>) => {
     const d = drawerTouch.current, el = sidebarRef.current;
     if (!d || !el) return;
-    const t = e.touches[0];
-    const dx = t.clientX - d.x, dy = t.clientY - d.y;
+    const touch = e.touches[0];
+    const dx = touch.clientX - d.x, dy = touch.clientY - d.y;
     // Decide once whether this is a leftward swipe (close) or a vertical scroll of the menu.
     if (d.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) d.horizontal = Math.abs(dx) > Math.abs(dy) && dx < 0;
     if (!d.horizontal) return;
@@ -187,7 +190,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
 
   const triggerSync = useCallback(async () => {
     if (!navigator.onLine) {
-      notify("Still offline. Reconnect to network before syncing.");
+      notify(t("Still offline. Reconnect to network before syncing."));
       return;
     }
     setSyncing(true);
@@ -204,17 +207,17 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
         return { ok: true, status: res.status };
       });
       if (synced > 0) {
-        notify(`⚡ Synced ${synced} field ${synced === 1 ? "operation" : "operations"} successfully with unit server.`);
+        notify(t(synced === 1 ? "⚡ Synced {count} field operation successfully with unit server." : "⚡ Synced {count} field operations successfully with unit server.", { count: synced }));
         const fresh = await fetch("/api/workspace").then((r) => r.json()).catch(() => null);
         if (fresh) setData(fresh);
       }
       if (failed > 0) {
-        notify(`⚠️ ${failed} queued ${failed === 1 ? "item" : "items"} could not be synced: ${errors[0]}`);
+        notify(t(failed === 1 ? "⚠️ {count} queued item could not be synced: {reason}" : "⚠️ {count} queued items could not be synced: {reason}", { count: failed, reason: ts(String(errors[0])) }));
       }
     } finally {
       setSyncing(false);
     }
-  }, [notify]);
+  }, [notify, t, ts]);
 
   const navigate = useCallback((target: View, eventId?: string) => {
     hapticTap(8);
@@ -306,11 +309,11 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     if (!navigator.onLine) {
       try {
         await enqueueOfflineAction(action, actionPayload);
-        const optimisticMsg = "⚡ Recorded in local offline queue. Will auto-sync when network returns.";
+        const optimisticMsg = t("⚡ Recorded in local offline queue. Will auto-sync when network returns.");
         notify(optimisticMsg);
         return { data, message: optimisticMsg };
       } catch {
-        const message = "Unable to write to local offline queue.";
+        const message = t("Unable to write to local offline queue.");
         setActionError(message); setToast({ message, error: true }); return null;
       } finally {
         setBusy(false);
@@ -320,8 +323,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     try {
       const response = await fetch("/api/workspace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...actionPayload }) });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Unable to save this record.");
-      setData(result.data); lastActivity.current = result.data.activities[0]?.id; setDismissedActivityId(null); notify(result.message);
+      if (!response.ok) throw new Error(ts(result.error) || t("Unable to save this record."));
+      setData(result.data); lastActivity.current = result.data.activities[0]?.id; setDismissedActivityId(null); notify(ts(result.message));
       hapticSuccess();
       return result as ActionResult;
     } catch (error) {
@@ -331,37 +334,37 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       if (isNetworkIssue) {
         try {
           await enqueueOfflineAction(action, actionPayload);
-          const fallbackMsg = "⚡ Network connection dropped. Safely saved in local offline queue; will sync when reconnected.";
+          const fallbackMsg = t("⚡ Network connection dropped. Safely saved in local offline queue; will sync when reconnected.");
           notify(fallbackMsg);
           return { data, message: fallbackMsg };
         } catch {
           // ignore
         }
       }
-      const message = error instanceof Error ? error.message : "Please try again.";
+      const message = error instanceof Error ? ts(error.message) : t("Please try again.");
       setActionError(message); setToast({ message, error: true }); return null;
     } finally { setBusy(false); }
-  }, [data, notify]);
+  }, [data, notify, t, ts]);
   const enablePush = useCallback(async () => {
-    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) { notify("This browser doesn’t support Web Push. In-app alerts are still available."); return; }
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) { notify(t("This browser doesn’t support Web Push. In-app alerts are still available.")); return; }
     try {
       const config = await fetch("/api/push").then((r) => r.json());
-      if (!config.configured) { notify("In-app alerts are active. Browser push needs VAPID credentials configured on the server."); return; }
+      if (!config.configured) { notify(t("In-app alerts are active. Browser push needs VAPID credentials configured on the server.")); return; }
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") { notify("Notifications weren’t enabled. You can change this in your browser’s site settings."); return; }
+      if (permission !== "granted") { notify(t("Notifications weren’t enabled. You can change this in your browser’s site settings.")); return; }
       const registration = await navigator.serviceWorker.ready;
       const key = config.publicKey.replace(/-/g, "+").replace(/_/g, "/");
       const bytes = Uint8Array.from(atob(key + "=".repeat((4 - key.length % 4) % 4)), (c) => c.charCodeAt(0));
       const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes.buffer });
       const response = await fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(subscription) });
-      if (!response.ok) throw new Error("Unable to register push notifications. Please try again.");
-      setPushEnabled(true); notify("You’re connected. Important unit updates can now reach this device.");
-    } catch (error) { notify(error instanceof Error ? error.message : "Unable to enable browser push."); }
-  }, [notify]);
+      if (!response.ok) throw new Error(t("Unable to register push notifications. Please try again."));
+      setPushEnabled(true); notify(t("You’re connected. Important unit updates can now reach this device."));
+    } catch (error) { notify(error instanceof Error ? ts(error.message) : t("Unable to enable browser push.")); }
+  }, [notify, t, ts]);
   const installApp = useCallback(async () => {
-    if (installPrompt.current) { await installPrompt.current.prompt(); const choice = await installPrompt.current.userChoice; if (choice.outcome === "accepted") notify("The unit workspace has been added to your device."); installPrompt.current = null; }
-    else notify("Use your browser menu → Install app or Add to Home Screen. On iPhone, use Share → Add to Home Screen.");
-  }, [notify]);
+    if (installPrompt.current) { await installPrompt.current.prompt(); const choice = await installPrompt.current.userChoice; if (choice.outcome === "accepted") notify(t("The unit workspace has been added to your device.")); installPrompt.current = null; }
+    else notify(t("Use your browser menu → Install app or Add to Home Screen. On iPhone, use Share → Add to Home Screen."));
+  }, [notify, t]);
   const markRead = () => {
     if (latestActivityId) {
       setDismissedActivityId(latestActivityId);
@@ -381,10 +384,10 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       <item.icon size={18} strokeWidth={1.65} />
       <span>{item.label}</span>
       {item.view === "events" && hasActiveCampaign && (
-        <span className="nav-campaign-pill">1 Active</span>
+        <span className="nav-campaign-pill">{t("1 Active")}</span>
       )}
-      {item.view === "procurement" && needed > 0 && <span className="nav-count">{needed}</span>}
-      {item.view === "members" && <span className="nav-member-count">{data.profiles.length}</span>}
+      {item.view === "procurement" && needed > 0 && <span className="nav-count">{num(needed)}</span>}
+      {item.view === "members" && <span className="nav-member-count">{num(data.profiles.length)}</span>}
       {item.view === "circulars" && <span className="nav-new-dot" />}
     </button>
   );
@@ -397,23 +400,23 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     <button
       className={`sidebar-overlay ${sidebarOpen ? "sidebar-overlay-visible" : ""}`}
       onClick={() => setSidebarOpen(false)}
-      aria-label="Close navigation"
+      aria-label={t("Close navigation")}
       aria-hidden={!sidebarOpen}
       tabIndex={sidebarOpen ? 0 : -1}
     />
     <aside ref={sidebarRef} className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} onTouchStart={onDrawerTouchStart} onTouchMove={onDrawerTouchMove} onTouchEnd={onDrawerTouchEnd} onTouchCancel={onDrawerTouchEnd}>
-      <button className="brand" onClick={() => navigate("overview")} aria-label={`${identity.name} home`}>
+      <button className="brand" onClick={() => navigate("overview")} aria-label={t("{name} home", { name: t(identity.name) })}>
         <img src="/images/bss-logo.svg" alt="" />
         <span>
           <strong>
-            {identity.name}
+            {t(identity.name)}
             <span
               className="brand-period"
               onClick={(e) => {
                 e.stopPropagation();
                 triggerFirstFlush(e);
               }}
-              title="Dooars First Flush 🍃"
+              title={t("Dooars First Flush 🍃")}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -427,67 +430,67 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
               .
             </span>
           </strong>
-          <small>{locale === "bn" ? "ব্রেকথ্রু সায়েন্স সোসাইটির একটি শাখা" : `A unit of ${identity.organisation}`}</small>
+          <small>{t(`A unit of ${identity.organisation}`)}</small>
         </span>
       </button>
-      <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{identity.unit}</strong><small>{identity.state}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">YOUR UNIT WORKSPACE</span><button onClick={() => setPopover(null)}><span>{identity.unit}<small>{identity.state} chapter</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />Unit settings<ArrowUpRight size={13} /></button></div>}</div>
-      <nav className="sidebar-nav" aria-label="Main navigation">
-        <div className="nav-group-label">{locale === "bn" ? "কর্মক্ষেত্র" : "WORKSPACE"}</div>
+      <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{t(identity.unit)}</strong><small>{t(identity.state)}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">{t("YOUR UNIT WORKSPACE")}</span><button onClick={() => setPopover(null)}><span>{t(identity.unit)}<small>{t("{state} chapter", { state: t(identity.state) })}</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />{t("Unit settings")}<ArrowUpRight size={13} /></button></div>}</div>
+      <nav className="sidebar-nav" aria-label={t("Main navigation")}>
+        <div className="nav-group-label">{t("WORKSPACE")}</div>
         {navItems.map(renderNavItem)}
-        <div className="nav-group-label knowledge-label">{locale === "bn" ? "জ্ঞান ও প্রচার" : "KNOWLEDGE & OUTREACH"}</div>
+        <div className="nav-group-label knowledge-label">{t("KNOWLEDGE & OUTREACH")}</div>
         {knowledgeItems.map(renderNavItem)}
-        <div className="nav-settings">{renderNavItem({ view: "settings", label: t("settings"), icon: Settings })}</div>
+        <div className="nav-settings">{renderNavItem({ view: "settings", label: t("Unit settings"), icon: Settings })}</div>
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-mission">
           <Atom size={25} strokeWidth={1.2} />
-          <p>{locale === "bn" ? "কৌতূহল ও যুক্তির ভিত্তি।" : "Built on curiosity."}<br /><strong>{locale === "bn" ? "জনগণের শক্তিতে পরিচালিত।" : "Powered by people."}</strong></p>
-          <span>{locale === "bn" ? "জলপাইগুড়িতে বিজ্ঞানের প্রসার, একসাথে।" : "Taking science to Jalpaiguri, together."}</span>
+          <p>{t("Built on curiosity.")}<br /><strong>{t("Powered by people.")}</strong></p>
+          <span>{t("Taking science to Jalpaiguri, together.")}</span>
         </div>
-        <button className="sidebar-help" onClick={() => open("help")}><CircleHelp size={17} strokeWidth={1.5} /><span>{locale === "bn" ? "সহায়তা প্রয়োজন?" : "Need a helping hand?"}</span><ArrowUpRight size={13} /></button>
-        <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? `${offlineCount} to sync` : (locale === "bn" ? "অনলাইন সংযুক্ত" : "Workspace online")) : (locale === "bn" ? "ফিল্ড অফলাইন কিউ" : "Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {offlineCount}</span> : <span className="sidebar-version-pill" title={`Release: ${identity.releaseName} · Build ${identity.build}`}>v{identity.version}</span>}</div>
-        <button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? (locale === "bn" ? "কার্যনির্বাহক" : "Unit Executive") : (locale === "bn" ? (user.role === "organizer" ? "সংগঠক" : user.role === "volunteer" ? "স্বেচ্ছাসেবক" : "সদস্য") : (user.role.charAt(0).toUpperCase() + user.role.slice(1)))}</small></span><ChevronRight size={15} /></button>
+        <button className="sidebar-help" onClick={() => open("help")}><CircleHelp size={17} strokeWidth={1.5} /><span>{t("Need a helping hand?")}</span><ArrowUpRight size={13} /></button>
+        <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? t("{count} to sync", { count: offlineCount }) : t("Workspace online")) : t("Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {num(offlineCount)}</span> : <span className="sidebar-version-pill" title={t("Release: {releaseName} · Build {build}", { releaseName: t(identity.releaseName), build: identity.build })}>v{identity.version}</span>}</div>
+        <button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? t("Unit Executive") : roleName(user.role)}</small></span><ChevronRight size={15} /></button>
       </div>
     </aside>
     <div className="main-shell">
       {guestMode && (
         <div className="guest-banner">
           <div className="guest-banner-lead">
-            <span className="guest-banner-badge">🚨 ACTIVE CIVIC CAMPAIGN</span>
+            <span className="guest-banner-badge">{t("🚨 ACTIVE CIVIC CAMPAIGN")}</span>
             <span className="guest-banner-text">
-              <strong>Clean Mashkalaibari:</strong> Ending toxic crematorium furnace smoke & river dumping (Phase 2 · 20% Reached)
+              {tx("<strong>Clean Mashkalaibari:</strong> Ending toxic crematorium furnace smoke & river dumping (Phase 2 · 20% Reached)")}
             </span>
           </div>
           <div className="guest-banner-actions">
             <button
               onClick={() => {
-                const rawCampaign = data.events.find(isCampaignEvent);
+                const rawCampaign = shown.events.find(isCampaignEvent);
                 const campaign = rawCampaign ? hydrateCampaignEvent(rawCampaign) : undefined;
                 if (campaign) open("event", campaign);
                 else navigate("events");
               }}
               className="guest-banner-cta"
             >
-              View Campaign Action Plan →
+              {t("View Campaign Action Plan →")}
             </button>
             <button onClick={() => setGuestMode(false)} className="guest-login-btn">
-              Member Login (Google)
+              {t("Member Login (Google)")}
             </button>
           </div>
         </div>
       )}
       <header className="topbar">
         <div className="topbar-left">
-          <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Open main navigation"><Menu size={21} /></button>
+          <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={t("Open main navigation")}><Menu size={21} /></button>
           <span className="breadcrumb-root">
-            {identity.name}
+            {t(identity.name)}
             <span
               className="brand-period"
               onClick={(e) => {
                 e.stopPropagation();
                 triggerFirstFlush(e);
               }}
-              title="Dooars First Flush 🍃"
+              title={t("Dooars First Flush 🍃")}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -511,7 +514,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
               type="button"
               className={`lang-pill ${locale === "en" ? "lang-pill-active" : ""}`}
               onClick={() => setLocale("en")}
-              aria-label="Switch language to English"
+              aria-label={t("Switch language to English")}
             >
               EN
             </button>
@@ -519,7 +522,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
               type="button"
               className={`lang-pill ${locale === "bn" ? "lang-pill-active" : ""}`}
               onClick={() => setLocale("bn")}
-              aria-label="Switch language to Bengali"
+              aria-label={t("Switch language to Bengali")}
             >
               বাং
             </button>
@@ -527,64 +530,64 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
 
           <button className="global-search-button" onClick={() => setSearchOpen(true)}>
             <Search size={15} />
-            <span>{locale === "bn" ? "অনুসন্ধান করুন…" : "Search the unit…"}</span>
+            <span>{t("Search the unit…")}</span>
             <kbd><Command size={10} />K</kbd>
           </button>
-          <span className="topbar-date" suppressHydrationWarning>{new Date().toLocaleDateString(locale === "bn" ? "bn-IN" : "en-IN", { weekday: "short", day: "numeric", month: "short" })}</span>
-          <button className="icon-button help-topbar" aria-label="Workspace help" onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
+          <span className="topbar-date" suppressHydrationWarning>{fmtDate(new Date(), { weekday: "short", day: "numeric", month: "short" })}</span>
+          <button className="icon-button help-topbar" aria-label={t("Workspace help")} onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
           <div className="notifications-wrap" data-popover>
-            <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label="Open notifications" aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
+            <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label={t("Open notifications")} aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
             {popover === "notifications" && (
               <div className="notifications-popover print-tech-slip">
                 <div className="notification-heading">
                   <div>
-                    <h2>{locale === "bn" ? "ক্যাডার বিজ্ঞপ্তি ও আপডেট" : "Cadre Alerts & Activity"}</h2>
-                    <p>{identity.fullName} · {locale === "bn" ? "রিয়েল-টাইম প্রেরণ" : "Real-time dispatch"}</p>
+                    <h2>{t("Cadre Alerts & Activity")}</h2>
+                    <p>{t(identity.fullName)} · {t("Real-time dispatch")}</p>
                   </div>
-                  <button className="icon-button" aria-label="Mark all notifications as read" title="Mark all as read" onClick={markRead}><CheckCheck size={18} /></button>
+                  <button className="icon-button" aria-label={t("Mark all notifications as read")} title={t("Mark all as read")} onClick={markRead}><CheckCheck size={18} /></button>
                 </div>
                 {showReminder && (
                   <button className="dues-reminder" onClick={() => { setPopover(null); navigate("dues"); }}>
                     <Wallet size={17} />
-                    <span>{locale === "bn" ? "মাসিক সদস্য চাঁদা বকেয়া রয়েছে।" : "Monthly membership contribution pending."}<small>{locale === "bn" ? "ভিত্তি ₹২০/মাস। সংগঠনকে এগিয়ে নিয়ে চলুন।" : "Baseline ₹20/month. Keep the movement active."}</small></span>
+                    <span>{t("Monthly membership contribution pending.")}<small>{t("Baseline ₹20/month. Keep the movement active.")}</small></span>
                     <ArrowRight size={14} />
                   </button>
                 )}
                 <div className="notification-items">
-                  {data.activities.slice(0, 6).map((a, i) => (
+                  {shown.activities.slice(0, 6).map((a, i) => (
                     <button className={`notification-item ${unread && i < 2 ? "unread" : ""}`} key={a.id} onClick={() => { markRead(); setPopover(null); navigate(a.type === "dues" ? "dues" : a.type === "donation" ? "donations" : a.type === "circular" ? "circulars" : a.type === "event" ? "events" : "procurement"); }}>
                       <span className={`notification-symbol activity-${a.type}`}>
                         {a.type === "donation" ? <HeartHandshake size={16} /> : a.type === "dues" ? <ArrowDownLeft size={16} /> : a.type === "verified" ? <CircleCheck size={16} /> : <Package size={16} />}
                       </span>
-                      <span><strong>{a.title}</strong><small>{a.description}</small><time suppressHydrationWarning>{relativeTime(a.createdAt)} · Action: Click to inspect</time></span>
+                      <span><strong>{a.title}</strong><small>{a.description}</small><time suppressHydrationWarning>{t("{time} · Action: Click to inspect", { time: relativeTime(a.createdAt, t) })}</time></span>
                       {unread && i < 2 && <i />}
                     </button>
                   ))}
                 </div>
                 <div className="notification-footer">
-                  <span className="tiny-dot green" />Service Worker Web Push & In-App Sync Active
-                  <button onClick={() => { setPopover(null); navigate("settings"); }}>Push settings<ArrowUpRight size={12} /></button>
+                  <span className="tiny-dot green" />{t("Service Worker Web Push & In-App Sync Active")}
+                  <button onClick={() => { setPopover(null); navigate("settings"); }}>{t("Push settings")}<ArrowUpRight size={12} /></button>
                 </div>
               </div>
             )}
           </div>
           <span className="topbar-divider" />
           <div className="account-wrap" data-popover>
-            <button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label="Open profile menu"><Avatar person={user} size="small" /><ChevronDown size={12} /></button>
+            <button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label={t("Open profile menu")}><Avatar person={user} size="small" /><ChevronDown size={12} /></button>
             {popover === "account" && (
               <div className="small-menu account-menu">
-                <span className="menu-eyebrow">{guestMode ? "GUEST VISITOR" : (locale === "bn" ? "লগইন আছেন" : "LOGGED IN AS")}</span>
+                <span className="menu-eyebrow">{guestMode ? t("GUEST VISITOR") : (t("LOGGED IN AS"))}</span>
                 <strong>{user.fullName}</strong>
-                <small>{user.role === "admin" ? (locale === "bn" ? "কার্যনির্বাহক" : "Unit executive") : user.role} · {identity.unit}</small>
-                <div className="account-version-note"><span>App Release</span><strong>v{identity.version}</strong></div>
+                <small>{user.role === "admin" ? t("Unit executive") : roleName(user.role)} · {t(identity.unit)}</small>
+                <div className="account-version-note"><span>{t("App Release")}</span><strong>v{identity.version}</strong></div>
                 <button onClick={() => { setPopover(null); open("idCard", { member: user }); }}>
                   <IdCard size={15} />
-                  {locale === "bn" ? "আমার পরিচয়পত্র (ID Card)" : "My Member ID Card"}
+                  {t("My Member ID Card")}
                   <ArrowUpRight size={13} />
                 </button>
                 <button onClick={() => navigate("settings")}>
                   <Settings size={15} />
-                  {locale === "bn" ? "অ্যাকাউন্ট ও নিরাপত্তা" : "Account & Security"}
+                  {t("Account & Security")}
                   <ArrowUpRight size={13} />
                 </button>
                 <button onClick={async () => {
@@ -600,12 +603,12 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                   }
                 }}>
                   <LogOut size={15} />
-                  {guestMode ? (locale === "bn" ? "লগ ইন করুন" : "Log In") : (locale === "bn" ? "সাইন আউট" : "Sign Out")}
+                  {guestMode ? t("Log In") : t("Sign Out")}
                   <ArrowUpRight size={13} />
                 </button>
                 <a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer">
                   <ExternalLink size={15} />
-                  {locale === "bn" ? "সংগঠন সম্পর্কে" : "About the society"}
+                  {t("About the society")}
                   <ArrowUpRight size={13} />
                 </a>
               </div>
@@ -616,14 +619,14 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       {!online && (
         <div className="offline-banner">
           <WifiOff size={15} />
-          <span><strong>You’re offline in the field.</strong> Field queue active: dues, procurements, and donations are saved locally in IndexedDB and will auto-sync when network returns.</span>
-          {offlineCount > 0 && <span className="demo-pill" style={{ marginLeft: "auto", background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {offlineCount} queued</span>}
+          <span>{tx("<strong>You’re offline in the field.</strong> Field queue active: dues, procurements, and donations are saved locally in IndexedDB and will auto-sync when network returns.")}</span>
+          {offlineCount > 0 && <span className="demo-pill" style={{ marginLeft: "auto", background: "var(--rust, #1b4332)", color: "#fff" }}>{t("⚡ {count} queued", { count: offlineCount })}</span>}
         </div>
       )}
       {online && offlineCount > 0 && (
         <div className="offline-banner" style={{ background: "var(--olive, #6b7f50)", color: "#fff", display: "flex", alignItems: "center", gap: "8px" }}>
           <CloudLightning size={16} />
-          <span><strong>{offlineCount} offline field {offlineCount === 1 ? "entry" : "entries"} waiting to sync.</strong> Network connection is active.</span>
+          <span>{tx(offlineCount === 1 ? "<strong>{count} offline field entry waiting to sync.</strong> Network connection is active." : "<strong>{count} offline field entries waiting to sync.</strong> Network connection is active.", { count: offlineCount })}</span>
           <button
             onClick={() => void triggerSync()}
             disabled={syncing}
@@ -643,24 +646,24 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
             }}
           >
             <RefreshCw size={12} className={syncing ? "spin" : ""} />
-            {syncing ? "Syncing..." : "Sync now"}
+            {syncing ? t("Syncing...") : t("Sync now")}
           </button>
         </div>
       )}
       <main className="workspace-main" id="main-content">
         <div key={view} className="view-stage">
-          {view === "overview" && <Overview data={data} navigate={navigate} open={open} />}
-          {view === "members" && <MembersView data={data} open={open} perform={perform} />}
-          {view === "dues" && <DuesView data={data} open={open} />}
-          {view === "donations" && <DonationsView data={data} open={open} />}
-          {view === "events" && <EventsView data={data} open={open} navigate={navigate} />}
-          {view === "procurement" && <ProcurementView data={data} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}
-          {view === "circulars" && <CircularsView data={data} open={open} navigate={navigate} />}
-          {view === "resources" && <ResourcesView open={open} data={data} />}
-          {view === "settings" && <SettingsView data={data} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} />}
+          {view === "overview" && <Overview data={shown} navigate={navigate} open={open} />}
+          {view === "members" && <MembersView data={shown} open={open} perform={perform} />}
+          {view === "dues" && <DuesView data={shown} open={open} />}
+          {view === "donations" && <DonationsView data={shown} open={open} />}
+          {view === "events" && <EventsView data={shown} open={open} navigate={navigate} />}
+          {view === "procurement" && <ProcurementView data={shown} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}
+          {view === "circulars" && <CircularsView data={shown} open={open} navigate={navigate} />}
+          {view === "resources" && <ResourcesView open={open} data={shown} />}
+          {view === "settings" && <SettingsView data={shown} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} />}
         </div>
       </main>
-      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+      <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}>
         {navItems.slice(0, 4).map((item) => (
           <button
             key={item.view}
@@ -672,26 +675,27 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
             <item.icon size={19} strokeWidth={view === item.view ? 2.2 : 1.7} />
             <span>{shortLabels[item.view] ?? item.label}</span>
             {item.view === "dues" && (user?.unpaidMonths || 0) > 0 && <span className="bottom-nav-dot" />}
-            {item.view === "procurement" && needed > 0 && <span className="bottom-nav-badge">{needed}</span>}
+            {item.view === "procurement" && needed > 0 && <span className="bottom-nav-badge">{num(needed)}</span>}
           </button>
         ))}
         <button
           className="bottom-nav-item"
           onClick={() => setSidebarOpen(true)}
-          aria-label="Open navigation drawer"
+          aria-label={t("Open navigation drawer")}
         >
           <Menu size={19} strokeWidth={1.7} />
-          <span>{locale === "bn" ? "অন্যান্য" : "More"}</span>
+          <span>{t("More")}</span>
         </button>
       </nav>
     </div>
-    <ModalExiting value={modalExiting}><WorkspaceModals modal={modal} data={data} close={close} open={open} perform={perform} busy={busy} error={actionError} navigate={navigate} notify={notify} /></ModalExiting>
-    {searchOpen && <GlobalSearch data={data} close={() => setSearchOpen(false)} open={open} navigate={navigate} />}
-    {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <InfoSymbol /> : <CircleCheck size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label="Dismiss message"><X size={15} /></button></div>}
+    <ModalExiting value={modalExiting}><WorkspaceModals modal={modal} data={shown} close={close} open={open} perform={perform} busy={busy} error={actionError} navigate={navigate} notify={notify} /></ModalExiting>
+    {searchOpen && <GlobalSearch data={shown} close={() => setSearchOpen(false)} open={open} navigate={navigate} />}
+    {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <InfoSymbol /> : <CircleCheck size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label={t("Dismiss message")}><X size={15} /></button></div>}
     <FirstFlushLeaves leaves={leaves} />
   </div>;
 }
 function GlobalSearch({ data, close: removeSearch, open, navigate }: { data: WorkspaceData; close: () => void; open: (type: string, record?: unknown) => void; navigate: (view: View, eventId?: string) => void }) {
+  const { t, tx, roleName } = useI18n();
   const { exiting, close } = useModalExit(removeSearch);
   const [query, setQuery] = useState("");
   const q = query.toLowerCase().trim();
@@ -702,6 +706,6 @@ function GlobalSearch({ data, close: removeSearch, open, navigate }: { data: Wor
   const circulars = q ? matches(data.circulars, (c) => c.title) : [];
   const hasResults = people.length + events.length + items.length + circulars.length > 0;
   const choose = (fn: () => void) => { close(); fn(); };
-  return <ModalExiting value={exiting}><Modal title="Find your way around the unit." subtitle="Members, events, checklist items, and circulars." onClose={close} wide><div className="global-search-field"><Search size={21} /><input placeholder="Start with a name, an event, or an idea…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search workspace" /><kbd>ESC</kbd></div><div className="global-search-results">{!q ? <div className="search-suggestions"><span className="eyebrow">QUICK DIRECTIONS</span>{[{ view: "dues" as View, label: "Membership dues & treasury", icon: Wallet }, { view: "procurement" as View, label: "Event procurement checklist", icon: ClipboardList }, { view: "resources" as View, label: "Science resource archive", icon: BookOpen }].map((item) => <button key={item.view} onClick={() => choose(() => navigate(item.view))}><item.icon size={17} /><span>{item.label}</span><ArrowUpRight size={15} /></button>)}</div> : !hasResults ? <div className="search-no-results"><Search size={27} /><h3>No results for “{query}”</h3><p>Try a member’s name, “science”, or a checklist item.</p></div> : <>{people.length > 0 && <div className="search-result-group"><span>MEMBERS</span>{people.map((p) => <button key={p.id} onClick={() => choose(() => { if (data.profiles.find((p) => p.id === data.currentUserId)?.role !== "member") open("dues", { memberId: p.id }); else navigate("members"); })}><Avatar person={p} size="small" /><span><strong>{p.fullName}</strong><small>{p.role} · {identity.unit}</small></span><ArrowUpRight size={14} /></button>)}</div>}{events.length > 0 && <div className="search-result-group"><span>EVENTS</span>{events.map((e) => <button key={e.id} onClick={() => choose(() => open("event", e))}><CalendarDays size={18} /><span><strong>{e.title}</strong><small>{e.location}</small></span><ArrowUpRight size={14} /></button>)}</div>}{items.length > 0 && <div className="search-result-group"><span>PROCUREMENT</span>{items.map((p) => <button key={p.id} onClick={() => choose(() => navigate("procurement", p.eventId))}><Package size={18} /><span><strong>{p.itemName}</strong><small>{p.quantity} · {p.status}</small></span><ArrowUpRight size={14} /></button>)}</div>}{circulars.length > 0 && <div className="search-result-group"><span>NOTICE BOARD</span>{circulars.map((c) => <button key={c.id} onClick={() => choose(() => open("circular", c))}><Megaphone size={18} /><span><strong>{c.title}</strong><small>{c.category}</small></span><ArrowUpRight size={14} /></button>)}</div>}</>}</div><div className="search-keyboard-hint"><Command size={12} /> K to open search from anywhere<span>Curiosity is a good place to start.</span></div></Modal></ModalExiting>;
+  return <ModalExiting value={exiting}><Modal title={t("Find your way around the unit.")} subtitle={t("Members, events, checklist items, and circulars.")} onClose={close} wide><div className="global-search-field"><Search size={21} /><input placeholder={t("Start with a name, an event, or an idea…")} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t("Search workspace")} /><kbd>ESC</kbd></div><div className="global-search-results">{!q ? <div className="search-suggestions"><span className="eyebrow">{t("QUICK DIRECTIONS")}</span>{[{ view: "dues" as View, label: t("Membership dues & treasury"), icon: Wallet }, { view: "procurement" as View, label: t("Event procurement checklist"), icon: ClipboardList }, { view: "resources" as View, label: t("Science resource archive"), icon: BookOpen }].map((item) => <button key={item.view} onClick={() => choose(() => navigate(item.view))}><item.icon size={17} /><span>{item.label}</span><ArrowUpRight size={15} /></button>)}</div> : !hasResults ? <div className="search-no-results"><Search size={27} /><h3>{t("No results for “{query}”", { query })}</h3><p>{t("Try a member’s name, “science”, or a checklist item.")}</p></div> : <>{people.length > 0 && <div className="search-result-group"><span>{t("MEMBERS")}</span>{people.map((p) => <button key={p.id} onClick={() => choose(() => { if (data.profiles.find((p) => p.id === data.currentUserId)?.role !== "member") open("dues", { memberId: p.id }); else navigate("members"); })}><Avatar person={p} size="small" /><span><strong>{p.fullName}</strong><small>{roleName(p.role)} · {t(identity.unit)}</small></span><ArrowUpRight size={14} /></button>)}</div>}{events.length > 0 && <div className="search-result-group"><span>{t("EVENTS")}</span>{events.map((e) => <button key={e.id} onClick={() => choose(() => open("event", e))}><CalendarDays size={18} /><span><strong>{e.title}</strong><small>{e.location}</small></span><ArrowUpRight size={14} /></button>)}</div>}{items.length > 0 && <div className="search-result-group"><span>{t("PROCUREMENT")}</span>{items.map((p) => <button key={p.id} onClick={() => choose(() => navigate("procurement", p.eventId))}><Package size={18} /><span><strong>{p.itemName}</strong><small>{p.quantity} · {t(p.status)}</small></span><ArrowUpRight size={14} /></button>)}</div>}{circulars.length > 0 && <div className="search-result-group"><span>{t("NOTICE BOARD")}</span>{circulars.map((c) => <button key={c.id} onClick={() => choose(() => open("circular", c))}><Megaphone size={18} /><span><strong>{c.title}</strong><small>{c.category}</small></span><ArrowUpRight size={14} /></button>)}</div>}</>}</div><div className="search-keyboard-hint">{tx("{key} to open search from anywhere", { key: <b className="search-hint-key"><Command size={12} />K</b> })}<span>{t("Curiosity is a good place to start.")}</span></div></Modal></ModalExiting>;
 }
 function InfoSymbol() { return <CircleHelp size={19} />; }

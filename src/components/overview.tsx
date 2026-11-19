@@ -3,9 +3,10 @@
 import { identity } from "@/lib/identity";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useState } from "react";
-import { type WorkspaceData, type View, type UnitEvent, type Circular, type Procurement, money, months } from "@/lib/types";
+import { type WorkspaceData, type View, type UnitEvent, type Circular, type Procurement } from "@/lib/types";
 import { Avatar, Badge, Button, PageHeading, SectionTitle, ArrowLink, relativeTime } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
+import { isMashkalaibari } from "@/lib/localize-content";
 import { formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
@@ -13,6 +14,7 @@ export type OpenModal = (type: string, record?: unknown) => void;
 export type Navigate = (view: View, eventId?: string) => void;
 
 export function Overview({ data, navigate, open }: { data: WorkspaceData; navigate: Navigate; open: OpenModal }) {
+  const { t, tx, num, money } = useI18n();
   const [period, setPeriod] = useState("This month");
   const [periodOpen, setPeriodOpen] = useState(false);
   const [activityFilter, setActivityFilter] = useState<"all" | "dues" | "procurement" | "donation">("all");
@@ -66,25 +68,25 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
   return (
     <div className="view-enter">
-      <PageHeading title="Unit overview" description={`${identity.name} · ${identity.organisation}, ${identity.unit}.`}>
+      <PageHeading title={t("Unit overview")} description={t("{name} · {organisation}, {unit}.", { name: t(identity.name), organisation: t(identity.organisation), unit: t(identity.unit) })}>
         <div className="period-container">
           <button className="button button-secondary period-button" onClick={() => setPeriodOpen(!periodOpen)}>
             <CalendarDays size={15} />
-            {period}
+            {t(period)}
             <ChevronDown size={14} />
           </button>
           {periodOpen && (
             <div className="small-menu period-menu">
               {["This month", "This year", "All time"].map((p) => (
                 <button key={p} onClick={() => { setPeriod(p); setPeriodOpen(false); }}>
-                  {p}
+                  {t(p)}
                   {p === period && <Check size={14} />}
                 </button>
               ))}
             </div>
           )}
         </div>
-        {canCollect && <Button icon={Plus} onClick={() => open("dues")}>Quick collect</Button>}
+        {canCollect && <Button icon={Plus} onClick={() => open("dues")}>{t("Quick collect")}</Button>}
       </PageHeading>
 
       {/* Urgent Field Requisition Broadcast Alert if any items needed within 48h */}
@@ -95,30 +97,29 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <div className="urgent-dispatch-left">
             <span className="stamp-needed text-[length:max(7.5px,var(--fs-floor,0px))] font-bold">
               <ShieldAlert size={12} className="inline mr-1" />
-              URGENT FIELD DISPATCH &lt;48H
+              {t("URGENT FIELD DISPATCH <48H")}
             </span>
             <p>
-              <strong>{urgentItems.length} requisitions urgently needed</strong> for upcoming programme:{" "}
-              <em>{data.events.find((e) => e.id === urgentItems[0]?.eventId)?.title}</em>. Volunteers may log out-of-pocket purchases.
+              {tx("<strong>{count} requisitions urgently needed</strong> for upcoming programme: <em>{title}</em>. Volunteers may log out-of-pocket purchases.", { count: urgentItems.length, title: data.events.find((e) => e.id === urgentItems[0]?.eventId)?.title })}
             </p>
           </div>
           <button
             className="button button-dark text-xs whitespace-nowrap"
             onClick={() => navigate("procurement", urgentItems[0]?.eventId)}
           >
-            Open requisition board <ArrowRight size={13} />
+            {t("Open requisition board")} <ArrowRight size={13} />
           </button>
         </div>
       )}
 
       {/* Two-ink poster banner */}
-      <section className="campaign-banner" aria-label={`${identity.name}: science for society`}>
+      <section className="campaign-banner" aria-label={t("{name}: science for society", { name: t(identity.name) })}>
         <div className="campaign-content">
-          <div className="campaign-eyebrow"><span />{identity.volumeLine}</div>
-          <h2>Science for society.<br />Progress, <em>together.</em></h2>
-          <p>Rooted in {identity.city}. Open to everyone.<br />A community that turns questions into action.</p>
+          <div className="campaign-eyebrow"><span />{t(identity.volumeLine)}</div>
+          <h2>{tx("Science for society.<br/>Progress, <em>together.</em>")}</h2>
+          <p>{tx("Rooted in {city}. Open to everyone.<br/>A community that turns questions into action.", { city: t(identity.city) })}</p>
           <button className="campaign-link" onClick={() => navigate("events")}>
-            Let’s make a difference<ArrowUpRight size={16} />
+            {t("Let’s make a difference")}<ArrowUpRight size={16} />
           </button>
         </div>
         <div className="campaign-image">
@@ -136,14 +137,14 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           </div>
           <img
             src="/images/science-march.jpg"
-            alt="BSS members and scientists taking part in the All India Science Conference science march"
+            alt={t("BSS members and scientists taking part in the All India Science Conference science march")}
             onError={(e) => {
               (e.currentTarget as HTMLElement).style.display = "none";
             }}
           />
           <div className="photo-caption">
-            <span className="live-dot" />ON THE GROUND
-            <span className="caption-divider" />All India Science Conference, 2025
+            <span className="live-dot" />{t("ON THE GROUND")}
+            <span className="caption-divider" />{t("All India Science Conference, 2025")}
           </div>
         </div>
         <span className="campaign-bengali" aria-hidden="true">{identity.bengali}</span>
@@ -155,13 +156,13 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <Stat
             icon={CalendarDays}
             tone="orange"
-            title="Active campaigns"
-            value={ongoingCampaign ? "1 Ongoing" : String(data.events.length)}
+            title={t("Active campaigns")}
+            value={ongoingCampaign ? t("1 Ongoing") : num(data.events.length)}
             onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("events"))}
           >
             <span className="stat-footnote">
               <span className="tiny-dot green" />
-              {ongoingCampaign ? `${ongoingCampaign.progressPercent || 20}% target reached · Mashkalaibari` : "Scheduled outreach across Jalpaiguri"}
+              {ongoingCampaign ? t("{percent}% target reached · Mashkalaibari", { percent: ongoingCampaign.progressPercent || 20 }) : t("Scheduled outreach across Jalpaiguri")}
             </span>
             {ongoingCampaign && (
               <div className="stat-progress-track">
@@ -172,43 +173,43 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               </div>
             )}
           </Stat>
-          <Stat icon={Megaphone} tone="blue" title="Demonstration toolkits" value="Available" onClick={() => navigate("resources")}>
-            <span className="stat-footnote">Anti-superstition chemical & physics scripts</span>
+          <Stat icon={Megaphone} tone="blue" title={t("Demonstration toolkits")} value={t("Available")} onClick={() => navigate("resources")}>
+            <span className="stat-footnote">{t("Anti-superstition chemical & physics scripts")}</span>
           </Stat>
-          <Stat icon={Users} tone="sage" title="Citizen advocacy" value="Open" onClick={() => navigate("events")}>
+          <Stat icon={Users} tone="sage" title={t("Citizen advocacy")} value={t("Open")} onClick={() => navigate("events")}>
             <div className="dues-stat-bottom">
-              <span>No fees · Students and citizens welcome</span>
+              <span>{t("No fees · Students and citizens welcome")}</span>
             </div>
           </Stat>
-          <Stat icon={HeartHandshake} tone="lavender" title="Public movement" value="Support" onClick={() => open("donation")}>
+          <Stat icon={HeartHandshake} tone="lavender" title={t("Public movement")} value={t("Support")} onClick={() => open("donation")}>
             <span className="stat-footnote">
               <span className="tiny-dot purple" />
-              100% voluntary · Powered by people
+              {t("100% voluntary · Powered by people")}
             </span>
           </Stat>
         </div>
       ) : isExecutive ? (
         <div className="stats-grid">
-          <Stat icon={Wallet} tone="orange" title="Unit balance" value={money(balance)} onClick={() => navigate("dues")}>
-            <span className="stat-footnote"><span className="tiny-dot green" />Net treasury available</span>
+          <Stat icon={Wallet} tone="orange" title={t("Unit balance")} value={money(balance)} onClick={() => navigate("dues")}>
+            <span className="stat-footnote"><span className="tiny-dot green" />{t("Net treasury available")}</span>
           </Stat>
-          <Stat icon={Users} tone="blue" title="Unit members" value={String(data.profiles.length)} onClick={() => navigate("members")}>
+          <Stat icon={Users} tone="blue" title={t("Unit members")} value={num(data.profiles.length)} onClick={() => navigate("members")}>
             <span className="stat-footnote">
-              <strong>{active} active</strong>
+              <strong>{t("{count} active", { count: active })}</strong>
               <span className="text-dot">·</span>
-              {data.profiles.length - active} flagged dues pending
+              {t("{count} flagged dues pending", { count: data.profiles.length - active })}
             </span>
           </Stat>
-          <Stat icon={ArrowDownLeft} tone="sage" title="Membership dues" value={money(duesTotal)} onClick={() => navigate("dues")}>
+          <Stat icon={ArrowDownLeft} tone="sage" title={t("Membership dues")} value={money(duesTotal)} onClick={() => navigate("dues")}>
             <div className="dues-stat-bottom">
-              <span>{paidCount} of {data.profiles.length} paid this month <b>{paidPercent}%</b></span>
+              <span>{tx("{paid} of {total} paid this month <b>{percent}%</b>", { paid: paidCount, total: data.profiles.length, percent: paidPercent })}</span>
               <div className="progress-track"><span style={{ width: `${paidPercent}%` }} /></div>
             </div>
           </Stat>
-          <Stat icon={HeartHandshake} tone="lavender" title="Donations received" value={money(donationsTotal)} onClick={() => navigate("donations")}>
+          <Stat icon={HeartHandshake} tone="lavender" title={t("Donations received")} value={money(donationsTotal)} onClick={() => navigate("donations")}>
             <span className="stat-footnote">
               <span className="tiny-dot purple" />
-              {data.donations.filter((d) => inPeriod(d.createdAt)).length} contributions · {period.toLowerCase()}
+              {t("{count} contributions · {period}", { count: data.donations.filter((d) => inPeriod(d.createdAt)).length, period: t(period.toLowerCase()) })}
             </span>
           </Stat>
         </div>
@@ -217,13 +218,13 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <Stat
             icon={CalendarDays}
             tone="orange"
-            title="Active campaigns"
-            value={ongoingCampaign ? "1 Ongoing" : String(data.events.length)}
+            title={t("Active campaigns")}
+            value={ongoingCampaign ? t("1 Ongoing") : num(data.events.length)}
             onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("events"))}
           >
             <span className="stat-footnote">
               <span className="tiny-dot green" />
-              {ongoingCampaign ? `${ongoingCampaign.progressPercent || 20}% reached · Mashkalaibari` : "Unit programmes & conventions"}
+              {ongoingCampaign ? t("{percent}% reached · Mashkalaibari", { percent: ongoingCampaign.progressPercent || 20 }) : t("Unit programmes & conventions")}
             </span>
             {ongoingCampaign && (
               <div className="stat-progress-track">
@@ -234,16 +235,16 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               </div>
             )}
           </Stat>
-          <Stat icon={Users} tone="blue" title="Unit advocates" value={String(data.profiles.length)} onClick={() => navigate("members")}>
-            <span className="stat-footnote">Active advocates in Jalpaiguri</span>
+          <Stat icon={Users} tone="blue" title={t("Unit advocates")} value={num(data.profiles.length)} onClick={() => navigate("members")}>
+            <span className="stat-footnote">{t("Active advocates in Jalpaiguri")}</span>
           </Stat>
-          <Stat icon={Wallet} tone="sage" title="My monthly pledge" value={money(currentUser?.monthlyPledge || 20)} onClick={() => navigate("dues")}>
+          <Stat icon={Wallet} tone="sage" title={t("My monthly pledge")} value={money(currentUser?.monthlyPledge || 20)} onClick={() => navigate("dues")}>
             <div className="dues-stat-bottom">
-              <span>{currentUser?.unpaidMonths ? `${currentUser.unpaidMonths} mo in arrears` : "Up to date"}</span>
+              <span>{currentUser?.unpaidMonths ? t("{unpaidMonths} mo in arrears", { unpaidMonths: currentUser.unpaidMonths }) : t("Up to date")}</span>
             </div>
           </Stat>
-          <Stat icon={HeartHandshake} tone="lavender" title="Working Guides" value="Repertoire" onClick={() => navigate("resources")}>
-            <span className="stat-footnote">Miracle-busting & advocacy manuals</span>
+          <Stat icon={HeartHandshake} tone="lavender" title={t("Working Guides")} value={t("Repertoire")} onClick={() => navigate("resources")}>
+            <span className="stat-footnote">{t("Miracle-busting & advocacy manuals")}</span>
           </Stat>
         </div>
       )}
@@ -268,7 +269,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                 />
                 <span className="campaign-live-tag">
                   <span className="live-dot" />
-                  ONGOING CIVIC CAMPAIGN
+                  {t("ONGOING CIVIC CAMPAIGN")}
                 </span>
                 <span className="campaign-location-pill">
                   <MapPin size={12} />
@@ -279,10 +280,10 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               <div className="campaign-hero-content">
                 <div>
                   <div className="campaign-meta-row">
-                    <span className="eyebrow text-rust">ACTIVE ENVIRONMENTAL MOVEMENT</span>
+                    <span className="eyebrow text-rust">{t("ACTIVE ENVIRONMENTAL MOVEMENT")}</span>
                     <span className="campaign-volunteers-tag">
                       <Users size={13} />
-                      {campaign.volunteers} Active Advocates
+                      {t("{count} Active Advocates", { count: campaign.volunteers })}
                     </span>
                   </div>
 
@@ -294,10 +295,10 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                 <div className="campaign-progress-box">
                   <div className="campaign-progress-header">
                     <span className="campaign-progress-label mono">
-                      CAMPAIGN TARGET: <strong>{campaign.progressPercent || 20}% REACHED</strong>
+                      {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })}
                     </span>
                     <span className="campaign-phase-badge">
-                      PHASE {currentMilestone?.phase || 2}: {currentMilestone?.title || "In Progress"}
+                      {t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })}
                     </span>
                   </div>
                   <div className="campaign-progress-track">
@@ -308,11 +309,11 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                   </div>
                   <div className="campaign-progress-footer">
                     <span>
-                      ✓ {completedMilestones} of {totalMilestones} milestones achieved
+                      {t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
                     </span>
                     {campaign.targetGoal && (
                       <span className="campaign-target-goal" title={campaign.targetGoal}>
-                        Goal: {campaign.targetGoal}
+                        {t("Goal: {goal}", { goal: campaign.targetGoal })}
                       </span>
                     )}
                   </div>
@@ -320,25 +321,25 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
                 <div className="campaign-hero-actions">
                   <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                    View Campaign Gallery & Plan
+                    {t("View Campaign Gallery & Plan")}
                   </Button>
                   <Button
                     variant="secondary"
                     icon={FileText}
                     onClick={() => {
-                      const mashCircular = data.circulars.find((c) => c.title.includes("Mashkalaibari"));
+                      const mashCircular = data.circulars.find((c) => isMashkalaibari(c.title));
                       if (mashCircular) open("circular", mashCircular);
                     }}
                   >
-                    Read Investigation Report & Photos
+                    {t("Read Investigation Report & Photos")}
                   </Button>
                   <button
                     className="button button-secondary button-whatsapp"
                     onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
-                    title="Mobilize on WhatsApp"
+                    title={t("Mobilize on WhatsApp")}
                   >
                     <MessageCircle size={15} />
-                    Share Campaign
+                    {t("Share Campaign")}
                   </button>
                 </div>
               </div>
@@ -351,14 +352,14 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         {/* Procurements panel: strictly visible to volunteers and executives only */}
         {(isExecutive || isVolunteerOrOrganizer) && items.length > 0 && (
           <section className="panel procurement-panel">
-            <SectionTitle title="A few things need a hand" subtitle="Requisitions pending out-of-pocket purchase or peer check.">
-              <ArrowLink onClick={() => navigate("procurement")}>View checklist</ArrowLink>
+            <SectionTitle title={t("A few things need a hand")} subtitle={t("Requisitions pending out-of-pocket purchase or peer check.")}>
+              <ArrowLink onClick={() => navigate("procurement")}>{t("View checklist")}</ArrowLink>
             </SectionTitle>
             <div className="attention-table">
               <div className="attention-table-head">
-                <span>ITEM & EVENT</span>
-                <span>STAGE</span>
-                <span>EST. COST</span>
+                <span>{t("ITEM & EVENT")}</span>
+                <span>{t("STAGE")}</span>
+                <span>{t("EST. COST")}</span>
                 <span />
               </div>
               {items.map((item, idx) => (
@@ -379,8 +380,8 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             </div>
             <button className="panel-footer attention-footer" onClick={() => navigate("procurement")}>
               <span>
-                <span className="attention-dot" />{needed} items still needed
-                <span className="footer-divider">·</span>Every helping hand counts.
+                <span className="attention-dot" />{t("{count} items still needed", { count: needed })}
+                <span className="footer-divider">·</span>{t("Every helping hand counts.")}
               </span>
               <ArrowRight size={15} />
             </button>
@@ -390,26 +391,26 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         {/* Public Action Hub if Guest or Member without procurement */}
         {!isExecutive && !isVolunteerOrOrganizer && (
           <section className="panel public-hub-panel" style={{ padding: "24px" }}>
-            <SectionTitle title="Public Science Advocacy Hub" subtitle="Explore campaign literature and take part in scientific inquiry." />
+            <SectionTitle title={t("Public Science Advocacy Hub")} subtitle={t("Explore campaign literature and take part in scientific inquiry.")} />
             <div className="public-actions-cluster" style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
               <div className="cluster-item" style={{ border: "1px solid var(--rule-soft, #e2e8f0)", padding: "14px", borderRadius: "8px", background: "var(--card-bg, #fff)" }}>
-                <strong style={{ display: "block", marginBottom: "4px" }}>Anti-Superstition Demonstration Repertoire</strong>
-                <p style={{ fontSize: "13px", color: "var(--muted, #64748b)", margin: 0 }}>Discover chemical debunking of common &lsquo;miracles&rsquo; like spontaneous combustion and bleeding lemons.</p>
-                <Button variant="secondary" className="mt-2.5" onClick={() => navigate("resources")}>Browse Demo Scripts</Button>
+                <strong style={{ display: "block", marginBottom: "4px" }}>{t("Anti-Superstition Demonstration Repertoire")}</strong>
+                <p style={{ fontSize: "13px", color: "var(--muted, #64748b)", margin: 0 }}>{t("Discover chemical debunking of common ‘miracles’ like spontaneous combustion and bleeding lemons.")}</p>
+                <Button variant="secondary" className="mt-2.5" onClick={() => navigate("resources")}>{t("Browse Demo Scripts")}</Button>
               </div>
 
               <div className="cluster-item" style={{ border: "1px solid var(--rule-soft, #e2e8f0)", padding: "14px", borderRadius: "8px", background: "var(--card-bg, #fff)" }}>
-                <strong style={{ display: "block", marginBottom: "4px" }}>Public Donation & Receipt Verification</strong>
-                <p style={{ fontSize: "13px", color: "var(--muted, #64748b)", margin: 0 }}>Support student science exhibitions. Every contribution generates an official verified digital receipt.</p>
-                <Button className="mt-2.5" onClick={() => open("donation")}>Make a Contribution</Button>
+                <strong style={{ display: "block", marginBottom: "4px" }}>{t("Public Donation & Receipt Verification")}</strong>
+                <p style={{ fontSize: "13px", color: "var(--muted, #64748b)", margin: 0 }}>{t("Support student science exhibitions. Every contribution generates an official verified digital receipt.")}</p>
+                <Button className="mt-2.5" onClick={() => open("donation")}>{t("Make a Contribution")}</Button>
               </div>
             </div>
           </section>
         )}
 
         <section className="panel events-panel">
-          <SectionTitle title="Coming up" subtitle="Upcoming outreach and convention schedule.">
-            <ArrowLink onClick={() => navigate("events")}>All events</ArrowLink>
+          <SectionTitle title={t("Coming up")} subtitle={t("Upcoming outreach and convention schedule.")}>
+            <ArrowLink onClick={() => navigate("events")}>{t("All events")}</ArrowLink>
           </SectionTitle>
           <div className="upcoming-events">
             {upcoming.length ? (
@@ -417,32 +418,32 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             ) : ongoingCampaign ? (
               <div className="p-3.5 bg-paper border border-rule-soft rounded flex items-center justify-between gap-3">
                 <div>
-                  <span className="eyebrow text-rust text-[10px] block">ACTIVE CIVIC MOVEMENT</span>
+                  <span className="eyebrow text-rust text-[10px] block">{t("ACTIVE CIVIC MOVEMENT")}</span>
                   <strong className="text-ink text-xs block mt-0.5">{ongoingCampaign.title}</strong>
-                  <span className="text-ink-mute text-[11px] block mt-0.5">Phase 2 In Progress · {ongoingCampaign.progressPercent || 20}% Target Reached</span>
+                  <span className="text-ink-mute text-[11px] block mt-0.5">{t("Phase 2 In Progress · {percent}% Target Reached", { percent: ongoingCampaign.progressPercent || 20 })}</span>
                 </div>
-                <Button variant="secondary" onClick={() => open("event", ongoingCampaign)}>View Plan</Button>
+                <Button variant="secondary" onClick={() => open("event", ongoingCampaign)}>{t("View Plan")}</Button>
               </div>
             ) : (
-              <p className="inline-empty">No upcoming events scheduled.</p>
+              <p className="inline-empty">{t("No upcoming events scheduled.")}</p>
             )}
           </div>
           <button className="panel-footer calendar-footer" onClick={() => navigate("events")}>
-            <CalendarDays size={14} />Schedule unit programmes & conventions<ArrowRight size={15} />
+            <CalendarDays size={14} />{t("Schedule unit programmes & conventions")}<ArrowRight size={15} />
           </button>
         </section>
 
         {isExecutive && filteredActivities.length > 0 && (
           <section className="panel activity-panel">
-            <SectionTitle title="Our unit, in motion" subtitle="Real-time audit stream of treasury, purchases, and verifications.">
+            <SectionTitle title={t("Our unit, in motion")} subtitle={t("Real-time audit stream of treasury, purchases, and verifications.")}>
               <div className="activity-tabs-mini">
-                {(["all", "dues", "procurement", "donation"] as const).map((t) => (
+                {(["all", "dues", "procurement", "donation"] as const).map((kind) => (
                   <button
-                    key={t}
-                    className={`mini-tab-btn ${activityFilter === t ? "active" : ""}`}
-                    onClick={() => setActivityFilter(t)}
+                    key={kind}
+                    className={`mini-tab-btn ${activityFilter === kind ? "active" : ""}`}
+                    onClick={() => setActivityFilter(kind)}
                   >
-                    {t === "all" ? "All" : t === "dues" ? "Dues" : t === "procurement" ? "Procure" : "Donations"}
+                    {kind === "all" ? t("All") : kind === "dues" ? t("Dues") : kind === "procurement" ? t("Procure") : t("Donations")}
                   </button>
                 ))}
               </div>
@@ -468,7 +469,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                     <p>{a.title}</p>
                     <span>{a.description}</span>
                     <small>
-                      {relativeTime(a.createdAt)}
+                      {relativeTime(a.createdAt, t)}
                       {actor && <> <span className="text-dot">·</span> {actor.fullName}</>}
                     </small>
                   </div>
@@ -487,14 +488,14 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         <div className="dashboard-right-stack">
           <section className="notice-card">
             <div className="notice-top">
-              <span><Megaphone size={15} />FROM THE NOTICE BOARD</span>
+              <span><Megaphone size={15} />{t("FROM THE NOTICE BOARD")}</span>
               <Pin size={16} className="notice-pin" />
             </div>
             {data.circulars.slice(0, 1).map((notice) => (
               <NoticeFeature key={notice.id} notice={notice} open={() => open("circular", notice)} />
             ))}
             <button className="notice-all" onClick={() => navigate("circulars")}>
-              Visit the notice board<ArrowRight size={15} />
+              {t("Visit the notice board")}<ArrowRight size={15} />
             </button>
           </section>
 
@@ -503,8 +504,8 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               <ClipboardList size={21} strokeWidth={1.5} />
             </span>
             <span>
-              <strong>Field Repertoire & Anti-Superstition Lab.</strong>
-              <small>Explore chemistry demonstration scripts & toolkits</small>
+              <strong>{t("Field Repertoire & Anti-Superstition Lab.")}</strong>
+              <small>{t("Explore chemistry demonstration scripts & toolkits")}</small>
             </span>
             <ArrowUpRight size={18} />
           </button>
@@ -514,8 +515,8 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
       <div className="dashboard-footnote">
         <img src="/images/bss-logo.svg" alt="" />
         <span className="bengali-mark">{identity.bengali}</span>
-        <span>{identity.motto}</span>
-        <span className="footnote-right">{identity.name} · {identity.unit}</span>
+        <span>{t(identity.motto)}</span>
+        <span className="footnote-right">{t(identity.name)} · {t(identity.unit)}</span>
       </div>
     </div>
   );
@@ -538,6 +539,7 @@ function Stat({ icon: Icon, title, tone, value, children, onClick }: { icon: Luc
 }
 
 function AttentionRow({ item, data, index, onClick }: { item: Procurement; data: WorkspaceData; index: number; onClick: () => void }) {
+  const { t, money } = useI18n();
   const event = data.events.find((e) => e.id === item.eventId);
   const voucherCode = `REQ-26-${String(index).padStart(2, "0")}`;
 
@@ -547,14 +549,14 @@ function AttentionRow({ item, data, index, onClick }: { item: Procurement; data:
         <span className="voucher-mini-tag mono">{voucherCode}</span>
         <span>
           <strong>{item.itemName}</strong>
-          <small>{item.quantity} <span className="text-dot">·</span> {event?.title || "Field programme"}</small>
+          <small>{item.quantity} <span className="text-dot">·</span> {event?.title || t("Field programme")}</small>
         </span>
       </div>
       {item.status === "verified" ? (
-        <span className="stamp-verified text-[length:max(7px,var(--fs-floor,0px))]">VERIFIED</span>
+        <span className="stamp-verified text-[length:max(7px,var(--fs-floor,0px))]">{t("VERIFIED")}</span>
       ) : (
         <Badge tone={item.status === "needed" ? "orange" : "yellow"}>
-          {item.status === "needed" ? "Needed" : "To verify"}
+          {item.status === "needed" ? t("Needed") : t("To verify")}
         </Badge>
       )}
       <span className="attention-cost mono">{money(item.estimatedCost)}</span>
@@ -564,6 +566,7 @@ function AttentionRow({ item, data, index, onClick }: { item: Procurement; data:
 }
 
 export function EventRow({ event, open, data }: { event: UnitEvent; open: () => void; data: WorkspaceData }) {
+  const { t, num, fmtDate, fmtTime, monthShort } = useI18n();
   const date = new Date(event.startsAt);
   const daysAway = Math.round(
     (new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() - new Date(new Date().setHours(0, 0, 0, 0)).getTime()) /
@@ -573,22 +576,22 @@ export function EventRow({ event, open, data }: { event: UnitEvent; open: () => 
   return (
     <button className="upcoming-event" onClick={open}>
       <div className={`event-date ${daysAway <= 1 ? "event-date-near" : ""}`}>
-        <span>{months[date.getMonth()].toUpperCase()}</span>
-        <strong>{date.getDate()}</strong>
+        <span>{monthShort(date.getMonth()).toUpperCase()}</span>
+        <strong>{num(date.getDate())}</strong>
       </div>
       <div className="event-row-content">
         <h3>{event.title}</h3>
         <p><MapPin size={11} />{event.location}</p>
         <div className="event-row-meta">
           <span>
-            {daysAway === 0 ? "Today" : daysAway === 1 ? "Tomorrow" : date.toLocaleDateString("en-IN", { weekday: "short" })},{" "}
-            {date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })}
+            {daysAway === 0 ? t("Today") : daysAway === 1 ? t("Tomorrow") : fmtDate(date, { weekday: "short" })},{" "}
+            {fmtTime(date, { hour: "numeric", minute: "2-digit", hour12: true })}
           </span>
           <span className="mini-avatar-group">
             {data.profiles.slice(1, 4).map((p) => (
               <Avatar key={p.id} person={p} size="small" />
             ))}
-            <span>+{Math.max(0, event.volunteers - 3)}</span>
+            <span>+{num(Math.max(0, event.volunteers - 3))}</span>
           </span>
         </div>
       </div>
@@ -597,12 +600,13 @@ export function EventRow({ event, open, data }: { event: UnitEvent; open: () => 
 }
 
 function NoticeFeature({ notice, open }: { notice: Circular; open: () => void }) {
+  const { t } = useI18n();
   return (
     <button className="notice-feature" onClick={open}>
-      <span className="notice-label">{notice.category}<span>·</span>{relativeTime(notice.createdAt)}</span>
+      <span className="notice-label">{t(notice.category)}<span>·</span>{relativeTime(notice.createdAt, t)}</span>
       <h3>{notice.title}</h3>
       <p>{notice.content.split("\n")[0]}</p>
-      <span className="notice-read">Read the circular<ArrowUpRight size={14} /></span>
+      <span className="notice-read">{t("Read the circular")}<ArrowUpRight size={14} /></span>
     </button>
   );
 }
