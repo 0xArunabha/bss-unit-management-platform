@@ -494,7 +494,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       </div>
     </aside>
     <div className="main-shell">
-      {guestMode && (
+      {guestMode && view !== "overview" && (
         <div className="guest-banner">
           <div className="guest-banner-lead">
             <span className="guest-banner-badge">{t("🚨 ACTIVE CIVIC CAMPAIGN")}</span>

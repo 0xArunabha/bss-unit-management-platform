@@ -60,6 +60,7 @@ export const BN: Record<string, string> = {
   "Anti-superstition lab guides": "কুসংস্কারবিরোধী প্রদর্শনীর গাইড",
   "Science toolkits": "বিজ্ঞান প্রদর্শনী কিট",
   "Membership contribution up to date": "সদস্য চাঁদা সম্পূর্ণ পরিশোধিত",
+  "Join a Campaign": "অভিযানে অংশ নিন",
   "Open main navigation": "মেনু খুলুন",
   "Switch language to English": "ভাষা বদলে ইংরেজি করুন",
   "Switch language to Bengali": "ভাষা বদলে বাংলা করুন",

@@ -196,7 +196,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <h2>{tx("Science for society.<br/>Progress, <em>together.</em>")}</h2>
           <p>{tx("Rooted in {city}. Open to everyone.<br/>A community that turns questions into action.", { city: t(identity.city) })}</p>
           <button className="campaign-link" onClick={() => navigate("campaigns")}>
-            {t("Let’s make a difference")}<ArrowUpRight size={16} />
+            {t("Join a Campaign")}<ArrowUpRight size={16} />
           </button>
         </div>
         <div className="campaign-image">
