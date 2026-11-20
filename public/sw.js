@@ -1,4 +1,4 @@
-const CACHE = 'light-of-science-workspace-v18';
+const CACHE = 'light-of-science-workspace-v19';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -6,6 +6,7 @@ self.addEventListener('install', (event) => {
       cache.addAll([
         '/',
         '/offline',
+        '/favicon.ico',
         '/images/bss-logo.svg',
         '/images/app-icon-192.png',
         '/images/app-icon-512.png',

@@ -55,17 +55,19 @@ async function generate() {
   `;
 
   const sizes = [
-    { name: 'app-icon-192.png', size: 192, padding: '14%', isMaskable: false },
-    { name: 'app-icon-512.png', size: 512, padding: '14%', isMaskable: false },
-    { name: 'app-icon-maskable.png', size: 512, padding: '22%', isMaskable: true },
-    { name: 'apple-touch-icon.png', size: 180, padding: '14%', isMaskable: false },
+    { outPath: 'public/images/app-icon-192.png', size: 192, padding: '14%', isMaskable: false },
+    { outPath: 'public/images/app-icon-512.png', size: 512, padding: '14%', isMaskable: false },
+    { outPath: 'public/images/app-icon-maskable.png', size: 512, padding: '22%', isMaskable: true },
+    { outPath: 'public/images/apple-touch-icon.png', size: 180, padding: '14%', isMaskable: false },
+    { outPath: 'public/favicon.ico', size: 48, padding: '10%', isMaskable: false },
   ];
 
   for (const item of sizes) {
     await page.setViewportSize({ width: item.size, height: item.size });
     await page.setContent(createHtml(item.padding, item.isMaskable));
-    const outPath = path.resolve(`public/images/${item.name}`);
-    await page.screenshot({ path: outPath, omitBackground: false });
+    const outPath = path.resolve(item.outPath);
+    const buf = await page.screenshot({ type: 'png', omitBackground: false });
+    fs.writeFileSync(outPath, buf);
     console.log(`Generated: ${outPath} (${item.size}x${item.size})`);
   }
 
