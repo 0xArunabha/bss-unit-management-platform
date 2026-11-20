@@ -9,7 +9,7 @@ import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, 
 import { Avatar, Badge, Button, Modal, ModalExiting, relativeTime, useModalExit } from "@/components/ui";
 import { Overview } from "@/components/overview";
 import { MembersView, DuesView, DonationsView } from "@/components/people-views";
-import { CircularsView, EventsView, ProcurementView, ResourcesView, SettingsView } from "@/components/field-views";
+import { CircularsView, CampaignsView, EventsView, ProcurementView, ResourcesView, SettingsView } from "@/components/field-views";
 import { WorkspaceModals, type ModalState } from "@/components/workspace-modals";
 import { LoginScreen } from "@/components/login-screen";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
@@ -88,7 +88,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     members: t("Members"),
     dues: t("Membership dues"),
     donations: t("Donations"),
-    events: t("Campaigns"),
+    campaigns: t("Campaigns"),
+    events: t("Events Calendar"),
     procurement: t("Procurement"),
     circulars: t("Circulars & notices"),
     resources: t("Science resources"),
@@ -116,21 +117,24 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const navItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
     ? [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
-        { view: "events", label: t("Campaigns"), icon: Flame },
+        { view: "campaigns", label: t("Campaigns"), icon: Flame },
+        { view: "events", label: t("Events Calendar"), icon: CalendarDays },
       ]
     : userRole === "member"
     ? [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
         { view: "members", label: t("Members"), icon: Users },
         { view: "dues", label: t("Membership dues"), icon: Wallet },
-        { view: "events", label: t("Campaigns"), icon: Flame },
+        { view: "campaigns", label: t("Campaigns"), icon: Flame },
+        { view: "events", label: t("Events Calendar"), icon: CalendarDays },
       ]
     : [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
         { view: "members", label: t("Members"), icon: Users },
         { view: "dues", label: t("Membership dues"), icon: Wallet },
         { view: "donations", label: t("Donations"), icon: HeartHandshake },
-        { view: "events", label: t("Campaigns"), icon: Flame },
+        { view: "campaigns", label: t("Campaigns"), icon: Flame },
+        { view: "events", label: t("Events Calendar"), icon: CalendarDays },
         { view: "procurement", label: t("Procurement"), icon: ClipboardList },
       ];
 
@@ -144,7 +148,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       ];
   const needed = data.procurements.filter((p) => p.status === "needed").length;
   // Five tabs and a top bar share ~390px, so the long sidebar names ("Membership dues") get short forms on phones.
-  const shortLabels: Partial<Record<View, string>> = { members: t("Members"), dues: t("Dues"), events: t("Campaigns"), circulars: t("Circulars"), resources: t("Resources"), settings: t("Settings") };
+  const shortLabels: Partial<Record<View, string>> = { members: t("Members"), dues: t("Dues"), campaigns: t("Campaigns"), events: t("Calendar"), circulars: t("Circulars"), resources: t("Resources"), settings: t("Settings") };
   const notify = useCallback((message: string) => setToast({ message }), []);
   const { leaves, triggerFirstFlush } = useFirstFlush(notify, locale);
   // Closing plays an exit animation first. Opening another modal while one is still leaving cancels that exit.
@@ -165,7 +169,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       members: t("Unit Roster"),
       dues: t("Membership Dues"),
       donations: t("Donations Register"),
-      events: t("Campaigns"),
+      campaigns: t("Campaigns"),
+      events: t("Events Calendar"),
       procurement: t("Procurement Board"),
       circulars: t("Unit Circulars"),
       resources: t("Field Resources"),
@@ -246,7 +251,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const navigate = useCallback((target: View, eventId?: string) => {
     hapticTap(8);
     let resolvedTarget = target;
-    if (isGuest && !["overview", "events", "resources"].includes(target)) {
+    if (isGuest && !["overview", "campaigns", "events", "resources"].includes(target)) {
       resolvedTarget = "overview";
     }
     if (userRole === "member" && ["procurement", "donations"].includes(target)) {
@@ -407,7 +412,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     >
       <item.icon size={18} strokeWidth={1.65} />
       <span>{item.label}</span>
-      {item.view === "events" && hasActiveCampaign && (
+      {item.view === "campaigns" && hasActiveCampaign && (
         <span className="nav-campaign-pill">{t("Live")}</span>
       )}
       {item.view === "procurement" && needed > 0 && <span className="nav-count">{num(needed)}</span>}
@@ -491,7 +496,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                 const rawCampaign = shown.events.find(isCampaignEvent);
                 const campaign = rawCampaign ? hydrateCampaignEvent(rawCampaign) : undefined;
                 if (campaign) open("event", campaign);
-                else navigate("events");
+                else navigate("campaigns");
               }}
               className="guest-banner-cta"
             >
@@ -680,6 +685,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           {view === "members" && <MembersView data={shown} open={open} perform={perform} />}
           {view === "dues" && <DuesView data={shown} open={open} />}
           {view === "donations" && <DonationsView data={shown} open={open} />}
+          {view === "campaigns" && <CampaignsView data={shown} open={open} navigate={navigate} />}
           {view === "events" && <EventsView data={shown} open={open} navigate={navigate} />}
           {view === "procurement" && <ProcurementView data={shown} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}
           {view === "circulars" && <CircularsView data={shown} open={open} navigate={navigate} />}

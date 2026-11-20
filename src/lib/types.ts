@@ -1,5 +1,5 @@
 export type Role = "admin" | "organizer" | "volunteer" | "member" | "guest";
-export type View = "overview" | "members" | "dues" | "donations" | "events" | "procurement" | "circulars" | "resources" | "settings";
+export type View = "overview" | "members" | "dues" | "donations" | "campaigns" | "events" | "procurement" | "circulars" | "resources" | "settings";
 export type Profile = {
   id: string;
   fullName: string;

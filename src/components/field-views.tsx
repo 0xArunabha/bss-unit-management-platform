@@ -232,13 +232,81 @@ function CampaignHeroCard({
   );
 }
 
-export function EventsView({ data, open }: Props) {
-  const { locale, t, tx, num, fmtDate, fmtTime } = useI18n();
+function SingleEventCard({
+  event,
+  data,
+  open,
+  locale,
+  nowMs,
+}: {
+  event: UnitEvent;
+  data: WorkspaceData;
+  open: OpenModal;
+  locale: "en" | "bn";
+  nowMs: number;
+}) {
+  const { t, num, fmtDate, fmtTime } = useI18n();
+  const date = new Date(event.startsAt);
+  const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
+
+  return (
+    <article className="event-card panel print-tech-slip" key={event.id}>
+      <button className="event-card-image" onClick={() => open("event", event)}>
+        <img
+          src={event.image}
+          alt={event.title}
+          onError={(e) => {
+            e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+          }}
+        />
+        <span className="event-category">{t(event.category)}</span>
+        <span className="event-card-date">
+          <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
+          <strong>{num(date.getDate())}</strong>
+        </span>
+        {isNear && <span className="event-urgent-tag">{t("HAPPENING IN <48H")}</span>}
+      </button>
+
+      <div className="event-card-body">
+        <span className="event-card-time">
+          <CalendarDays size={13} />
+          {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
+        </span>
+        <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
+        <p className="event-card-description">{event.description}</p>
+        <span className="event-location"><MapPin size={14} />{event.location}</span>
+
+        <div className="event-card-footer">
+          <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
+          <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
+            {isCampaignEvent(event) ? t("Concluded Campaign") : t("Past Event")}
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+          <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
+            {isCampaignEvent(event) ? t("View campaign archive & report") : t("View programme briefing & field photos")}
+            <ArrowUpRight size={15} />
+          </Button>
+          <button
+            className="button button-secondary button-whatsapp"
+            style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+            onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
+            title={t("Share on WhatsApp")}
+          >
+            <MessageCircle size={15} />
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export function CampaignsView({ data, open }: Props) {
+  const { t, tx } = useI18n();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"campaigns" | "upcoming" | "all">("campaigns");
-  const [archiveTab, setArchiveTab] = useState<"all" | "campaigns" | "events">("all");
+  const [tab, setTab] = useState<"active" | "archive">("active");
   const [expandedRoadmaps, setExpandedRoadmaps] = useState<Record<string, boolean>>({});
-  const [nowMs] = useState(() => Date.now());
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = user?.role || "guest";
 
@@ -255,106 +323,22 @@ export function EventsView({ data, open }: Props) {
   const activeCampaigns = allCampaigns.filter((c) => c.isOngoing);
   const concludedCampaigns = allCampaigns.filter((c) => !c.isOngoing);
 
-  const scheduledEvents = data.events.filter((e) => !isCampaignEvent(e));
-  const upcomingScheduled = scheduledEvents
-    .filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000)
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-
-  const pastEvents = scheduledEvents
-    .filter((e) => new Date(e.startsAt).getTime() < nowMs - 86400000 || !upcomingScheduled.some((u) => u.id === e.id))
-    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
-
-  // Archive holds ALL concluded items: concluded campaigns + past events
-  const archivedItems = [...concludedCampaigns, ...pastEvents].sort(
-    (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
-  );
-
-  const displayedArchiveItems = archiveTab === "campaigns"
-    ? concludedCampaigns
-    : archiveTab === "events"
-    ? pastEvents
-    : archivedItems;
-
-  const filteredActiveCampaigns = activeCampaigns.filter((e) =>
+  const filteredActive = activeCampaigns.filter((e) =>
     `${e.title} ${e.location} ${e.description} ${e.targetGoal || ""}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredUpcoming = upcomingScheduled.filter((e) =>
-    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const filteredArchive = displayedArchiveItems.filter((e) =>
+  const filteredConcluded = concludedCampaigns.filter((e) =>
     `${e.title} ${e.location} ${e.description} ${e.targetGoal || ""}`.toLowerCase().includes(search.toLowerCase())
   );
-
-  const renderEventCard = (event: UnitEvent) => {
-    const date = new Date(event.startsAt);
-    const eventItems = data.procurements.filter((p) => p.eventId === event.id);
-    const needed = eventItems.filter((p) => p.status === "needed").length;
-    const verified = eventItems.filter((p) => p.status === "verified").length;
-    const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
-
-    return (
-      <article className="event-card panel print-tech-slip" key={event.id}>
-        <button className="event-card-image" onClick={() => open("event", event)}>
-          <img
-            src={event.image}
-            alt={event.title}
-            onError={(e) => {
-              e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
-            }}
-          />
-          <span className="event-category">{t(event.category)}</span>
-          <span className="event-card-date">
-            <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
-            <strong>{num(date.getDate())}</strong>
-          </span>
-          {isNear && <span className="event-urgent-tag">{t("HAPPENING IN <48H")}</span>}
-        </button>
-
-        <div className="event-card-body">
-          <span className="event-card-time">
-            <CalendarDays size={13} />
-            {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
-          </span>
-          <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
-          <p className="event-card-description">{event.description}</p>
-          <span className="event-location"><MapPin size={14} />{event.location}</span>
-
-          <div className="event-card-footer">
-            <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
-            <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
-              {isCampaignEvent(event) ? t("Concluded Campaign") : t("Past Event")}
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-            <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-              {isCampaignEvent(event) ? t("View campaign archive & report") : t("View programme briefing & field photos")}
-              <ArrowUpRight size={15} />
-            </Button>
-            <button
-              className="button button-secondary button-whatsapp"
-              style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-              onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
-              title={t("Share on WhatsApp")}
-            >
-              <MessageCircle size={15} />
-            </button>
-          </div>
-        </div>
-      </article>
-    );
-  };
 
   return (
     <div className="view-enter">
       <PageHeading
-        eyebrow={t("GRASSROOTS ADVOCACY · UNIT CAMPAIGNS & CALENDAR")}
-        title={t("Field programmes & active campaigns.")}
-        description={t("Scheduled outreach programmes, active environmental campaigns, and cadre meetings for {fullName}.", { fullName: t(identity.fullName) })}
+        eyebrow={t("GRASSROOTS ADVOCACY · UNIT CAMPAIGNS")}
+        title={t("Grassroots campaigns & civic movements.")}
+        description={t("Active environmental campaigns, municipal interventions, and citizen advocacy for {fullName}.", { fullName: t(identity.fullName) })}
       >
-        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>{t("Create event")}</Button>}
+        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>{t("Create campaign")}</Button>}
       </PageHeading>
 
       {/* Slim Horizontal Tabs & Subtle Local Filter */}
@@ -362,10 +346,10 @@ export function EventsView({ data, open }: Props) {
         <nav className="events-nav-tabs" role="tablist" aria-label={t("Campaigns navigation")}>
           <button
             type="button"
-            onClick={() => setFilter("campaigns")}
-            className={`events-nav-tab ${filter === "campaigns" ? "is-active" : ""}`}
+            onClick={() => setTab("active")}
+            className={`events-nav-tab ${tab === "active" ? "is-active" : ""}`}
             role="tab"
-            aria-selected={filter === "campaigns"}
+            aria-selected={tab === "active"}
           >
             <Flame size={15} />
             <span>{t("Active Campaigns")}</span>
@@ -374,30 +358,18 @@ export function EventsView({ data, open }: Props) {
 
           <button
             type="button"
-            onClick={() => setFilter("upcoming")}
-            className={`events-nav-tab ${filter === "upcoming" ? "is-active" : ""}`}
+            onClick={() => setTab("archive")}
+            className={`events-nav-tab ${tab === "archive" ? "is-active" : ""}`}
             role="tab"
-            aria-selected={filter === "upcoming"}
-          >
-            <CalendarDays size={15} />
-            <span>{t("Events Calendar")}</span>
-            <span className="events-nav-count">{upcomingScheduled.length}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFilter("all")}
-            className={`events-nav-tab ${filter === "all" ? "is-active" : ""}`}
-            role="tab"
-            aria-selected={filter === "all"}
+            aria-selected={tab === "archive"}
           >
             <History size={15} />
             <span>{t("Archive")}</span>
-            <span className="events-nav-count">{archivedItems.length}</span>
+            <span className="events-nav-count">{concludedCampaigns.length}</span>
           </button>
         </nav>
 
-        {/* Subtle local filter — discreet and secondary to global ⌘K bar */}
+        {/* Subtle local filter */}
         <div className="events-subtle-filter">
           <Search size={14} className="filter-icon" />
           <input
@@ -421,48 +393,11 @@ export function EventsView({ data, open }: Props) {
         </div>
       </div>
 
-      {/* Archive Sub-Navigation: Clean segmented pills only shown on Archive tab */}
-      {filter === "all" && (
-        <div className="archive-subnav-strip mb-6">
-          <div className="events-deck-segmented" role="tablist" aria-label={t("Archive filter")}>
-            <button
-              type="button"
-              onClick={() => setArchiveTab("all")}
-              className={`events-deck-seg-btn ${archiveTab === "all" ? "is-active" : ""}`}
-              role="tab"
-              aria-selected={archiveTab === "all"}
-            >
-              <span>{t("All Concluded ({count})", { count: archivedItems.length })}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setArchiveTab("campaigns")}
-              className={`events-deck-seg-btn ${archiveTab === "campaigns" ? "is-active is-active-green" : ""}`}
-              role="tab"
-              aria-selected={archiveTab === "campaigns"}
-            >
-              <CircleCheck size={13} />
-              <span>{t("Concluded Campaigns ({count})", { count: concludedCampaigns.length })}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setArchiveTab("events")}
-              className={`events-deck-seg-btn ${archiveTab === "events" ? "is-active" : ""}`}
-              role="tab"
-              aria-selected={archiveTab === "events"}
-            >
-              <CalendarDays size={13} />
-              <span>{t("Past Events ({count})", { count: pastEvents.length })}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 1. ACTIVE CAMPAIGNS TAB */}
-      {filter === "campaigns" && (
+      {tab === "active" && (
         <div className="space-y-6">
-          {filteredActiveCampaigns.length > 0 ? (
-            filteredActiveCampaigns.map((campaign) => (
+          {filteredActive.length > 0 ? (
+            filteredActive.map((campaign) => (
               <CampaignHeroCard
                 key={campaign.id}
                 campaign={campaign}
@@ -506,10 +441,7 @@ export function EventsView({ data, open }: Props) {
               <Button
                 variant="secondary"
                 icon={ArrowRight}
-                onClick={() => {
-                  setFilter("all");
-                  setArchiveTab("campaigns");
-                }}
+                onClick={() => setTab("archive")}
               >
                 {t("View Concluded Campaigns Archive ({count})", { count: concludedCampaigns.length })}
               </Button>
@@ -518,85 +450,20 @@ export function EventsView({ data, open }: Props) {
         </div>
       )}
 
-      {/* 2. UPCOMING SINGLE-DAY EVENTS CALENDAR */}
-      {filter === "upcoming" && (
-        <div>
-          {filteredUpcoming.length > 0 ? (
-            <div className="event-cards-grid">
-              {filteredUpcoming.map((event) => renderEventCard(event))}
-            </div>
-          ) : (
-            <div className="all-hands-card">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-9 h-9 rounded-full bg-rust-tint text-rust flex items-center justify-center font-bold text-base shrink-0">
-                  <Flame size={18} />
-                </span>
-                <div>
-                  <span className="eyebrow text-rust text-[10px] block">{t("ACTIVE FIELD PRIORITY")}</span>
-                  <h4 className="text-base font-bold text-ink">{t("All Unit Capacity Mobilized for Mashkalaibari")}</h4>
-                </div>
-              </div>
-              <p className="text-xs text-ink-mute leading-relaxed max-w-xl mb-4">
-                {tx("Our Jalpaiguri unit is dedicating active volunteer and cadre capacity to the ongoing <strong>Clean Mashkalaibari Campaign</strong>. Single-day conventions and rallies resume following the technical deputation to Jalpaiguri Municipality.")}
-              </p>
-              <div className="flex items-center gap-3 flex-wrap">
-                {activeCampaigns[0] && (
-                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", activeCampaigns[0])}>
-                    {t("Open Mashkalaibari Campaign Action Plan")}
-                  </Button>
-                )}
-                <Button variant="secondary" onClick={() => setFilter("campaigns")}>
-                  {t("View Active Campaigns Tab →")}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 3. ARCHIVE (CONCLUDED CAMPAIGNS & PAST EVENTS) */}
-      {filter === "all" && (
+      {/* 2. CONCLUDED CAMPAIGNS ARCHIVE */}
+      {tab === "archive" && (
         <div className="space-y-6">
-          {filteredArchive.length > 0 ? (
-            <>
-              {archiveTab === "campaigns" ? (
-                <div className="space-y-6">
-                  {filteredArchive.map((campaign) => (
-                    <CampaignHeroCard
-                      key={campaign.id}
-                      campaign={campaign}
-                      data={data}
-                      open={open}
-                      expandedRoadmaps={expandedRoadmaps}
-                      setExpandedRoadmaps={setExpandedRoadmaps}
-                    />
-                  ))}
-                </div>
-              ) : archiveTab === "events" ? (
-                <div className="event-cards-grid">
-                  {filteredArchive.map((event) => renderEventCard(event))}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredArchive.map((item) =>
-                    isCampaignEvent(item) ? (
-                      <CampaignHeroCard
-                        key={item.id}
-                        campaign={item}
-                        data={data}
-                        open={open}
-                        expandedRoadmaps={expandedRoadmaps}
-                        setExpandedRoadmaps={setExpandedRoadmaps}
-                      />
-                    ) : (
-                      <div key={item.id} className="max-w-xl">
-                        {renderEventCard(item)}
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </>
+          {filteredConcluded.length > 0 ? (
+            filteredConcluded.map((campaign) => (
+              <CampaignHeroCard
+                key={campaign.id}
+                campaign={campaign}
+                data={data}
+                open={open}
+                expandedRoadmaps={expandedRoadmaps}
+                setExpandedRoadmaps={setExpandedRoadmaps}
+              />
+            ))
           ) : (
             <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
               <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
@@ -615,6 +482,168 @@ export function EventsView({ data, open }: Props) {
                   {t("Clear search")}
                 </Button>
               )}
+            </section>
+          )}
+        </div>
+      )}
+
+      <div className="info-strip">
+        <HeartHandshake size={18} />
+        <span>
+          {tx("<strong>Field coordination protocol:</strong> Unit volunteers arrive one hour before start time for demonstration safety checks, crowd boundaries, and peer procurement verification.")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function EventsView({ data, open, navigate }: Props) {
+  const { locale, t, tx } = useI18n();
+  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [nowMs] = useState(() => Date.now());
+  const user = data.profiles.find((p) => p.id === data.currentUserId);
+  const userRole = user?.role || "guest";
+
+  const scheduledEvents = data.events.filter((e) => !isCampaignEvent(e));
+  const upcomingScheduled = scheduledEvents
+    .filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  const pastEvents = scheduledEvents
+    .filter((e) => new Date(e.startsAt).getTime() < nowMs - 86400000 || !upcomingScheduled.some((u) => u.id === e.id))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+
+  const filteredUpcoming = upcomingScheduled.filter((e) =>
+    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredPast = pastEvents.filter((e) =>
+    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const activeCampaign = data.events.filter(isCampaignEvent).find((c) => c.isOngoing);
+
+  return (
+    <div className="view-enter">
+      <PageHeading
+        eyebrow={t("SCIENCE OUTREACH · FIELD CALENDAR")}
+        title={t("Events calendar & outreach programmes.")}
+        description={t("Scheduled outreach programmes, demonstration workshops, and single-day rallies for {fullName}.", { fullName: t(identity.fullName) })}
+      >
+        {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>{t("Create event")}</Button>}
+      </PageHeading>
+
+      {/* Slim Horizontal Tabs & Subtle Local Filter */}
+      <div className="events-header-bar mb-6">
+        <nav className="events-nav-tabs" role="tablist" aria-label={t("Events calendar navigation")}>
+          <button
+            type="button"
+            onClick={() => setTab("upcoming")}
+            className={`events-nav-tab ${tab === "upcoming" ? "is-active" : ""}`}
+            role="tab"
+            aria-selected={tab === "upcoming"}
+          >
+            <CalendarDays size={15} />
+            <span>{t("Events Calendar")}</span>
+            <span className="events-nav-count">{upcomingScheduled.length}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab("past")}
+            className={`events-nav-tab ${tab === "past" ? "is-active" : ""}`}
+            role="tab"
+            aria-selected={tab === "past"}
+          >
+            <History size={15} />
+            <span>{t("Past Events")}</span>
+            <span className="events-nav-count">{pastEvents.length}</span>
+          </button>
+        </nav>
+
+        {/* Subtle local filter */}
+        <div className="events-subtle-filter">
+          <Search size={14} className="filter-icon" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("Filter list…")}
+            aria-label={t("Filter list")}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="filter-clear"
+              title={t("Clear filter")}
+              aria-label={t("Clear filter")}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 1. UPCOMING SCHEDULED PROGRAMMES */}
+      {tab === "upcoming" && (
+        <div>
+          {filteredUpcoming.length > 0 ? (
+            <div className="event-cards-grid">
+              {filteredUpcoming.map((event) => (
+                <SingleEventCard key={event.id} event={event} data={data} open={open} locale={locale} nowMs={nowMs} />
+              ))}
+            </div>
+          ) : (
+            <div className="all-hands-card">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="w-9 h-9 rounded-full bg-rust-tint text-rust flex items-center justify-center font-bold text-base shrink-0">
+                  <Flame size={18} />
+                </span>
+                <div>
+                  <span className="eyebrow text-rust text-[10px] block">{t("ACTIVE FIELD PRIORITY")}</span>
+                  <h4 className="text-base font-bold text-ink">{t("All Unit Capacity Mobilized for Mashkalaibari")}</h4>
+                </div>
+              </div>
+              <p className="text-xs text-ink-mute leading-relaxed max-w-xl mb-4">
+                {tx("Our Jalpaiguri unit is dedicating active volunteer and cadre capacity to the ongoing <strong>Clean Mashkalaibari Campaign</strong>. Single-day conventions and rallies resume following the technical deputation to Jalpaiguri Municipality.")}
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                {activeCampaign && (
+                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", activeCampaign)}>
+                    {t("Open Mashkalaibari Campaign Action Plan")}
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => navigate("campaigns")}>
+                  {t("View Campaigns →")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2. PAST EVENTS */}
+      {tab === "past" && (
+        <div>
+          {filteredPast.length > 0 ? (
+            <div className="event-cards-grid">
+              {filteredPast.map((event) => (
+                <SingleEventCard key={event.id} event={event} data={data} open={open} locale={locale} nowMs={nowMs} />
+              ))}
+            </div>
+          ) : (
+            <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
+              <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
+                <History size={24} />
+              </div>
+              <h4 className="text-base font-bold text-ink mb-1">
+                {search ? t('No past events matching "{search}"', { search }) : t("No past events recorded")}
+              </h4>
+              <p className="text-xs text-ink-mute max-w-md mx-auto mb-4 leading-relaxed">
+                {t("Concluded outreach workshops, telescope camps, and rallies will be catalogued here.")}
+              </p>
             </section>
           )}
         </div>

@@ -187,7 +187,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <div className="campaign-eyebrow"><span />{t(identity.volumeLine)}</div>
           <h2>{tx("Science for society.<br/>Progress, <em>together.</em>")}</h2>
           <p>{tx("Rooted in {city}. Open to everyone.<br/>A community that turns questions into action.", { city: t(identity.city) })}</p>
-          <button className="campaign-link" onClick={() => navigate("events")}>
+          <button className="campaign-link" onClick={() => navigate("campaigns")}>
             {t("Let’s make a difference")}<ArrowUpRight size={16} />
           </button>
         </div>
@@ -227,7 +227,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             tone="orange"
             title={t("Active campaigns")}
             value={ongoingCampaign ? t("1 Ongoing") : num(data.events.length)}
-            onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("events"))}
+            onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("campaigns"))}
           >
             <span className="stat-footnote">
               <span className="tiny-dot green" />
@@ -245,7 +245,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           <Stat icon={Megaphone} tone="blue" title={t("Demonstration toolkits")} value={t("Available")} onClick={() => navigate("resources")}>
             <span className="stat-footnote">{t("Anti-superstition chemical & physics scripts")}</span>
           </Stat>
-          <Stat icon={Users} tone="sage" title={t("Citizen advocacy")} value={t("Open")} onClick={() => navigate("events")}>
+          <Stat icon={Users} tone="sage" title={t("Citizen advocacy")} value={t("Open")} onClick={() => navigate("campaigns")}>
             <div className="dues-stat-bottom">
               <span>{t("No fees · Students and citizens welcome")}</span>
             </div>
@@ -289,7 +289,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             tone="orange"
             title={t("Active campaigns")}
             value={ongoingCampaign ? t("1 Ongoing") : num(data.events.length)}
-            onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("events"))}
+            onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("campaigns"))}
           >
             <span className="stat-footnote">
               <span className="tiny-dot green" />
@@ -440,7 +440,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
         <section className="panel events-panel">
           <SectionTitle title={t("Coming up")} subtitle={t("Upcoming outreach and convention schedule.")}>
-            <ArrowLink onClick={() => navigate("events")}>{t("All campaigns")}</ArrowLink>
+            <ArrowLink onClick={() => navigate("events")}>{t("Events calendar")}</ArrowLink>
           </SectionTitle>
           <div className="upcoming-events">
             {upcoming.length ? (
