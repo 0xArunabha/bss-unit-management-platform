@@ -104,3 +104,4 @@ export const isMashkalaibari = (text: string) => /Mashkalaibari|মাষকল�
 /** The World Environment Day rally and the club-room session carry their own photo galleries; match by either language. */
 export const isEnvironmentDayText = (text: string) => /environment day|karala|পরিবেশ দিবস|করলা/i.test(text);
 export const isDhimanSessionText = (text: string) => /dhiman|robotics|ধীমান|রোবোটিক্স/i.test(text);
+export const isPrafullaRayText = (text: string) => /prafulla|ray|acharya|প্রফুল্ল|আচার্য্য|আসাম.*ত্রাণ|flood relief/i.test(text);

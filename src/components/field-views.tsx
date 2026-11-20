@@ -19,22 +19,34 @@ export function EventsView({ data, open }: Props) {
   const { locale, t, tx, num, fmtDate, fmtTime } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"campaigns" | "upcoming" | "all">("campaigns");
-  const [roadmapExpanded, setRoadmapExpanded] = useState(false);
+  const [campaignTab, setCampaignTab] = useState<"all" | "active" | "completed">("all");
+  const [expandedRoadmaps, setExpandedRoadmaps] = useState<Record<string, boolean>>({});
   const [nowMs] = useState(() => Date.now());
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = user?.role || "guest";
-  const ongoingCampaigns = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent);
+  const allCampaigns = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent);
+  const ongoingCampaigns = allCampaigns.filter((c) => c.isOngoing);
+  const completedCampaigns = allCampaigns.filter((c) => !c.isOngoing);
   const scheduledEvents = data.events.filter((e) => !isCampaignEvent(e));
   const upcomingScheduled = scheduledEvents.filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000);
+
+  const displayedCampaigns = campaignTab === "active"
+    ? ongoingCampaigns
+    : campaignTab === "completed"
+    ? completedCampaigns
+    : allCampaigns;
 
   const filteredUpcoming = upcomingScheduled.filter((e) =>
     `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
   );
-  const filteredAll = scheduledEvents.filter((e) =>
+  const archivedItems = [...completedCampaigns, ...scheduledEvents].sort(
+    (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
+  );
+  const filteredAll = archivedItems.filter((e) =>
     `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
   );
-  const filteredCampaigns = ongoingCampaigns.filter((e) =>
-    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
+  const filteredCampaigns = displayedCampaigns.filter((e) =>
+    `${e.title} ${e.location} ${e.description} ${e.targetGoal || ""}`.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -50,7 +62,7 @@ export function EventsView({ data, open }: Props) {
       {/* Executive 3-Card Field Switchboard */}
       <nav aria-label={t("Field programmes view selector")} className="events-command-deck mb-7">
         <div className="events-deck-grid" role="tablist">
-          {/* 1. Active Campaigns Card */}
+          {/* 1. Campaigns Card */}
           <button
             type="button"
             onClick={() => setFilter("campaigns")}
@@ -63,12 +75,12 @@ export function EventsView({ data, open }: Props) {
               {ongoingCampaigns.length > 0 && <span className="deck-live-pulse" />}
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">{t("Active Campaigns")}</span>
-              <span className="events-deck-desc">{t("Ongoing civic movements")}</span>
+              <span className="events-deck-title">{t("Unit Campaigns")}</span>
+              <span className="events-deck-desc">{t("Active & concluded movements")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-campaigns">
-                {t("{count} Active", { count: ongoingCampaigns.length })}
+                {t("{active} Active · {done} Done", { active: ongoingCampaigns.length, done: completedCampaigns.length })}
               </span>
             </div>
           </button>
@@ -112,7 +124,7 @@ export function EventsView({ data, open }: Props) {
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-archive">
-                {t("{count} Concluded", { count: scheduledEvents.length })}
+                {t("{count} Concluded", { count: archivedItems.length })}
               </span>
             </div>
           </button>
@@ -123,16 +135,22 @@ export function EventsView({ data, open }: Props) {
           <div className="events-deck-current-label">
             <span className="current-dot" />
             <span className="current-text">
-              {filter === "campaigns" && t("Viewing {count} active environmental campaign (Mashkalaibari)", { count: ongoingCampaigns.length })}
+              {filter === "campaigns" && (
+                campaignTab === "all"
+                  ? t("Viewing {active} active campaign and {completed} completed previous campaigns", { active: ongoingCampaigns.length, completed: completedCampaigns.length })
+                  : campaignTab === "active"
+                  ? t("Viewing {count} active environmental campaign (Mashkalaibari)", { count: ongoingCampaigns.length })
+                  : t("Viewing {count} completed previous campaigns & civic victories", { count: completedCampaigns.length })
+              )}
               {filter === "upcoming" && t("Viewing {count} scheduled outreach programmes", { count: upcomingScheduled.length })}
-              {filter === "all" && t("Viewing {count} concluded awareness actions (World Environment Day 2026)", { count: scheduledEvents.length })}
+              {filter === "all" && t("Viewing {count} concluded actions and completed campaigns", { count: archivedItems.length })}
             </span>
           </div>
           <div className="events-deck-search">
             <SearchInput
               placeholder={
                 filter === "campaigns"
-                  ? t("Search active campaigns, milestones or locations…")
+                  ? t("Search active and completed campaigns, milestones, victories, or locations…")
                   : filter === "upcoming"
                   ? t("Search upcoming dates, topics or venues…")
                   : t("Search archived actions, Environment Day or past rallies…")
@@ -144,16 +162,75 @@ export function EventsView({ data, open }: Props) {
         </div>
       </nav>
 
-      {/* 1. ACTIVE CAMPAIGNS TAB */}
+      {/* 1. UNIT CAMPAIGNS TAB */}
       {filter === "campaigns" && (
         <div className="space-y-6">
+          {/* Campaign Status Sub-Filter Segmented Control */}
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-paper-card p-1.5 rounded-lg border border-rule-soft mb-2">
+            <div className="inline-flex items-center gap-1 p-0.5 bg-paper rounded border border-rule-soft/60">
+              <button
+                type="button"
+                onClick={() => setCampaignTab("all")}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${
+                  campaignTab === "all"
+                    ? "bg-rust text-white shadow-sm"
+                    : "text-ink-mute hover:text-ink"
+                }`}
+              >
+                {t("All Campaigns ({count})", { count: allCampaigns.length })}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCampaignTab("active")}
+                className={`px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1.5 transition-all ${
+                  campaignTab === "active"
+                    ? "bg-rust text-white shadow-sm"
+                    : "text-ink-mute hover:text-ink"
+                }`}
+              >
+                <Flame size={13} />
+                {t("Active Movements ({count})", { count: ongoingCampaigns.length })}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCampaignTab("completed")}
+                className={`px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1.5 transition-all ${
+                  campaignTab === "completed"
+                    ? "bg-[#2d6a4f] text-white shadow-sm"
+                    : "text-ink-mute hover:text-ink"
+                }`}
+              >
+                <CircleCheck size={13} />
+                {t("Completed Previous Campaigns ({count})", { count: completedCampaigns.length })}
+              </button>
+            </div>
+            <span className="mono text-[11px] text-ink-mute px-2">
+              {t("Democracy, Science & Public Interest Movements")}
+            </span>
+          </div>
+
           {filteredCampaigns.map((campaign) => {
             const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
             const totalMilestones = campaign.milestones?.length || 0;
             const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
+            const isExpanded = expandedRoadmaps[campaign.id] ?? campaign.isOngoing;
+            const isCompleted = !campaign.isOngoing;
+
+            // Find matching circular report if any
+            const titleLower = campaign.title.toLowerCase();
+            const matchingCircular = data.circulars.find((c) => {
+              const ct = c.title.toLowerCase();
+              if (titleLower.includes("mashkalaibari") && isMashkalaibari(c.title)) return true;
+              if (titleLower.includes("karala") && (ct.includes("karala") || ct.includes("environment day"))) return true;
+              if ((titleLower.includes("prafulla") || titleLower.includes("assam")) && (ct.includes("prafulla") || ct.includes("assam"))) return true;
+              return false;
+            });
 
             return (
-              <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
+              <section
+                className={`campaign-hero-card panel mb-7 print-tech-slip ${isCompleted ? "border-l-4 border-l-[#2d6a4f]" : ""}`}
+                key={campaign.id}
+              >
                 <div className="campaign-hero-grid">
                   <div className="campaign-hero-image-wrap">
                     <img
@@ -164,10 +241,17 @@ export function EventsView({ data, open }: Props) {
                         e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
                       }}
                     />
-                    <span className="campaign-live-tag">
-                      <span className="live-dot" />
-                      {t("ONGOING CIVIC CAMPAIGN")}
-                    </span>
+                    {campaign.isOngoing ? (
+                      <span className="campaign-live-tag">
+                        <span className="live-dot" />
+                        {t("ONGOING CIVIC CAMPAIGN")}
+                      </span>
+                    ) : (
+                      <span className="campaign-live-tag bg-[#1b4332] text-[#d8f3dc] border border-[#52b788]">
+                        <CircleCheck size={12} className="text-[#74c69d]" />
+                        {t("CONCLUDED CAMPAIGN · VICTORY")}
+                      </span>
+                    )}
                     <span className="campaign-location-pill">
                       <MapPin size={12} />
                       {campaign.location}
@@ -177,10 +261,14 @@ export function EventsView({ data, open }: Props) {
                   <div className="campaign-hero-content">
                     <div>
                       <div className="campaign-meta-row">
-                        <span className="eyebrow text-rust">{t("ACTIVE ENVIRONMENTAL MOVEMENT")}</span>
+                        <span className={`eyebrow ${isCompleted ? "text-[#2d6a4f]" : "text-rust"}`}>
+                          {isCompleted ? t("CONCLUDED CITIZEN CAMPAIGN") : t("ACTIVE ENVIRONMENTAL MOVEMENT")}
+                        </span>
                         <span className="campaign-volunteers-tag">
                           <Users size={13} />
-                          {t("{count} Active Advocates", { count: campaign.volunteers })}
+                          {isCompleted
+                            ? t("{count} Mobilized Advocates", { count: campaign.volunteers })
+                            : t("{count} Active Advocates", { count: campaign.volunteers })}
                         </span>
                       </div>
 
@@ -192,46 +280,71 @@ export function EventsView({ data, open }: Props) {
                     <div className="campaign-progress-box">
                       <div className="campaign-progress-header">
                         <span className="campaign-progress-label mono">
-                          {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })}
+                          {campaign.isOngoing ? (
+                            tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })
+                          ) : (
+                            <strong className="text-[#2d6a4f]">{t("CAMPAIGN TARGET: 100% ACHIEVED & DELIVERED")}</strong>
+                          )}
                         </span>
-                        <span className="campaign-phase-badge">
-                          {t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })}
+                        <span className={`campaign-phase-badge ${isCompleted ? "bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8]" : ""}`}>
+                          {campaign.isOngoing
+                            ? t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })
+                            : t("ALL {count} PHASES DELIVERED", { count: totalMilestones })}
                         </span>
                       </div>
                       <div className="campaign-progress-track">
                         <div
-                          className="campaign-progress-fill"
-                          style={{ width: `${campaign.progressPercent || 20}%` }}
+                          className={`campaign-progress-fill ${isCompleted ? "bg-[#2d6a4f]" : ""}`}
+                          style={{ width: `${campaign.progressPercent || (isCompleted ? 100 : 20)}%` }}
                         />
                       </div>
                       <div className="campaign-progress-footer">
                         <span>
-                          {t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
+                          {isCompleted
+                            ? t("✓ All {total} milestones successfully verified", { total: totalMilestones })
+                            : t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
                         </span>
                         {campaign.targetGoal && (
                           <span className="campaign-target-goal" title={campaign.targetGoal}>
-                            {t("Goal: {goal}", { goal: campaign.targetGoal })}
+                            {isCompleted
+                              ? t("Delivered: {goal}", { goal: campaign.targetGoal })
+                              : t("Goal: {goal}", { goal: campaign.targetGoal })}
                           </span>
                         )}
                       </div>
 
                       {/* Expandable Phased Roadmap Accordion */}
-                      <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
-                        <button
-                          type="button"
-                          className="campaign-accordion-toggle"
-                          onClick={() => setRoadmapExpanded(!roadmapExpanded)}
-                          aria-expanded={roadmapExpanded}
-                        >
-                          <span>{roadmapExpanded ? t("Collapse Phased Roadmap") : t("Inspect 4-Phase Action Plan")}</span>
-                          {roadmapExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                        </button>
-                        <span className="mono text-[10.5px] text-ink-mute">
-                          {t("Next Milestone: Municipal Deputation")}
-                        </span>
-                      </div>
+                      {campaign.milestones && campaign.milestones.length > 0 && (
+                        <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
+                          <button
+                            type="button"
+                            className="campaign-accordion-toggle"
+                            onClick={() =>
+                              setExpandedRoadmaps((prev) => ({
+                                ...prev,
+                                [campaign.id]: !isExpanded,
+                              }))
+                            }
+                            aria-expanded={isExpanded}
+                          >
+                            <span>
+                              {isExpanded
+                                ? t("Collapse Roadmap")
+                                : isCompleted
+                                ? t("Inspect {count}-Phase Verification History", { count: totalMilestones })
+                                : t("Inspect {count}-Phase Action Plan", { count: totalMilestones })}
+                            </span>
+                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </button>
+                          <span className="mono text-[10.5px] text-ink-mute">
+                            {isCompleted
+                              ? t("Outcome: Archived Success")
+                              : t("Next Milestone: Municipal Deputation")}
+                          </span>
+                        </div>
+                      )}
 
-                      {roadmapExpanded && campaign.milestones && (
+                      {isExpanded && campaign.milestones && (
                         <div className="mt-3 space-y-2 pt-2 border-t border-rule-soft">
                           {campaign.milestones.map((m) => (
                             <div
@@ -261,6 +374,11 @@ export function EventsView({ data, open }: Props) {
                                 </span>
                               </div>
                               <p className="text-[11px] text-ink-2 leading-relaxed">{m.description}</p>
+                              {m.completedDate && (
+                                <small className="text-[10px] text-ink-faint mono block mt-1">
+                                  {t("Completed: {date}", { date: m.completedDate })}
+                                </small>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -269,25 +387,24 @@ export function EventsView({ data, open }: Props) {
 
                     <div className="campaign-hero-actions">
                       <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                        {t("View Campaign Gallery & Plan")}
+                        {isCompleted ? t("View Campaign Archive & Record") : t("View Campaign Gallery & Plan")}
                       </Button>
-                      <Button
-                        variant="secondary"
-                        icon={FileText}
-                        onClick={() => {
-                          const mashCircular = data.circulars.find((c) => isMashkalaibari(c.title));
-                          if (mashCircular) open("circular", mashCircular);
-                        }}
-                      >
-                        {t("Read Investigation Report & Photos")}
-                      </Button>
+                      {matchingCircular && (
+                        <Button
+                          variant="secondary"
+                          icon={FileText}
+                          onClick={() => open("circular", matchingCircular)}
+                        >
+                          {t("Read Investigation Report & Photos")}
+                        </Button>
+                      )}
                       <button
                         className="button button-secondary button-whatsapp"
                         onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
-                        title={t("Mobilize on WhatsApp")}
+                        title={isCompleted ? t("Share Victory on WhatsApp") : t("Mobilize on WhatsApp")}
                       >
                         <MessageCircle size={15} />
-                        {t("Share Campaign")}
+                        {isCompleted ? t("Share Victory") : t("Share Campaign")}
                       </button>
                     </div>
                   </div>
@@ -296,55 +413,18 @@ export function EventsView({ data, open }: Props) {
             );
           })}
 
-          {/* Concluded Awareness Action / Civic Rally Section */}
-          {scheduledEvents.length > 0 && (
-            <section className="panel p-5 border border-rule-soft bg-[#faf7f0] rounded-lg print-tech-slip">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[10px] tracking-wider uppercase px-2 py-0.5 rounded mono">
-                      {t("✓ Concluded Awareness Action")}
-                    </span>
-                    <span className="text-[11px] mono text-ink-mute">{t("5th June 2026 · World Environment Day")}</span>
-                  </div>
-                  <h3 className="text-base font-bold text-ink">
-                    {t("World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground")}
-                  </h3>
-                  <p className="text-xs text-ink-2 mt-1 leading-relaxed max-w-2xl">
-                    {t("Completed mass awareness rally and civic demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society, demanding urgent desiltation of River Karala and relocation of toxic municipal dumping grounds.")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <Button
-                    variant="primary"
-                    icon={ArrowUpRight}
-                    onClick={() => {
-                      const envEvent = scheduledEvents.find((e) => e.id === "20000000-0000-4000-8000-000000000006" || isEnvironmentDayText(e.title));
-                      if (envEvent) open("event", envEvent);
-                    }}
-                  >
-                    {t("View Field Photos & Report")}
-                  </Button>
-                  <Button variant="secondary" onClick={() => setFilter("all")}>
-                    {t("Inspect in Archive ({count}) →", { count: scheduledEvents.length })}
-                  </Button>
-                </div>
-              </div>
-            </section>
-          )}
-
           {filteredCampaigns.length === 0 && (
             <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
               <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
                 <Flame size={24} />
               </div>
               <h4 className="text-base font-bold text-ink mb-1">
-                {search ? t('No campaigns matching "{search}"', { search }) : t("No active campaigns currently logged")}
+                {search ? t('No campaigns matching "{search}"', { search }) : t("No campaigns found in this view")}
               </h4>
               <p className="text-xs text-ink-mute max-w-md mx-auto mb-4 leading-relaxed">
                 {search
                   ? t("Try clearing your search term or searching by area name.")
-                  : t("New environmental or civic campaigns initiated by the unit will be featured here.")}
+                  : t("Select another filter above or search by campaign topic.")}
               </p>
               {search && (
                 <Button variant="secondary" onClick={() => setSearch("")}>
@@ -491,13 +571,13 @@ export function EventsView({ data, open }: Props) {
                       <div className="event-card-footer">
                         <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
                         <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
-                          {t("✓ Concluded Action")}
+                          {isCampaignEvent(event) ? t("✓ Completed Campaign") : t("✓ Concluded Action")}
                         </span>
                       </div>
 
                       <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                         <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                          {t("View programme briefing & field photos")}
+                          {isCampaignEvent(event) ? t("View campaign archive & report") : t("View programme briefing & field photos")}
                           <ArrowUpRight size={15} />
                         </Button>
                         <button

@@ -61,24 +61,45 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
     });
   }
 
-  // Guarantee the real World Environment Day Awareness Rally is always present
+  // Guarantee the real World Environment Day / Karala River Campaign is always present
   const hasEnvironmentDay = validEvents.some(
-    (e) => e.title.includes("Environment Day") || e.id === "20000000-0000-4000-8000-000000000006"
+    (e) => e.title.includes("Environment Day") || e.title.includes("Karala") || e.id === "20000000-0000-4000-8000-000000000006"
   );
   if (!hasEnvironmentDay) {
     validEvents.push({
       id: "20000000-0000-4000-8000-000000000006",
-      title: "World Environment Day: Rejuvenate Karala River & Relocate Civic Dumping Ground",
-      description: "Mass rally and civic awareness demonstration from Kotwali Thana More to Kadamtala organized by Light of Science Club with Relief and Public Welfare Society demanding immediate restoration of Karala River and relocation of toxic municipal dumping grounds.",
-      location: "Kotwali Thana More to Kadamtala, Jalpaiguri",
+      title: "Campaign: Save River Karala & Relocate Toxic Civic Dumping Ground",
+      description: "Decisive grassroots environmental advocacy and citizen mobilization uniting Light of Science and Relief and Public Welfare Society. Successfully secured municipal budget sanction for comprehensive Karala river desiltation and initiated relocation proceedings for the hazardous municipal dumping ground away from town residential wards.",
+      location: "Kotwali Thana More to Kadamtala & Municipality Office, Jalpaiguri",
       startsAt: new Date("2026-06-05T09:30:00.000Z"),
-      category: "Awareness Rally",
+      category: "Campaign",
       volunteers: 35,
       image: "/images/field-reports/environment-day-2026/karala-rally-march.jpg",
       createdAt: new Date("2026-06-05T09:30:00.000Z"),
       isOngoing: false,
       progressPercent: 100,
-      targetGoal: "Restoration of Karala River & Relocation of Municipal Dumping Ground",
+      targetGoal: "Ecological restoration of River Karala, desiltation tender, and relocation of municipal open dumping ground",
+    });
+  }
+
+  // Guarantee the real Acharya P. C. Ray & Assam Flood Relief Campaign is always present
+  const hasPrafulla = validEvents.some(
+    (e) => e.title.includes("Prafulla") || e.title.includes("প্রফুল্ল") || e.id === "20000000-0000-4000-8000-000000000008"
+  );
+  if (!hasPrafulla) {
+    validEvents.push({
+      id: "20000000-0000-4000-8000-000000000008",
+      title: "Campaign: Acharya Prafulla Chandra Ray Birth Anniversary & Assam Flood Relief Drive",
+      description: "Observance of Acharya Prafulla Chandra Ray's birth anniversary by Light of Science Club at Kadamtala, followed by a joint humanitarian flood relief collection drive across Jalpaiguri town for flood-affected families in Assam in collaboration with Students' Action Front.",
+      location: "Kadamtala More & Jalpaiguri Town, Jalpaiguri",
+      startsAt: new Date("2024-08-02T09:30:00.000Z"),
+      category: "Campaign",
+      volunteers: 18,
+      image: "/images/field-reports/prafulla-ray/prafulla-flood-relief-2.jpg",
+      createdAt: new Date("2024-08-02T09:30:00.000Z"),
+      isOngoing: false,
+      progressPercent: 100,
+      targetGoal: "Acharya Prafulla Chandra Ray birth anniversary observance and joint mass flood relief collection for Assam with Students' Action Front",
     });
   }
 
@@ -95,6 +116,22 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       pinned: true,
       authorId: "10000000-0000-4000-8000-000000000026",
       createdAt: new Date("2026-06-05T10:00:00.000Z"),
+    });
+  }
+
+  // Guarantee the Acharya Prafulla Chandra Ray & Assam Flood Relief Report is always present in circulars
+  const hasPrafullaCircular = notices.some(
+    (c) => c.id === "50000000-0000-4000-8000-000000000008" || c.title.includes("Prafulla") || c.title.includes("প্রফুল্ল")
+  );
+  if (!hasPrafullaCircular) {
+    notices.unshift({
+      id: "50000000-0000-4000-8000-000000000008",
+      title: "Field Action Report: Acharya Prafulla Chandra Ray Birth Anniversary & Assam Flood Relief Drive",
+      content: `LOCATION: Kadamtala More & Jalpaiguri Town\nDATE: August 2, 2024\nORGANIZED BY: Light of Science (Breakthrough Science Society, Jalpaiguri Unit) in joint collaboration with Students' Action Front\n\n1. COMMEMORATION OF ACHARYA P. C. RAY:\nThe birth anniversary of the father of Indian chemical science and pioneering social reformer Acharya Prafulla Chandra Ray was observed with floral tributes and scientific remembrance at Kadamtala More, Jalpaiguri.\n\n2. ASSAM FLOOD RELIEF HUMANITARIAN DRIVE:\nIn upholding Acharya Ray's lifelong conviction that scientific knowledge must actively alleviate human suffering during disasters, Light of Science Club and Students' Action Front organized a joint town-wide relief fund collection drive for flood-affected families in Assam.\n\n3. CADRE MOBILIZATION & TOWN COLLECTION:\nStudent and youth volunteers carrying collection cartons and appeal flyers engaged commuters, e-rickshaw passengers, and shopkeepers across Kadamtala, Santpara, and main market corridors.\n\n4. LEADERSHIP PRESENT:\n• Kunal Roy (President, Light of Science)\n• Pritam Sarkar (Secretary, Light of Science)\n• Dipta Paul (Joint Secretary, Light of Science)\n• Avash Rajak (Joint Secretary, Light of Science)\nAlong with student activists of Students' Action Front and unit volunteers.\n\n───────────────────────────────\n\nজলপাইগুড়ি শহরে ব্রেকথ্রু সায়েন্স সোসাইটির ইউনিট লাইট অফ সায়েন্স ক্লাবের পক্ষ থেকে আচার্য্য প্রফুল্ল চন্দ্র রায়ের জন্মদিবস পালন করা হয় এবং পরবর্তীতে স্টুডেন্টস অ্যাকশন ফ্রন্টের যৌথ উদ্যোগে আসামের বন্যাত্রান সংগ্রহ করা হয়। উপস্থিত ছিলেন লাইট অফ সায়েন্স ক্লাবের সভাপতি কুণাল রায় ও সম্পাদক প্রীতম সরকার, সহ সম্পাদক দীপ্ত পাল ও আভাস রজক।`,
+      category: "Campaign report",
+      pinned: true,
+      authorId: "10000000-0000-4000-8000-000000000003",
+      createdAt: new Date("2024-08-02T10:00:00.000Z"),
     });
   }
 

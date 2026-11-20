@@ -27,7 +27,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
-  const ongoingCampaign = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent)[0];
+  const ongoingCampaign = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent).find((c) => c.isOngoing);
   const [urgentAlertDismissed, setUrgentAlertDismissed] = useState(false);
   const pendingAppsCount = (data.applications || []).filter((a) => a.status === "pending").length;
 

@@ -12,7 +12,7 @@ import { formatCircularBroadcast, formatEventBroadcast, shareViaWhatsApp } from 
 import type { Profile } from "@/lib/types";
 import type { Navigate, OpenModal } from "@/components/overview";
 import { useI18n } from "@/lib/i18n";
-import { isDhimanSessionText, isEnvironmentDayText, isMashkalaibari } from "@/lib/localize-content";
+import { isDhimanSessionText, isEnvironmentDayText, isMashkalaibari, isPrafullaRayText } from "@/lib/localize-content";
 import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 export type ModalState = { type: string; record?: unknown } | null;
@@ -202,6 +202,27 @@ const DHIMAN_SESSION_PHOTOS = [
   },
 ];
 
+const PRAFULLA_RAY_PHOTOS = [
+  {
+    src: "/images/field-reports/prafulla-ray/prafulla-birth-anniversary-1.jpg",
+    caption: "Volunteers collecting humanitarian donations from citizens in an e-rickshaw across Jalpaiguri town for Assam flood victims",
+    fig: "FIG 01",
+    tag: "Town Relief Collection Drive",
+  },
+  {
+    src: "/images/field-reports/prafulla-ray/prafulla-flood-relief-2.jpg",
+    caption: "Observance of Acharya Prafulla Chandra Ray's birth anniversary with framed portrait, Breakthrough Science Society banner, and joint Students' Action Front Assam Flood Relief appeal at Kadamtala",
+    fig: "FIG 02",
+    tag: "Birth Anniversary & Relief Desk",
+  },
+  {
+    src: "/images/field-reports/prafulla-ray/prafulla-meeting-3.jpg",
+    caption: "Youth and student organizers including President Kunal Roy, Secretary Pritam Sarkar, Joint Secretaries Deepta Pal and Avash Rajak coordinating the relief collection drive at Kadamtala",
+    fig: "FIG 03",
+    tag: "Unit Leadership & Cadre Mobilization",
+  },
+];
+
 function EventDetailModal({
   event: rawEvent,
   data,
@@ -224,11 +245,15 @@ function EventDetailModal({
   const isCampaign = isCampaignEvent(event);
   const isEnvironmentDay = event.id === "20000000-0000-4000-8000-000000000006" || isEnvironmentDayText(event.title);
   const isDhimanSession = event.id === "20000000-0000-4000-8000-000000000007" || isDhimanSessionText(event.title);
+  const isPrafulla = event.id === "20000000-0000-4000-8000-000000000008" || isPrafullaRayText(event.title);
+  const isMash = isMashkalaibari(event.title);
   const galleryPhotos = isDhimanSession
     ? DHIMAN_SESSION_PHOTOS
     : isEnvironmentDay
     ? ENVIRONMENT_DAY_PHOTOS
-    : isCampaign
+    : isPrafulla
+    ? PRAFULLA_RAY_PHOTOS
+    : isMash
     ? MASHKALAIBARI_PHOTOS
     : null;
   const eventItems = data.procurements.filter((p) => p.eventId === event.id);
@@ -236,7 +261,14 @@ function EventDetailModal({
   const currentPhoto = galleryPhotos ? galleryPhotos[activePhotoIdx] : null;
   const totalPhotos = galleryPhotos?.length || 0;
   const openReport = () => {
-    const c = data.circulars.find((cir) => isMashkalaibari(cir.title));
+    let c = null;
+    if (isPrafulla) {
+      c = data.circulars.find((cir) => cir.id === "50000000-0000-4000-8000-000000000008" || isPrafullaRayText(cir.title));
+    } else if (isEnvironmentDay) {
+      c = data.circulars.find((cir) => cir.id === "50000000-0000-4000-8000-000000000006" || isEnvironmentDayText(cir.title));
+    } else {
+      c = data.circulars.find((cir) => isMashkalaibari(cir.title));
+    }
     close();
     if (c) open("circular", c);
   };
@@ -282,7 +314,7 @@ function EventDetailModal({
   return (
     <Modal
       title={event.title}
-      subtitle={`${event.isOngoing ? t("Ongoing Civic Campaign") : t(event.category)} · ${t(identity.unit)}`}
+      subtitle={`${event.isOngoing ? t("Ongoing Civic Campaign") : isCampaign ? t("Concluded Civic Campaign · Victory") : t(event.category)} · ${t(identity.unit)}`}
       onClose={close}
       wide
     >
@@ -415,36 +447,42 @@ function EventDetailModal({
         <p className="event-detail-description">{event.description}</p>
 
         {/* Campaign Progress Bar */}
-        {event.isOngoing && (
+        {(event.isOngoing || isCampaign || (event.milestones && event.milestones.length > 0)) && (
           <div className="campaign-progress-box my-4">
             <div className="campaign-progress-header">
               <span className="campaign-progress-label mono">
-                {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: event.progressPercent || 20 })}
+                {event.isOngoing ? (
+                  tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: event.progressPercent || 20 })
+                ) : (
+                  <strong className="text-[#2d6a4f]">{t("CAMPAIGN TARGET: 100% ACHIEVED & DELIVERED")}</strong>
+                )}
               </span>
-              <span className="campaign-phase-badge">
-                {t("PHASE {phase} IN PROGRESS", { phase: event.milestones?.find((m) => m.status === "in_progress")?.phase || 2 })}
+              <span className={`campaign-phase-badge ${!event.isOngoing ? "bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8]" : ""}`}>
+                {event.isOngoing
+                  ? t("PHASE {phase} IN PROGRESS", { phase: event.milestones?.find((m) => m.status === "in_progress")?.phase || 2 })
+                  : t("ALL PHASES COMPLETED")}
               </span>
             </div>
             <div className="campaign-progress-track">
               <div
-                className="campaign-progress-fill"
-                style={{ width: `${event.progressPercent || 20}%` }}
+                className={`campaign-progress-fill ${!event.isOngoing ? "bg-[#2d6a4f]" : ""}`}
+                style={{ width: `${event.progressPercent || (event.isOngoing ? 20 : 100)}%` }}
               />
             </div>
             {event.targetGoal && (
               <div className="campaign-progress-footer">
-                <span>{t("Goal: {goal}", { goal: event.targetGoal })}</span>
+                <span>{event.isOngoing ? t("Goal: {goal}", { goal: event.targetGoal }) : t("Delivered: {goal}", { goal: event.targetGoal })}</span>
               </div>
             )}
           </div>
         )}
 
         {/* Phased Action Plan & Milestones Roadmap */}
-        {event.isOngoing && event.milestones && event.milestones.length > 0 && (
+        {(event.isOngoing || isCampaign) && event.milestones && event.milestones.length > 0 && (
           <div className="campaign-milestones-section my-5 pt-4 border-t border-rule-soft">
             <div className="flex items-center justify-between mb-3">
               <h4 className="mono text-xs font-bold text-rust uppercase tracking-wider">
-                {t("Campaign Action Plan & Milestone Roadmap")}
+                {event.isOngoing ? t("Campaign Action Plan & Milestone Roadmap") : t("Delivered Milestones & Verification History")}
               </h4>
               <span className="text-[11px] text-ink-faint mono">
                 {t("{done} of {total} Completed", { done: event.milestones.filter((m) => m.status === "completed").length, total: event.milestones.length })}
@@ -490,33 +528,37 @@ function EventDetailModal({
           </div>
         )}
 
-        {/* Shortcut to full investigation circular */}
-        {isMashkalaibari(event.title) && (
-          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg my-4 flex items-center justify-between gap-3">
-            <div>
-              <strong className="text-xs text-ink block font-semibold">{t("Official Field Investigation Report on Record")}</strong>
-              <span className="text-[11px] text-ink-mute">{t("Read the comprehensive fact-finding charter submitted to Jalpaiguri Municipality")}</span>
+        {/* Dynamic circular / report link for any campaign */}
+        {(() => {
+          const titleLower = event.title.toLowerCase();
+          const matchedCircular = data.circulars.find((cir) => {
+            const ct = cir.title.toLowerCase();
+            if (titleLower.includes("mashkalaibari") && isMashkalaibari(cir.title)) return true;
+            if (titleLower.includes("karala") && (ct.includes("karala") || ct.includes("environment day"))) return true;
+            return false;
+          });
+          if (!matchedCircular) return null;
+          return (
+            <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-lg my-4 flex items-center justify-between gap-3">
+              <div>
+                <strong className="text-xs text-ink block font-semibold">{t("Official Field Report & Resolution on Record")}</strong>
+                <span className="text-[11px] text-ink-mute">{matchedCircular.title}</span>
+              </div>
+              <Button
+                variant="secondary"
+                icon={ArrowUpRight}
+                onClick={() => {
+                  close();
+                  open("circular", matchedCircular);
+                }}
+              >
+                {t("Read Full Report")}
+              </Button>
             </div>
-            <Button variant="secondary" icon={ArrowUpRight} onClick={openReport}>
-              {t("Read Full Report")}
-            </Button>
-          </div>
-        )}
+          );
+        })()}
 
-        {/* Shortcut to World Environment Day circular */}
-        {isEnvironmentDay && (
-          <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-lg my-4 flex items-center justify-between gap-3">
-            <div>
-              <strong className="text-xs text-ink block font-semibold">{t("Official Field Action Report on Record")}</strong>
-              <span className="text-[11px] text-ink-mute">{t("Read the June 5, 2026 rally resolutions, River Karala demands, and civic addresses")}</span>
-            </div>
-            <Button variant="secondary" icon={ArrowUpRight} onClick={openEnvironmentReport}>
-              {t("Read Action Report")}
-            </Button>
-          </div>
-        )}
-
-        {!event.isOngoing && (
+        {!event.isOngoing && eventItems.length > 0 && (
           <div className="event-checklist-summary">
             <Package size={20} />
             <div>
@@ -536,6 +578,10 @@ function EventDetailModal({
         {event.isOngoing ? (
           <Button variant="primary" onClick={openReport}>
             {t("Read Investigation Report")}
+          </Button>
+        ) : isCampaign ? (
+          <Button variant="primary" onClick={openReport}>
+            {t("Read Field Action Report")}
           </Button>
         ) : (
           <>
@@ -1229,6 +1275,38 @@ export function WorkspaceModals(props: Props) {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {DHIMAN_SESSION_PHOTOS.map((p, idx) => (
+                  <a
+                    key={p.src}
+                    href={p.src}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded border border-rule-soft overflow-hidden bg-ink-2 relative group aspect-[4/3]"
+                    title={`${t("FIG 0{n}", { n: idx + 1 })}: ${t(p.caption)}`}
+                  >
+                    <img
+                      src={p.src}
+                      alt={t(p.caption)}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                    <span className="absolute bottom-1 right-1 bg-black/75 text-paper-card text-[9px] px-1.5 py-0.5 rounded mono">
+                      {t("FIG. 0{n}", { n: idx + 1 })}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isPrafullaRayText(notice.title) && (
+            <div className="field-photo-gallery my-5 pt-4 border-t border-[#d5cbba]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="mono text-xs font-bold text-rust uppercase tracking-wider">
+                  {t("Acharya P. C. Ray Observance & Relief Records (02/08/2024)")}
+                </span>
+                <span className="text-[11px] text-ink-faint">{t("3 Photographic Records")}</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {PRAFULLA_RAY_PHOTOS.map((p, idx) => (
                   <a
                     key={p.src}
                     href={p.src}
