@@ -8,13 +8,13 @@ const svgContent = fs.readFileSync(svgPath, 'utf8');
 async function generate() {
   const browser = await chromium.launch({
     headless: true,
-    ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
+    channel: 'msedge',
   });
 
   const page = await browser.newPage();
 
-  // Create an HTML template that renders the logo crisply on the riso warm background
-  const createHtml = (padding = '12%') => `
+  // Create an HTML template that renders the logo crisply in brand tea green (#1b4332) on warm background (#f5f3ea)
+  const createHtml = (padding = '14%', isMaskable = false) => `
     <!DOCTYPE html>
     <html>
       <head>
@@ -36,14 +36,13 @@ async function generate() {
             align-items: center;
             justify-content: center;
             padding: ${padding};
-            background: #ffffff;
-            border-radius: 22%;
-            box-shadow: inset 0 0 0 2px #dcd7c5;
+            background: ${isMaskable ? '#f5f3ea' : '#fcfbf7'};
+            ${isMaskable ? '' : 'border-radius: 22%; box-shadow: inset 0 0 0 1.5px #e2dec9;'}
           }
           svg {
             width: 100%;
             height: 100%;
-            fill: #bf5029;
+            fill: #1b4332;
           }
         </style>
       </head>
@@ -56,15 +55,15 @@ async function generate() {
   `;
 
   const sizes = [
-    { name: 'app-icon-192.png', size: 192, padding: '14%' },
-    { name: 'app-icon-512.png', size: 512, padding: '14%' },
-    { name: 'app-icon-maskable.png', size: 512, padding: '20%' },
-    { name: 'apple-touch-icon.png', size: 180, padding: '14%' },
+    { name: 'app-icon-192.png', size: 192, padding: '14%', isMaskable: false },
+    { name: 'app-icon-512.png', size: 512, padding: '14%', isMaskable: false },
+    { name: 'app-icon-maskable.png', size: 512, padding: '22%', isMaskable: true },
+    { name: 'apple-touch-icon.png', size: 180, padding: '14%', isMaskable: false },
   ];
 
   for (const item of sizes) {
     await page.setViewportSize({ width: item.size, height: item.size });
-    await page.setContent(createHtml(item.padding));
+    await page.setContent(createHtml(item.padding, item.isMaskable));
     const outPath = path.resolve(`public/images/${item.name}`);
     await page.screenshot({ path: outPath, omitBackground: false });
     console.log(`Generated: ${outPath} (${item.size}x${item.size})`);

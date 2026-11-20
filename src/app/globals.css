@@ -5171,30 +5171,16 @@ textarea::placeholder,
 }
 
 /* ===== Loading screen: the emblem forms as a cup of tea being brewed (src/components/boot-splash.tsx) ===== */
-/*
- * ── Boot Splash (tea-brew loading screen) ──
- *
- * The rAF clock in boot-splash.tsx sets --t (elapsed painted ms) on the root.
- * Finite one-shot pieces use animation-delay: calc(var(--t,0)*1ms - …) with
- * animation-play-state tied to a threshold so they don't start before their
- * cue.  Infinite loops (leaves, dots, steam, ripple-loop) use plain CSS
- * animation because they don't need frame-accurate sync.
- *
- * Key fix: will-change + compositor-friendly properties where possible, and
- * the rAF clock means animations pause when the main thread stalls during
- * React hydration instead of jumping ahead or replaying.
- */
-
+/* ===== Loading screen: the emblem forms as a cup of tea being brewed (src/components/boot-splash.tsx) ===== */
 .boot-splash {
   --tea-deep: #1b4332;
   --tea-leaf: #7da240;
   --tea-brew: #b36a22;
   --tea-brew-light: #d9923a;
   --tea-brew-deep: #7b4112;
-  --t: 0;
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 99999;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -5202,14 +5188,26 @@ textarea::placeholder,
   touch-action: none;
   overscroll-behavior: contain;
   will-change: opacity;
-  transition: opacity 0.48s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.48s;
-  /* CSS-only failsafe: if JS never dismisses, fade after 12s wall-clock */
-  animation: boot-failsafe 0.01s linear 12s forwards;
+  transition: opacity 0.52s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.52s;
+  /* CSS-only failsafe: if JS never dismisses, fade after 9s */
+  animation: boot-failsafe 0.01s linear 9s forwards;
 }
-.boot-splash[data-phase="leave"] { opacity: 0; visibility: hidden; pointer-events: none; }
-.boot-splash[data-phase="leave"] .boot-stage { opacity: 0; transform: scale(1.04); transition: opacity 0.3s ease-out, transform 0.48s cubic-bezier(0.4, 0, 0.2, 1); }
-html[data-splash="skip"] .boot-splash { display: none; }
-@keyframes boot-failsafe { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+.boot-splash[data-phase="leave"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.boot-splash[data-phase="leave"] .boot-stage {
+  opacity: 0;
+  transform: scale(1.045);
+  transition: opacity 0.35s ease-out, transform 0.52s cubic-bezier(0.4, 0, 0.2, 1);
+}
+html[data-splash="skip"] .boot-splash {
+  display: none !important;
+}
+@keyframes boot-failsafe {
+  to { opacity: 0; visibility: hidden; pointer-events: none; }
+}
 
 .boot-stage {
   position: relative;
@@ -5219,7 +5217,7 @@ html[data-splash="skip"] .boot-splash { display: none; }
   align-items: center;
   gap: clamp(10px, 2.6vh, 22px);
   padding: max(20px, env(safe-area-inset-top)) 24px max(20px, env(safe-area-inset-bottom));
-  will-change: transform, opacity;
+  transition: transform 0.52s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .boot-logo {
   display: block;
@@ -5228,10 +5226,7 @@ html[data-splash="skip"] .boot-splash { display: none; }
   overflow: visible;
   transform-origin: 50% 50%;
   animation: boot-settle 0.6s cubic-bezier(0.3, 0, 0.2, 1) 1.95s both;
-  animation-play-state: paused;
 }
-/* JS-driven play-state: the rAF clock sets --t; once it reaches 1950 the settle plays */
-.boot-splash[style*="--t"] .boot-logo { animation-play-state: running; }
 @keyframes boot-settle { 0%, 100% { transform: scale(1); } 45% { transform: scale(1.03); } }
 
 /* ── The cup: a drop of tea falls in, the tea fills it, ripples spread ── */
@@ -5245,10 +5240,8 @@ html[data-splash="skip"] .boot-splash { display: none; }
   opacity: 0;
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: boot-drop 460ms cubic-bezier(0.5, 0, 0.85, 0.55) 40ms both;
-  animation-play-state: paused;
+  animation: boot-drop 0.46s cubic-bezier(0.5, 0, 0.85, 0.55) 0.04s both;
 }
-.boot-splash[style*="--t"] .boot-drop { animation-play-state: running; }
 @keyframes boot-drop {
   0% { opacity: 0; transform: translate(var(--cx), 400px) scale(0.75); }
   12% { opacity: 1; }
@@ -5257,27 +5250,20 @@ html[data-splash="skip"] .boot-splash { display: none; }
 }
 
 .boot-tea {
-  stroke: var(--tea-brew-deep); stroke-width: 9;
-  opacity: 0; transform: scale(0);
-  animation: boot-pour 1s cubic-bezier(0.2, 0.85, 0.25, 1) 460ms both;
-  animation-play-state: paused;
+  stroke: var(--tea-brew-deep);
+  stroke-width: 9;
+  opacity: 0;
+  transform: scale(0);
+  animation: boot-pour 1s cubic-bezier(0.2, 0.85, 0.25, 1) 0.46s both;
 }
-.boot-splash[style*="--t"] .boot-tea { animation-play-state: running; }
 @keyframes boot-pour { 0% { opacity: 0; transform: scale(0); } 12% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
 
 .boot-ripple { fill: none; stroke: var(--tea-brew-deep); stroke-width: 3px; vector-effect: non-scaling-stroke; opacity: 0; }
-.boot-ripple-a { animation: boot-ripple 1.1s ease-out 460ms both; animation-play-state: paused; }
-.boot-ripple-b { animation: boot-ripple 1.1s ease-out 840ms both; animation-play-state: paused; }
-.boot-splash[style*="--t"] .boot-ripple-a,
-.boot-splash[style*="--t"] .boot-ripple-b { animation-play-state: running; }
+.boot-ripple-a { animation: boot-ripple 1.1s ease-out 0.46s both; }
+.boot-ripple-b { animation: boot-ripple 1.1s ease-out 0.84s both; }
 @keyframes boot-ripple { 0% { opacity: 0; transform: scale(0.15); } 10% { opacity: 0.5; } 100% { opacity: 0; transform: scale(1); } }
 
-.boot-sheen {
-  fill: none; stroke: #fff; stroke-width: 14; stroke-linecap: round;
-  opacity: 0; animation: boot-sheen 0.9s ease-out 1.1s both;
-  animation-play-state: paused;
-}
-.boot-splash[style*="--t"] .boot-sheen { animation-play-state: running; }
+.boot-sheen { fill: none; stroke: #fff; stroke-width: 14; stroke-linecap: round; opacity: 0; animation: boot-sheen 0.9s ease-out 1.1s both; }
 @keyframes boot-sheen { to { opacity: 0.34; } }
 
 /* ── Frame drawn from the gap in its top edge ── */
@@ -5287,26 +5273,14 @@ html[data-splash="skip"] .boot-splash { display: none; }
   stroke-width: 35;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: boot-draw 1.15s cubic-bezier(0.5, 0.1, 0.3, 1) 300ms both;
-  animation-play-state: paused;
+  animation: boot-draw 1.15s cubic-bezier(0.5, 0.1, 0.3, 1) 0.3s both;
 }
-.boot-splash[style*="--t"] .boot-frame { animation-play-state: running; }
 @keyframes boot-draw { to { stroke-dashoffset: 0; } }
 
 /* ── Rings swirl in like leaves stirred in the cup ── */
 .boot-ring { transform-origin: var(--cx) var(--cy); }
-.boot-ring-inner {
-  --b: 550ms; --span: 600ms;
-  animation: boot-swirl-cw 1.35s cubic-bezier(0.2, 0.8, 0.25, 1) 500ms both;
-  animation-play-state: paused;
-}
-.boot-ring-outer {
-  --b: 720ms; --span: 700ms;
-  animation: boot-swirl-ccw 1.5s cubic-bezier(0.2, 0.8, 0.25, 1) 650ms both;
-  animation-play-state: paused;
-}
-.boot-splash[style*="--t"] .boot-ring-inner,
-.boot-splash[style*="--t"] .boot-ring-outer { animation-play-state: running; }
+.boot-ring-inner { --b: 0.55s; --span: 0.6s; animation: boot-swirl-cw 1.35s cubic-bezier(0.2, 0.8, 0.25, 1) 0.5s both; }
+.boot-ring-outer { --b: 0.72s; --span: 0.7s; animation: boot-swirl-ccw 1.5s cubic-bezier(0.2, 0.8, 0.25, 1) 0.65s both; }
 @keyframes boot-swirl-cw { from { transform: rotate(-80deg); } to { transform: rotate(0); } }
 @keyframes boot-swirl-ccw { from { transform: rotate(80deg); } to { transform: rotate(0); } }
 
@@ -5315,11 +5289,9 @@ html[data-splash="skip"] .boot-splash { display: none; }
   opacity: 0;
   transform: scale(0.3);
   animation:
-    boot-seg 600ms cubic-bezier(0.2, 0.9, 0.25, 1) calc(var(--b) + var(--f) * var(--span)) both,
-    boot-steep 1.1s ease-in-out calc(var(--b) + var(--f) * var(--span) + 150ms) both;
-  animation-play-state: paused;
+    boot-seg 0.6s cubic-bezier(0.2, 0.9, 0.25, 1) calc(var(--b) + var(--f) * var(--span)) both,
+    boot-steep 1.1s ease-in-out calc(var(--b) + var(--f) * var(--span) + 0.15s) both;
 }
-.boot-splash[style*="--t"] .boot-seg { animation-play-state: running; }
 @keyframes boot-seg { from { opacity: 0; transform: scale(0.3); } 60% { opacity: 1; } to { opacity: 1; transform: scale(1); } }
 @keyframes boot-steep { from { fill: var(--tea-leaf); } to { fill: var(--tea-deep); } }
 
@@ -5328,17 +5300,14 @@ html[data-splash="skip"] .boot-splash { display: none; }
   fill: var(--tea-deep);
   opacity: 0;
   transform-origin: var(--cx) var(--cy);
-  animation: boot-arrow 850ms cubic-bezier(0.2, 0.85, 0.25, 1) 1.4s both;
-  animation-play-state: paused;
+  animation: boot-arrow 0.85s cubic-bezier(0.2, 0.85, 0.25, 1) 1.4s both;
 }
-.boot-splash[style*="--t"] .boot-arrow { animation-play-state: running; }
 @keyframes boot-arrow {
   0% { opacity: 0; transform: rotate(-54deg) scale(0.94); }
   40% { opacity: 1; }
   100% { opacity: 1; transform: rotate(0) scale(1); }
 }
 
-/* Steam: infinite loop, runs on compositor; acceptable jank during hydration */
 .boot-steam {
   fill: none;
   stroke: var(--tea-deep);
@@ -5348,9 +5317,7 @@ html[data-splash="skip"] .boot-splash { display: none; }
   stroke-dashoffset: 0.5;
   opacity: 0;
   animation: boot-steam 3.2s cubic-bezier(0.35, 0, 0.5, 1) calc(1.95s + var(--w)) infinite;
-  animation-play-state: paused;
 }
-.boot-splash[style*="--t"] .boot-steam { animation-play-state: running; }
 @keyframes boot-steam {
   0% { opacity: 0; stroke-dashoffset: 0.5; }
   14% { opacity: 0.55; }
