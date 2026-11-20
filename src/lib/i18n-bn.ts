@@ -1426,4 +1426,8 @@ export const BN_SERVER: Record<string, string> = {
   "Acharya P. C. Ray Observance & Relief Records (02/08/2024)": "আচার্য্য প্রফুল্ল চন্দ্র রায়ের জন্মদিবস ও ত্রাণ সংগ্রহের ছবি (০২/০৮/২০২৪)",
   "3 Photographic Records": "৩টি ছবির রেকর্ড",
   "Read Field Action Report": "মাঠপর্যায়ের কাজের প্রতিবেদন পড়ুন",
+  "Scheduled Outreach & Conventions ({count})": "নির্ধারিত প্রচার ও সম্মেলন ({count})",
+  "Concluded Movements & Single-Day Actions ({count})": "সম্পন্ন আন্দোলন ও কর্মসূচি ({count})",
+  "matching \"{search}\"": "\"{search}\"-এর সাথে মিলিয়ে",
+  "Campaign status filter": "অভিযানের অবস্থা ফিল্টার",
 };

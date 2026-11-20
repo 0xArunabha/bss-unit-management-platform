@@ -130,22 +130,54 @@ export function EventsView({ data, open }: Props) {
           </button>
         </div>
 
-        {/* Integrated Real-Time Status & Contextual Search */}
-        <div className="events-deck-subbar">
-          <div className="events-deck-current-label">
-            <span className="current-dot" />
-            <span className="current-text">
-              {filter === "campaigns" && (
-                campaignTab === "all"
-                  ? t("Viewing {active} active campaign and {completed} completed previous campaigns", { active: ongoingCampaigns.length, completed: completedCampaigns.length })
-                  : campaignTab === "active"
-                  ? t("Viewing {count} active environmental campaign (Mashkalaibari)", { count: ongoingCampaigns.length })
-                  : t("Viewing {count} completed previous campaigns & civic victories", { count: completedCampaigns.length })
-              )}
-              {filter === "upcoming" && t("Viewing {count} scheduled outreach programmes", { count: upcomingScheduled.length })}
-              {filter === "all" && t("Viewing {count} concluded actions and completed campaigns", { count: archivedItems.length })}
-            </span>
+        {/* Integrated Command Toolbar: Granular Sub-Filters & Search */}
+        <div className="events-deck-toolbar">
+          <div className="events-deck-filters">
+            {filter === "campaigns" ? (
+              <div className="events-deck-segmented" role="tablist" aria-label={t("Campaign status filter")}>
+                <button
+                  type="button"
+                  onClick={() => setCampaignTab("all")}
+                  className={`events-deck-seg-btn ${campaignTab === "all" ? "is-active" : ""}`}
+                  role="tab"
+                  aria-selected={campaignTab === "all"}
+                >
+                  <span>{t("All Campaigns ({count})", { count: allCampaigns.length })}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCampaignTab("active")}
+                  className={`events-deck-seg-btn ${campaignTab === "active" ? "is-active is-active-rust" : ""}`}
+                  role="tab"
+                  aria-selected={campaignTab === "active"}
+                >
+                  <Flame size={13} />
+                  <span>{t("Active Movements ({count})", { count: ongoingCampaigns.length })}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCampaignTab("completed")}
+                  className={`events-deck-seg-btn ${campaignTab === "completed" ? "is-active is-active-green" : ""}`}
+                  role="tab"
+                  aria-selected={campaignTab === "completed"}
+                >
+                  <CircleCheck size={13} />
+                  <span>{t("Completed Previous Campaigns ({count})", { count: completedCampaigns.length })}</span>
+                </button>
+              </div>
+            ) : filter === "upcoming" ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#eef7f2] border border-[#c8e6d7] text-[#1b4332] text-xs font-semibold">
+                <CalendarDays size={14} className="text-[#2d6a4f]" />
+                <span>{t("Scheduled Outreach & Conventions ({count})", { count: upcomingScheduled.length })}</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#f0f4f6] border border-[#d2e0e6] text-[#2c4033] text-xs font-semibold">
+                <History size={14} className="text-[#406a52]" />
+                <span>{t("Concluded Movements & Single-Day Actions ({count})", { count: archivedItems.length })}</span>
+              </div>
+            )}
           </div>
+
           <div className="events-deck-search">
             <SearchInput
               placeholder={
@@ -160,54 +192,42 @@ export function EventsView({ data, open }: Props) {
             />
           </div>
         </div>
+
+        {/* Status Strip & Civic Tagline */}
+        <div className="events-deck-status-strip">
+          <div className="events-deck-current-label">
+            <span
+              className={`current-dot ${
+                filter === "campaigns" && campaignTab === "completed"
+                  ? "!bg-[#2d6a4f] !shadow-[0_0_0_2px_#a3c9a8]"
+                  : filter === "campaigns" && campaignTab === "active"
+                  ? "!bg-[#c85a17] !shadow-[0_0_0_2px_#fed5bc]"
+                  : "!bg-[#1b4332] !shadow-[0_0_0_2px_#c8e6d7]"
+              }`}
+            />
+            <span className="current-text">
+              {filter === "campaigns" && (
+                campaignTab === "all"
+                  ? t("Viewing {active} active campaign and {completed} completed previous campaigns", { active: ongoingCampaigns.length, completed: completedCampaigns.length })
+                  : campaignTab === "active"
+                  ? t("Viewing {count} active environmental campaign (Mashkalaibari)", { count: ongoingCampaigns.length })
+                  : t("Viewing {count} completed previous campaigns & civic victories", { count: completedCampaigns.length })
+              )}
+              {filter === "upcoming" && t("Viewing {count} scheduled outreach programmes", { count: upcomingScheduled.length })}
+              {filter === "all" && t("Viewing {count} concluded actions and completed campaigns", { count: archivedItems.length })}
+              {search && <span> · {t("matching \"{search}\"", { search })}</span>}
+            </span>
+          </div>
+
+          <span className="events-deck-tagline">
+            {t("Democracy, Science & Public Interest Movements")}
+          </span>
+        </div>
       </nav>
 
       {/* 1. UNIT CAMPAIGNS TAB */}
       {filter === "campaigns" && (
         <div className="space-y-6">
-          {/* Campaign Status Sub-Filter Segmented Control */}
-          <div className="flex items-center justify-between gap-3 flex-wrap bg-paper-card p-1.5 rounded-lg border border-rule-soft mb-2">
-            <div className="inline-flex items-center gap-1 p-0.5 bg-paper rounded border border-rule-soft/60">
-              <button
-                type="button"
-                onClick={() => setCampaignTab("all")}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all ${
-                  campaignTab === "all"
-                    ? "bg-rust text-white shadow-sm"
-                    : "text-ink-mute hover:text-ink"
-                }`}
-              >
-                {t("All Campaigns ({count})", { count: allCampaigns.length })}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCampaignTab("active")}
-                className={`px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1.5 transition-all ${
-                  campaignTab === "active"
-                    ? "bg-rust text-white shadow-sm"
-                    : "text-ink-mute hover:text-ink"
-                }`}
-              >
-                <Flame size={13} />
-                {t("Active Movements ({count})", { count: ongoingCampaigns.length })}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCampaignTab("completed")}
-                className={`px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1.5 transition-all ${
-                  campaignTab === "completed"
-                    ? "bg-[#2d6a4f] text-white shadow-sm"
-                    : "text-ink-mute hover:text-ink"
-                }`}
-              >
-                <CircleCheck size={13} />
-                {t("Completed Previous Campaigns ({count})", { count: completedCampaigns.length })}
-              </button>
-            </div>
-            <span className="mono text-[11px] text-ink-mute px-2">
-              {t("Democracy, Science & Public Interest Movements")}
-            </span>
-          </div>
 
           {filteredCampaigns.map((campaign) => {
             const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
