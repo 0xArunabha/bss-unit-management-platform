@@ -338,7 +338,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                 />
                 <span className="campaign-live-tag">
                   <span className="live-dot" />
-                  {t("ONGOING CIVIC CAMPAIGN")}
+                  {t("ACTIVE CAMPAIGN")}
                 </span>
                 <span className="campaign-location-pill">
                   <MapPin size={12} />
@@ -349,7 +349,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               <div className="campaign-hero-content">
                 <div>
                   <div className="campaign-meta-row">
-                    <span className="eyebrow text-rust">{t("ACTIVE ENVIRONMENTAL MOVEMENT")}</span>
+                    <span className="eyebrow text-rust">{t("ACTIVE CAMPAIGN")}</span>
                     <span className="campaign-volunteers-tag">
                       <Users size={13} />
                       {t("{count} Active Advocates", { count: campaign.volunteers })}
@@ -440,7 +440,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
         <section className="panel events-panel">
           <SectionTitle title={t("Coming up")} subtitle={t("Upcoming outreach and convention schedule.")}>
-            <ArrowLink onClick={() => navigate("events")}>{t("All events")}</ArrowLink>
+            <ArrowLink onClick={() => navigate("events")}>{t("All campaigns")}</ArrowLink>
           </SectionTitle>
           <div className="upcoming-events">
             {upcoming.length ? (

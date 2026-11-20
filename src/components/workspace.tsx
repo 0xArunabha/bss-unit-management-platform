@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { authClient } from "@/lib/auth-client";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
@@ -88,7 +88,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     members: t("Members"),
     dues: t("Membership dues"),
     donations: t("Donations"),
-    events: t("Events & campaigns"),
+    events: t("Campaigns"),
     procurement: t("Procurement"),
     circulars: t("Circulars & notices"),
     resources: t("Science resources"),
@@ -116,21 +116,21 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const navItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
     ? [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
-        { view: "events", label: t("Events & campaigns"), icon: CalendarDays },
+        { view: "events", label: t("Campaigns"), icon: Flame },
       ]
     : userRole === "member"
     ? [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
         { view: "members", label: t("Members"), icon: Users },
         { view: "dues", label: t("Membership dues"), icon: Wallet },
-        { view: "events", label: t("Events & campaigns"), icon: CalendarDays },
+        { view: "events", label: t("Campaigns"), icon: Flame },
       ]
     : [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
         { view: "members", label: t("Members"), icon: Users },
         { view: "dues", label: t("Membership dues"), icon: Wallet },
         { view: "donations", label: t("Donations"), icon: HeartHandshake },
-        { view: "events", label: t("Events & campaigns"), icon: CalendarDays },
+        { view: "events", label: t("Campaigns"), icon: Flame },
         { view: "procurement", label: t("Procurement"), icon: ClipboardList },
       ];
 
@@ -144,7 +144,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       ];
   const needed = data.procurements.filter((p) => p.status === "needed").length;
   // Five tabs and a top bar share ~390px, so the long sidebar names ("Membership dues") get short forms on phones.
-  const shortLabels: Partial<Record<View, string>> = { members: t("Members"), dues: t("Dues"), events: t("Events"), circulars: t("Circulars"), resources: t("Resources"), settings: t("Settings") };
+  const shortLabels: Partial<Record<View, string>> = { members: t("Members"), dues: t("Dues"), events: t("Campaigns"), circulars: t("Circulars"), resources: t("Resources"), settings: t("Settings") };
   const notify = useCallback((message: string) => setToast({ message }), []);
   const { leaves, triggerFirstFlush } = useFirstFlush(notify, locale);
   // Closing plays an exit animation first. Opening another modal while one is still leaving cancels that exit.
@@ -165,7 +165,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       members: t("Unit Roster"),
       dues: t("Membership Dues"),
       donations: t("Donations Register"),
-      events: t("Events & Campaigns"),
+      events: t("Campaigns"),
       procurement: t("Procurement Board"),
       circulars: t("Unit Circulars"),
       resources: t("Field Resources"),

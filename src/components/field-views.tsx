@@ -3,7 +3,7 @@
 import { identity } from "@/lib/identity";
 import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, ReceiptText, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { type WorkspaceData, type Procurement, type PerformAction } from "@/lib/types";
+import { type WorkspaceData, type Procurement, type PerformAction, type UnitEvent } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
 import type { Navigate, OpenModal } from "@/components/overview";
 import { resources, type Resource, getSanitizedResources } from "@/lib/resources";
@@ -15,39 +15,337 @@ import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
 
 type Props = { data: WorkspaceData; open: OpenModal; navigate: Navigate };
 
+function CampaignHeroCard({
+  campaign,
+  data,
+  open,
+  expandedRoadmaps,
+  setExpandedRoadmaps,
+}: {
+  campaign: UnitEvent;
+  data: WorkspaceData;
+  open: OpenModal;
+  expandedRoadmaps: Record<string, boolean>;
+  setExpandedRoadmaps: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}) {
+  const { locale, t, tx, num } = useI18n();
+  const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
+  const totalMilestones = campaign.milestones?.length || 0;
+  const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
+  const isExpanded = expandedRoadmaps[campaign.id] ?? campaign.isOngoing;
+  const isCompleted = !campaign.isOngoing;
+
+  // Find matching circular report if any
+  const titleLower = campaign.title.toLowerCase();
+  const matchingCircular = data.circulars.find((c) => {
+    const ct = c.title.toLowerCase();
+    if (titleLower.includes("mashkalaibari") && isMashkalaibari(c.title)) return true;
+    if (titleLower.includes("karala") && (ct.includes("karala") || ct.includes("environment day"))) return true;
+    if ((titleLower.includes("prafulla") || titleLower.includes("assam")) && (ct.includes("prafulla") || ct.includes("assam"))) return true;
+    return false;
+  });
+
+  return (
+    <section
+      className={`campaign-hero-card panel mb-7 print-tech-slip ${isCompleted ? "border-l-4 border-l-[#2d6a4f]" : ""}`}
+      key={campaign.id}
+    >
+      <div className="campaign-hero-grid">
+        <div className="campaign-hero-image-wrap">
+          <img
+            src={campaign.image}
+            alt={campaign.title}
+            style={{ objectPosition: "center 42%" }}
+            onError={(e) => {
+              e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+            }}
+          />
+          {campaign.isOngoing ? (
+            <span className="campaign-live-tag">
+              <span className="live-dot" />
+              {t("ACTIVE CAMPAIGN")}
+            </span>
+          ) : (
+            <span className="campaign-live-tag bg-[#1b4332] text-[#d8f3dc] border border-[#52b788]">
+              <CircleCheck size={12} className="text-[#74c69d]" />
+              {t("CONCLUDED CAMPAIGN")}
+            </span>
+          )}
+          <span className="campaign-location-pill">
+            <MapPin size={12} />
+            {campaign.location}
+          </span>
+        </div>
+
+        <div className="campaign-hero-content">
+          <div>
+            <div className="campaign-meta-row">
+              <span className={`eyebrow ${isCompleted ? "text-[#2d6a4f]" : "text-rust"}`}>
+                {isCompleted ? t("CONCLUDED CAMPAIGN") : t("ACTIVE CAMPAIGN")}
+              </span>
+              <span className="campaign-volunteers-tag">
+                <Users size={13} />
+                {isCompleted
+                  ? t("{count} Mobilized Advocates", { count: campaign.volunteers })
+                  : t("{count} Active Advocates", { count: campaign.volunteers })}
+              </span>
+            </div>
+
+            <h2>{campaign.title}</h2>
+            <p className="campaign-hero-desc">{campaign.description}</p>
+          </div>
+
+          {/* Progress Bar Container */}
+          <div className="campaign-progress-box">
+            <div className="campaign-progress-header">
+              <span className="campaign-progress-label mono">
+                {campaign.isOngoing ? (
+                  tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })
+                ) : (
+                  <strong className="text-[#2d6a4f]">{t("CAMPAIGN TARGET: 100% ACHIEVED & DELIVERED")}</strong>
+                )}
+              </span>
+              <span className={`campaign-phase-badge ${isCompleted ? "bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8]" : ""}`}>
+                {campaign.isOngoing
+                  ? t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })
+                  : t("ALL {count} PHASES DELIVERED", { count: totalMilestones })}
+              </span>
+            </div>
+            <div className="campaign-progress-track">
+              <div
+                className={`campaign-progress-fill ${isCompleted ? "bg-[#2d6a4f]" : ""}`}
+                style={{ width: `${campaign.progressPercent || (isCompleted ? 100 : 20)}%` }}
+              />
+            </div>
+            <div className="campaign-progress-footer">
+              <span>
+                {isCompleted
+                  ? t("✓ All {total} milestones successfully verified", { total: totalMilestones })
+                  : t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
+              </span>
+              {campaign.targetGoal && (
+                <span className="campaign-target-goal" title={campaign.targetGoal}>
+                  {isCompleted
+                    ? t("Delivered: {goal}", { goal: campaign.targetGoal })
+                    : t("Goal: {goal}", { goal: campaign.targetGoal })}
+                </span>
+              )}
+            </div>
+
+            {/* Expandable Phased Roadmap Accordion */}
+            {campaign.milestones && campaign.milestones.length > 0 && (
+              <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
+                <button
+                  type="button"
+                  className="campaign-accordion-toggle"
+                  onClick={() =>
+                    setExpandedRoadmaps((prev) => ({
+                      ...prev,
+                      [campaign.id]: !isExpanded,
+                    }))
+                  }
+                  aria-expanded={isExpanded}
+                >
+                  <span>
+                    {isExpanded
+                      ? t("Collapse Roadmap")
+                      : isCompleted
+                      ? t("Inspect {count}-Phase Verification History", { count: totalMilestones })
+                      : t("Inspect {count}-Phase Action Plan", { count: totalMilestones })}
+                  </span>
+                  {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
+                <span className="mono text-[10.5px] text-ink-mute">
+                  {isCompleted
+                    ? t("Outcome: Archived Success")
+                    : t("Next Milestone: Municipal Deputation")}
+                </span>
+              </div>
+            )}
+
+            {isExpanded && campaign.milestones && (
+              <div className="mt-3 space-y-2 pt-2 border-t border-rule-soft">
+                {campaign.milestones.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`p-2.5 rounded border text-left text-xs ${
+                      m.status === "completed"
+                        ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
+                        : m.status === "in_progress"
+                        ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
+                        : "bg-paper-card border-rule-soft text-ink-mute opacity-80"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold mono text-[10.5px]">
+                        {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
+                      </span>
+                      <span
+                        className={`text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono ${
+                          m.status === "completed"
+                            ? "bg-olive text-paper-card"
+                            : m.status === "in_progress"
+                            ? "bg-rust text-paper-card"
+                            : "bg-stone-200 text-stone-600"
+                        }`}
+                      >
+                        {m.status === "completed" ? t("✓ Done") : m.status === "in_progress" ? t("● Active") : t("○ Planned")}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-2 leading-relaxed">{m.description}</p>
+                    {m.completedDate && (
+                      <small className="text-[10px] text-ink-faint mono block mt-1">
+                        {t("Completed: {date}", { date: m.completedDate })}
+                      </small>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="campaign-hero-actions">
+            <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
+              {isCompleted ? t("View Campaign Archive & Record") : t("View Campaign Gallery & Plan")}
+            </Button>
+            {matchingCircular && (
+              <Button
+                variant="secondary"
+                icon={FileText}
+                onClick={() => open("circular", matchingCircular)}
+              >
+                {t("Read Investigation Report & Photos")}
+              </Button>
+            )}
+            <button
+              className="button button-secondary button-whatsapp"
+              onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
+              title={isCompleted ? t("Share Victory on WhatsApp") : t("Mobilize on WhatsApp")}
+            >
+              <MessageCircle size={15} />
+              {isCompleted ? t("Share Victory") : t("Share Campaign")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function EventsView({ data, open }: Props) {
   const { locale, t, tx, num, fmtDate, fmtTime } = useI18n();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"campaigns" | "upcoming" | "all">("campaigns");
-  const [campaignTab, setCampaignTab] = useState<"all" | "active" | "completed">("all");
+  const [archiveTab, setArchiveTab] = useState<"all" | "campaigns" | "events">("all");
   const [expandedRoadmaps, setExpandedRoadmaps] = useState<Record<string, boolean>>({});
   const [nowMs] = useState(() => Date.now());
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = user?.role || "guest";
-  const allCampaigns = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent);
-  const ongoingCampaigns = allCampaigns.filter((c) => c.isOngoing);
-  const completedCampaigns = allCampaigns.filter((c) => !c.isOngoing);
-  const scheduledEvents = data.events.filter((e) => !isCampaignEvent(e));
-  const upcomingScheduled = scheduledEvents.filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000);
 
-  const displayedCampaigns = campaignTab === "active"
-    ? ongoingCampaigns
-    : campaignTab === "completed"
-    ? completedCampaigns
-    : allCampaigns;
+  // Strict sorting: Active campaigns always first, then by date descending
+  const allCampaigns = data.events
+    .filter(isCampaignEvent)
+    .map(hydrateCampaignEvent)
+    .sort((a, b) => {
+      if (a.isOngoing && !b.isOngoing) return -1;
+      if (!a.isOngoing && b.isOngoing) return 1;
+      return new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime();
+    });
+
+  const activeCampaigns = allCampaigns.filter((c) => c.isOngoing);
+  const concludedCampaigns = allCampaigns.filter((c) => !c.isOngoing);
+
+  const scheduledEvents = data.events.filter((e) => !isCampaignEvent(e));
+  const upcomingScheduled = scheduledEvents
+    .filter((e) => new Date(e.startsAt).getTime() >= nowMs - 86400000)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  const pastEvents = scheduledEvents
+    .filter((e) => new Date(e.startsAt).getTime() < nowMs - 86400000 || !upcomingScheduled.some((u) => u.id === e.id))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+
+  // Archive holds ALL concluded items: concluded campaigns + past events
+  const archivedItems = [...concludedCampaigns, ...pastEvents].sort(
+    (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
+  );
+
+  const displayedArchiveItems = archiveTab === "campaigns"
+    ? concludedCampaigns
+    : archiveTab === "events"
+    ? pastEvents
+    : archivedItems;
+
+  const filteredActiveCampaigns = activeCampaigns.filter((e) =>
+    `${e.title} ${e.location} ${e.description} ${e.targetGoal || ""}`.toLowerCase().includes(search.toLowerCase())
+  );
 
   const filteredUpcoming = upcomingScheduled.filter((e) =>
     `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
   );
-  const archivedItems = [...completedCampaigns, ...scheduledEvents].sort(
-    (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
-  );
-  const filteredAll = archivedItems.filter((e) =>
-    `${e.title} ${e.location} ${e.description}`.toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredCampaigns = displayedCampaigns.filter((e) =>
+
+  const filteredArchive = displayedArchiveItems.filter((e) =>
     `${e.title} ${e.location} ${e.description} ${e.targetGoal || ""}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  const renderEventCard = (event: UnitEvent) => {
+    const date = new Date(event.startsAt);
+    const eventItems = data.procurements.filter((p) => p.eventId === event.id);
+    const needed = eventItems.filter((p) => p.status === "needed").length;
+    const verified = eventItems.filter((p) => p.status === "verified").length;
+    const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
+
+    return (
+      <article className="event-card panel print-tech-slip" key={event.id}>
+        <button className="event-card-image" onClick={() => open("event", event)}>
+          <img
+            src={event.image}
+            alt={event.title}
+            onError={(e) => {
+              e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+            }}
+          />
+          <span className="event-category">{t(event.category)}</span>
+          <span className="event-card-date">
+            <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
+            <strong>{num(date.getDate())}</strong>
+          </span>
+          {isNear && <span className="event-urgent-tag">{t("HAPPENING IN <48H")}</span>}
+        </button>
+
+        <div className="event-card-body">
+          <span className="event-card-time">
+            <CalendarDays size={13} />
+            {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
+          </span>
+          <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
+          <p className="event-card-description">{event.description}</p>
+          <span className="event-location"><MapPin size={14} />{event.location}</span>
+
+          <div className="event-card-footer">
+            <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
+            <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
+              {isCampaignEvent(event) ? t("Concluded Campaign") : t("Past Event")}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+            <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
+              {isCampaignEvent(event) ? t("View campaign archive & report") : t("View programme briefing & field photos")}
+              <ArrowUpRight size={15} />
+            </Button>
+            <button
+              className="button button-secondary button-whatsapp"
+              style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+              onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
+              title={t("Share on WhatsApp")}
+            >
+              <MessageCircle size={15} />
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  };
 
   return (
     <div className="view-enter">
@@ -59,10 +357,10 @@ export function EventsView({ data, open }: Props) {
         {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>{t("Create event")}</Button>}
       </PageHeading>
 
-      {/* Executive 3-Card Field Switchboard */}
+      {/* Executive 3-Card Field Switchboard & Unified Command Toolbar */}
       <nav aria-label={t("Field programmes view selector")} className="events-command-deck mb-7">
         <div className="events-deck-grid" role="tablist">
-          {/* 1. Campaigns Card */}
+          {/* 1. Active Campaigns Card */}
           <button
             type="button"
             onClick={() => setFilter("campaigns")}
@@ -72,20 +370,20 @@ export function EventsView({ data, open }: Props) {
           >
             <div className="events-deck-icon-wrap icon-campaigns">
               <Flame size={20} />
-              {ongoingCampaigns.length > 0 && <span className="deck-live-pulse" />}
+              {activeCampaigns.length > 0 && <span className="deck-live-pulse" />}
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">{t("Unit Campaigns")}</span>
-              <span className="events-deck-desc">{t("Active & concluded movements")}</span>
+              <span className="events-deck-title">{t("Active Campaigns")}</span>
+              <span className="events-deck-desc">{t("Ongoing civic & environmental actions")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-campaigns">
-                {t("{active} Active · {done} Done", { active: ongoingCampaigns.length, done: completedCampaigns.length })}
+                {t("{count} Active", { count: activeCampaigns.length })}
               </span>
             </div>
           </button>
 
-          {/* 2. Outreach Calendar Card */}
+          {/* 2. Events Calendar Card */}
           <button
             type="button"
             onClick={() => setFilter("upcoming")}
@@ -97,8 +395,8 @@ export function EventsView({ data, open }: Props) {
               <CalendarDays size={20} />
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">{t("Outreach Calendar")}</span>
-              <span className="events-deck-desc">{t("Scheduled field programmes")}</span>
+              <span className="events-deck-title">{t("Events Calendar")}</span>
+              <span className="events-deck-desc">{t("Scheduled field outreach")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-calendar">
@@ -107,7 +405,7 @@ export function EventsView({ data, open }: Props) {
             </div>
           </button>
 
-          {/* 3. Archive & Past Card */}
+          {/* 3. Archive Card */}
           <button
             type="button"
             onClick={() => setFilter("all")}
@@ -119,8 +417,8 @@ export function EventsView({ data, open }: Props) {
               <History size={20} />
             </div>
             <div className="events-deck-info">
-              <span className="events-deck-title">{t("Archive & Past")}</span>
-              <span className="events-deck-desc">{t("Concluded awareness actions")}</span>
+              <span className="events-deck-title">{t("Archive")}</span>
+              <span className="events-deck-desc">{t("Concluded campaigns & past events")}</span>
             </div>
             <div className="events-deck-badge-wrap">
               <span className="events-deck-badge badge-archive">
@@ -134,46 +432,46 @@ export function EventsView({ data, open }: Props) {
         <div className="events-deck-toolbar">
           <div className="events-deck-filters">
             {filter === "campaigns" ? (
-              <div className="events-deck-segmented" role="tablist" aria-label={t("Campaign status filter")}>
-                <button
-                  type="button"
-                  onClick={() => setCampaignTab("all")}
-                  className={`events-deck-seg-btn ${campaignTab === "all" ? "is-active" : ""}`}
-                  role="tab"
-                  aria-selected={campaignTab === "all"}
-                >
-                  <span>{t("All Campaigns ({count})", { count: allCampaigns.length })}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCampaignTab("active")}
-                  className={`events-deck-seg-btn ${campaignTab === "active" ? "is-active is-active-rust" : ""}`}
-                  role="tab"
-                  aria-selected={campaignTab === "active"}
-                >
-                  <Flame size={13} />
-                  <span>{t("Active Movements ({count})", { count: ongoingCampaigns.length })}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCampaignTab("completed")}
-                  className={`events-deck-seg-btn ${campaignTab === "completed" ? "is-active is-active-green" : ""}`}
-                  role="tab"
-                  aria-selected={campaignTab === "completed"}
-                >
-                  <CircleCheck size={13} />
-                  <span>{t("Completed Previous Campaigns ({count})", { count: completedCampaigns.length })}</span>
-                </button>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#fef2ea] border border-[#fed5bc] text-[#c85a17] text-xs font-semibold">
+                <Flame size={14} className="text-[#c85a17]" />
+                <span>{t("Active Campaigns ({count})", { count: activeCampaigns.length })}</span>
               </div>
             ) : filter === "upcoming" ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#eef7f2] border border-[#c8e6d7] text-[#1b4332] text-xs font-semibold">
                 <CalendarDays size={14} className="text-[#2d6a4f]" />
-                <span>{t("Scheduled Outreach & Conventions ({count})", { count: upcomingScheduled.length })}</span>
+                <span>{t("Events Calendar ({count})", { count: upcomingScheduled.length })}</span>
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#f0f4f6] border border-[#d2e0e6] text-[#2c4033] text-xs font-semibold">
-                <History size={14} className="text-[#406a52]" />
-                <span>{t("Concluded Movements & Single-Day Actions ({count})", { count: archivedItems.length })}</span>
+              <div className="events-deck-segmented" role="tablist" aria-label={t("Archive filter")}>
+                <button
+                  type="button"
+                  onClick={() => setArchiveTab("all")}
+                  className={`events-deck-seg-btn ${archiveTab === "all" ? "is-active" : ""}`}
+                  role="tab"
+                  aria-selected={archiveTab === "all"}
+                >
+                  <span>{t("All Concluded ({count})", { count: archivedItems.length })}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setArchiveTab("campaigns")}
+                  className={`events-deck-seg-btn ${archiveTab === "campaigns" ? "is-active is-active-green" : ""}`}
+                  role="tab"
+                  aria-selected={archiveTab === "campaigns"}
+                >
+                  <CircleCheck size={13} />
+                  <span>{t("Concluded Campaigns ({count})", { count: concludedCampaigns.length })}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setArchiveTab("events")}
+                  className={`events-deck-seg-btn ${archiveTab === "events" ? "is-active" : ""}`}
+                  role="tab"
+                  aria-selected={archiveTab === "events"}
+                >
+                  <CalendarDays size={13} />
+                  <span>{t("Past Events ({count})", { count: pastEvents.length })}</span>
+                </button>
               </div>
             )}
           </div>
@@ -182,10 +480,10 @@ export function EventsView({ data, open }: Props) {
             <SearchInput
               placeholder={
                 filter === "campaigns"
-                  ? t("Search active and completed campaigns, milestones, victories, or locations…")
+                  ? t("Search active campaigns, milestones, or locations…")
                   : filter === "upcoming"
                   ? t("Search upcoming dates, topics or venues…")
-                  : t("Search archived actions, Environment Day or past rallies…")
+                  : t("Search archive, campaigns, reports or past rallies…")
               }
               value={search}
               onChange={setSearch}
@@ -198,23 +496,23 @@ export function EventsView({ data, open }: Props) {
           <div className="events-deck-current-label">
             <span
               className={`current-dot ${
-                filter === "campaigns" && campaignTab === "completed"
-                  ? "!bg-[#2d6a4f] !shadow-[0_0_0_2px_#a3c9a8]"
-                  : filter === "campaigns" && campaignTab === "active"
+                filter === "campaigns"
                   ? "!bg-[#c85a17] !shadow-[0_0_0_2px_#fed5bc]"
-                  : "!bg-[#1b4332] !shadow-[0_0_0_2px_#c8e6d7]"
+                  : filter === "upcoming"
+                  ? "!bg-[#1b4332] !shadow-[0_0_0_2px_#c8e6d7]"
+                  : "!bg-[#2d6a4f] !shadow-[0_0_0_2px_#a3c9a8]"
               }`}
             />
             <span className="current-text">
-              {filter === "campaigns" && (
-                campaignTab === "all"
-                  ? t("Viewing {active} active campaign and {completed} completed previous campaigns", { active: ongoingCampaigns.length, completed: completedCampaigns.length })
-                  : campaignTab === "active"
-                  ? t("Viewing {count} active environmental campaign (Mashkalaibari)", { count: ongoingCampaigns.length })
-                  : t("Viewing {count} completed previous campaigns & civic victories", { count: completedCampaigns.length })
-              )}
+              {filter === "campaigns" && t("Viewing {count} active campaign requiring member mobilization", { count: activeCampaigns.length })}
               {filter === "upcoming" && t("Viewing {count} scheduled outreach programmes", { count: upcomingScheduled.length })}
-              {filter === "all" && t("Viewing {count} concluded actions and completed campaigns", { count: archivedItems.length })}
+              {filter === "all" && (
+                archiveTab === "campaigns"
+                  ? t("Viewing {count} concluded campaigns & civic victories", { count: concludedCampaigns.length })
+                  : archiveTab === "events"
+                  ? t("Viewing {count} concluded awareness actions and workshops", { count: pastEvents.length })
+                  : t("Viewing {count} concluded campaigns and past events", { count: archivedItems.length })
+              )}
               {search && <span> · {t("matching \"{search}\"", { search })}</span>}
             </span>
           </div>
@@ -225,226 +523,32 @@ export function EventsView({ data, open }: Props) {
         </div>
       </nav>
 
-      {/* 1. UNIT CAMPAIGNS TAB */}
+      {/* 1. ACTIVE CAMPAIGNS TAB */}
       {filter === "campaigns" && (
         <div className="space-y-6">
-
-          {filteredCampaigns.map((campaign) => {
-            const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
-            const totalMilestones = campaign.milestones?.length || 0;
-            const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
-            const isExpanded = expandedRoadmaps[campaign.id] ?? campaign.isOngoing;
-            const isCompleted = !campaign.isOngoing;
-
-            // Find matching circular report if any
-            const titleLower = campaign.title.toLowerCase();
-            const matchingCircular = data.circulars.find((c) => {
-              const ct = c.title.toLowerCase();
-              if (titleLower.includes("mashkalaibari") && isMashkalaibari(c.title)) return true;
-              if (titleLower.includes("karala") && (ct.includes("karala") || ct.includes("environment day"))) return true;
-              if ((titleLower.includes("prafulla") || titleLower.includes("assam")) && (ct.includes("prafulla") || ct.includes("assam"))) return true;
-              return false;
-            });
-
-            return (
-              <section
-                className={`campaign-hero-card panel mb-7 print-tech-slip ${isCompleted ? "border-l-4 border-l-[#2d6a4f]" : ""}`}
+          {filteredActiveCampaigns.length > 0 ? (
+            filteredActiveCampaigns.map((campaign) => (
+              <CampaignHeroCard
                 key={campaign.id}
-              >
-                <div className="campaign-hero-grid">
-                  <div className="campaign-hero-image-wrap">
-                    <img
-                      src={campaign.image}
-                      alt={campaign.title}
-                      style={{ objectPosition: "center 42%" }}
-                      onError={(e) => {
-                        e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
-                      }}
-                    />
-                    {campaign.isOngoing ? (
-                      <span className="campaign-live-tag">
-                        <span className="live-dot" />
-                        {t("ONGOING CIVIC CAMPAIGN")}
-                      </span>
-                    ) : (
-                      <span className="campaign-live-tag bg-[#1b4332] text-[#d8f3dc] border border-[#52b788]">
-                        <CircleCheck size={12} className="text-[#74c69d]" />
-                        {t("CONCLUDED CAMPAIGN · VICTORY")}
-                      </span>
-                    )}
-                    <span className="campaign-location-pill">
-                      <MapPin size={12} />
-                      {campaign.location}
-                    </span>
-                  </div>
-
-                  <div className="campaign-hero-content">
-                    <div>
-                      <div className="campaign-meta-row">
-                        <span className={`eyebrow ${isCompleted ? "text-[#2d6a4f]" : "text-rust"}`}>
-                          {isCompleted ? t("CONCLUDED CITIZEN CAMPAIGN") : t("ACTIVE ENVIRONMENTAL MOVEMENT")}
-                        </span>
-                        <span className="campaign-volunteers-tag">
-                          <Users size={13} />
-                          {isCompleted
-                            ? t("{count} Mobilized Advocates", { count: campaign.volunteers })
-                            : t("{count} Active Advocates", { count: campaign.volunteers })}
-                        </span>
-                      </div>
-
-                      <h2>{campaign.title}</h2>
-                      <p className="campaign-hero-desc">{campaign.description}</p>
-                    </div>
-
-                    {/* Progress Bar Container */}
-                    <div className="campaign-progress-box">
-                      <div className="campaign-progress-header">
-                        <span className="campaign-progress-label mono">
-                          {campaign.isOngoing ? (
-                            tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })
-                          ) : (
-                            <strong className="text-[#2d6a4f]">{t("CAMPAIGN TARGET: 100% ACHIEVED & DELIVERED")}</strong>
-                          )}
-                        </span>
-                        <span className={`campaign-phase-badge ${isCompleted ? "bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8]" : ""}`}>
-                          {campaign.isOngoing
-                            ? t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })
-                            : t("ALL {count} PHASES DELIVERED", { count: totalMilestones })}
-                        </span>
-                      </div>
-                      <div className="campaign-progress-track">
-                        <div
-                          className={`campaign-progress-fill ${isCompleted ? "bg-[#2d6a4f]" : ""}`}
-                          style={{ width: `${campaign.progressPercent || (isCompleted ? 100 : 20)}%` }}
-                        />
-                      </div>
-                      <div className="campaign-progress-footer">
-                        <span>
-                          {isCompleted
-                            ? t("✓ All {total} milestones successfully verified", { total: totalMilestones })
-                            : t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
-                        </span>
-                        {campaign.targetGoal && (
-                          <span className="campaign-target-goal" title={campaign.targetGoal}>
-                            {isCompleted
-                              ? t("Delivered: {goal}", { goal: campaign.targetGoal })
-                              : t("Goal: {goal}", { goal: campaign.targetGoal })}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Expandable Phased Roadmap Accordion */}
-                      {campaign.milestones && campaign.milestones.length > 0 && (
-                        <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
-                          <button
-                            type="button"
-                            className="campaign-accordion-toggle"
-                            onClick={() =>
-                              setExpandedRoadmaps((prev) => ({
-                                ...prev,
-                                [campaign.id]: !isExpanded,
-                              }))
-                            }
-                            aria-expanded={isExpanded}
-                          >
-                            <span>
-                              {isExpanded
-                                ? t("Collapse Roadmap")
-                                : isCompleted
-                                ? t("Inspect {count}-Phase Verification History", { count: totalMilestones })
-                                : t("Inspect {count}-Phase Action Plan", { count: totalMilestones })}
-                            </span>
-                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                          </button>
-                          <span className="mono text-[10.5px] text-ink-mute">
-                            {isCompleted
-                              ? t("Outcome: Archived Success")
-                              : t("Next Milestone: Municipal Deputation")}
-                          </span>
-                        </div>
-                      )}
-
-                      {isExpanded && campaign.milestones && (
-                        <div className="mt-3 space-y-2 pt-2 border-t border-rule-soft">
-                          {campaign.milestones.map((m) => (
-                            <div
-                              key={m.id}
-                              className={`p-2.5 rounded border text-left text-xs ${
-                                m.status === "completed"
-                                  ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
-                                  : m.status === "in_progress"
-                                  ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
-                                  : "bg-paper-card border-rule-soft text-ink-mute opacity-80"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold mono text-[10.5px]">
-                                  {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
-                                </span>
-                                <span
-                                  className={`text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono ${
-                                    m.status === "completed"
-                                      ? "bg-olive text-paper-card"
-                                      : m.status === "in_progress"
-                                      ? "bg-rust text-paper-card"
-                                      : "bg-stone-200 text-stone-600"
-                                  }`}
-                                >
-                                  {m.status === "completed" ? t("✓ Done") : m.status === "in_progress" ? t("● Active") : t("○ Planned")}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-ink-2 leading-relaxed">{m.description}</p>
-                              {m.completedDate && (
-                                <small className="text-[10px] text-ink-faint mono block mt-1">
-                                  {t("Completed: {date}", { date: m.completedDate })}
-                                </small>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="campaign-hero-actions">
-                      <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                        {isCompleted ? t("View Campaign Archive & Record") : t("View Campaign Gallery & Plan")}
-                      </Button>
-                      {matchingCircular && (
-                        <Button
-                          variant="secondary"
-                          icon={FileText}
-                          onClick={() => open("circular", matchingCircular)}
-                        >
-                          {t("Read Investigation Report & Photos")}
-                        </Button>
-                      )}
-                      <button
-                        className="button button-secondary button-whatsapp"
-                        onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
-                        title={isCompleted ? t("Share Victory on WhatsApp") : t("Mobilize on WhatsApp")}
-                      >
-                        <MessageCircle size={15} />
-                        {isCompleted ? t("Share Victory") : t("Share Campaign")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            );
-          })}
-
-          {filteredCampaigns.length === 0 && (
+                campaign={campaign}
+                data={data}
+                open={open}
+                expandedRoadmaps={expandedRoadmaps}
+                setExpandedRoadmaps={setExpandedRoadmaps}
+              />
+            ))
+          ) : (
             <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
               <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
                 <Flame size={24} />
               </div>
               <h4 className="text-base font-bold text-ink mb-1">
-                {search ? t('No campaigns matching "{search}"', { search }) : t("No campaigns found in this view")}
+                {search ? t('No campaigns matching "{search}"', { search }) : t("No active campaigns found")}
               </h4>
               <p className="text-xs text-ink-mute max-w-md mx-auto mb-4 leading-relaxed">
                 {search
                   ? t("Try clearing your search term or searching by area name.")
-                  : t("Select another filter above or search by campaign topic.")}
+                  : t("New civic or environmental campaigns will be featured here.")}
               </p>
               {search && (
                 <Button variant="secondary" onClick={() => setSearch("")}>
@@ -452,6 +556,29 @@ export function EventsView({ data, open }: Props) {
                 </Button>
               )}
             </section>
+          )}
+
+          {concludedCampaigns.length > 0 && (
+            <div className="p-4 rounded-xl bg-paper-card border border-rule-soft flex items-center justify-between gap-4 mt-8 flex-wrap">
+              <div>
+                <span className="mono text-[11px] font-bold text-[#2d6a4f] uppercase tracking-wider block mb-0.5">
+                  {t("✓ {count} Concluded Campaigns in Archive", { count: concludedCampaigns.length })}
+                </span>
+                <p className="text-xs text-ink-mute">
+                  {t("Verified ecological restorations and humanitarian relief actions are documented in the archive.")}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                icon={ArrowRight}
+                onClick={() => {
+                  setFilter("all");
+                  setArchiveTab("campaigns");
+                }}
+              >
+                {t("View Concluded Campaigns Archive ({count})", { count: concludedCampaigns.length })}
+              </Button>
+            </div>
           )}
         </div>
       )}
@@ -461,69 +588,7 @@ export function EventsView({ data, open }: Props) {
         <div>
           {filteredUpcoming.length > 0 ? (
             <div className="event-cards-grid">
-              {filteredUpcoming.map((event) => {
-                const date = new Date(event.startsAt);
-                const needed = data.procurements.filter((p) => p.eventId === event.id && p.status === "needed").length;
-                const verified = data.procurements.filter((p) => p.eventId === event.id && p.status === "verified").length;
-                const isNear = date.getTime() - nowMs <= 48 * 3600000 && date.getTime() >= nowMs - 86400000;
-
-                return (
-                  <article className="event-card panel print-tech-slip" key={event.id}>
-                    <span className="print-mark print-mark-tl slip-mark" />
-                    <span className="print-mark print-mark-tr slip-mark" />
-
-                    <button className="event-card-image" onClick={() => open("event", event)}>
-                      <img
-                        src={event.image}
-                        alt={event.title}
-                        onError={(e) => {
-                          e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
-                        }}
-                      />
-                      <span className="event-category">{t(event.category)}</span>
-                      <span className="event-card-date">
-                        <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
-                        <strong>{num(date.getDate())}</strong>
-                      </span>
-                      {isNear && <span className="event-urgent-tag">{t("HAPPENING IN <48H")}</span>}
-                    </button>
-
-                    <div className="event-card-body">
-                      <span className="event-card-time">
-                        <CalendarDays size={13} />
-                        {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
-                      </span>
-                      <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
-                      <p className="event-card-description">{event.description}</p>
-                      <span className="event-location"><MapPin size={14} />{event.location}</span>
-
-                      <div className="event-card-footer">
-                        <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
-                        {needed > 0 ? (
-                          <span className="stamp-needed font-bold text-[length:max(8px,var(--fs-floor,0px))]">{t("{needed} REQUISITIONS NEEDED", { needed })}</span>
-                        ) : (
-                          <span className="stamp-verified font-bold text-[length:max(8px,var(--fs-floor,0px))]">{t("{verified} ITEMS PEER-VERIFIED", { verified })}</span>
-                        )}
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                        <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                          {t("View programme briefing & checklist")}
-                          <ArrowUpRight size={15} />
-                        </Button>
-                        <button
-                          className="button button-secondary button-whatsapp"
-                          style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                          onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
-                          title={t("Mobilize volunteers on WhatsApp")}
-                        >
-                          <MessageCircle size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {filteredUpcoming.map((event) => renderEventCard(event))}
             </div>
           ) : (
             <div className="all-hands-card">
@@ -540,8 +605,8 @@ export function EventsView({ data, open }: Props) {
                 {tx("Our Jalpaiguri unit is dedicating active volunteer and cadre capacity to the ongoing <strong>Clean Mashkalaibari Campaign</strong>. Single-day conventions and rallies resume following the technical deputation to Jalpaiguri Municipality.")}
               </p>
               <div className="flex items-center gap-3 flex-wrap">
-                {ongoingCampaigns[0] && (
-                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", ongoingCampaigns[0])}>
+                {activeCampaigns[0] && (
+                  <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", activeCampaigns[0])}>
                     {t("Open Mashkalaibari Campaign Action Plan")}
                   </Button>
                 )}
@@ -554,69 +619,67 @@ export function EventsView({ data, open }: Props) {
         </div>
       )}
 
-      {/* 3. ALL EVENTS & ARCHIVE TAB */}
+      {/* 3. ARCHIVE (CONCLUDED CAMPAIGNS & PAST EVENTS) */}
       {filter === "all" && (
-        <div>
-          {filteredAll.length > 0 ? (
-            <div className="event-cards-grid">
-              {filteredAll.map((event) => {
-                const date = new Date(event.startsAt);
-
-                return (
-                  <article className="event-card panel print-tech-slip" key={event.id}>
-                    <button className="event-card-image" onClick={() => open("event", event)}>
-                      <img
-                        src={event.image}
-                        alt={event.title}
-                        onError={(e) => {
-                          e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
-                        }}
+        <div className="space-y-6">
+          {filteredArchive.length > 0 ? (
+            <>
+              {archiveTab === "campaigns" ? (
+                <div className="space-y-6">
+                  {filteredArchive.map((campaign) => (
+                    <CampaignHeroCard
+                      key={campaign.id}
+                      campaign={campaign}
+                      data={data}
+                      open={open}
+                      expandedRoadmaps={expandedRoadmaps}
+                      setExpandedRoadmaps={setExpandedRoadmaps}
+                    />
+                  ))}
+                </div>
+              ) : archiveTab === "events" ? (
+                <div className="event-cards-grid">
+                  {filteredArchive.map((event) => renderEventCard(event))}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {filteredArchive.map((item) =>
+                    isCampaignEvent(item) ? (
+                      <CampaignHeroCard
+                        key={item.id}
+                        campaign={item}
+                        data={data}
+                        open={open}
+                        expandedRoadmaps={expandedRoadmaps}
+                        setExpandedRoadmaps={setExpandedRoadmaps}
                       />
-                      <span className="event-category">{t(event.category)}</span>
-                      <span className="event-card-date">
-                        <small>{fmtDate(date, { month: "short" }).toUpperCase()}</small>
-                        <strong>{num(date.getDate())}</strong>
-                      </span>
-                    </button>
-
-                    <div className="event-card-body">
-                      <span className="event-card-time">
-                        <CalendarDays size={13} />
-                        {fmtDate(date, { weekday: "long" })} <span>·</span> {fmtTime(date, { hour: "numeric", minute: "2-digit" })}
-                      </span>
-                      <h2><button onClick={() => open("event", event)}>{event.title}</button></h2>
-                      <p className="event-card-description">{event.description}</p>
-                      <span className="event-location"><MapPin size={14} />{event.location}</span>
-
-                      <div className="event-card-footer">
-                        <span><Users size={14} />{t("{volunteers} active volunteers", { volunteers: event.volunteers })}</span>
-                        <span className="badge bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8] font-bold text-[9px] uppercase px-1.5 py-0.5 rounded mono">
-                          {isCampaignEvent(event) ? t("✓ Completed Campaign") : t("✓ Concluded Action")}
-                        </span>
+                    ) : (
+                      <div key={item.id} className="max-w-xl">
+                        {renderEventCard(item)}
                       </div>
-
-                      <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                        <Button variant="secondary" onClick={() => open("event", event)} className="flex-1">
-                          {isCampaignEvent(event) ? t("View campaign archive & report") : t("View programme briefing & field photos")}
-                          <ArrowUpRight size={15} />
-                        </Button>
-                        <button
-                          className="button button-secondary button-whatsapp"
-                          style={{ padding: "0 12px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                          onClick={() => shareViaWhatsApp(formatEventBroadcast(event, locale))}
-                          title={t("Share on WhatsApp")}
-                        >
-                          <MessageCircle size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                    )
+                  )}
+                </div>
+              )}
+            </>
           ) : (
-            <section className="panel my-6">
-              <EmptyState icon={CalendarDays} title={t("No events found")} description={t("Try clearing your search query.")} />
+            <section className="panel p-8 border border-dashed border-rule-soft rounded-lg text-center my-4">
+              <div className="w-12 h-12 rounded-full bg-[#f4efdf] text-rust flex items-center justify-center mx-auto mb-3">
+                <History size={24} />
+              </div>
+              <h4 className="text-base font-bold text-ink mb-1">
+                {search ? t('No archive records matching "{search}"', { search }) : t("No archive records found")}
+              </h4>
+              <p className="text-xs text-ink-mute max-w-md mx-auto mb-4 leading-relaxed">
+                {search
+                  ? t("Try clearing your search term or exploring active campaigns.")
+                  : t("Concluded campaigns and past field programmes will appear here.")}
+              </p>
+              {search && (
+                <Button variant="secondary" onClick={() => setSearch("")}>
+                  {t("Clear search")}
+                </Button>
+              )}
             </section>
           )}
         </div>
