@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { authClient } from "@/lib/auth-client";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogIn, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, User, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
@@ -102,17 +102,19 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const isExecutive = userRole === "admin";
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
 
-  const user = currentUser || {
-    id: "",
-    fullName: t("Public Visitor"),
-    phone: null,
-    role: "guest" as Role,
-    status: "active",
-    monthlyPledge: 0,
-    avatarColor: "sand",
-    unpaidMonths: 0,
-    createdAt: new Date().toISOString(),
-  };
+  const user = (isGuest || !currentUser)
+    ? {
+        id: "",
+        fullName: t("Public Visitor"),
+        phone: null,
+        role: "guest" as Role,
+        status: "active",
+        monthlyPledge: 0,
+        avatarColor: "sand",
+        unpaidMonths: 0,
+        createdAt: new Date().toISOString(),
+      }
+    : currentUser;
 
   const navItems: { view: View; label: string; icon: LucideIcon }[] = isGuest
     ? [
@@ -462,13 +464,13 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <small>{t(`A unit of ${identity.organisation}`)}</small>
         </span>
       </button>
-      <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{t(identity.unit)}</strong><small>{t(identity.state)}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">{t("YOUR UNIT WORKSPACE")}</span><button onClick={() => setPopover(null)}><span>{t(identity.unit)}<small>{t("{state} chapter", { state: t(identity.state) })}</small></span><Check size={15} /></button><button onClick={() => navigate("settings")}><Settings size={14} />{t("Unit settings")}<ArrowUpRight size={13} /></button></div>}</div>
+      <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{t(identity.unit)}</strong><small>{t(identity.state)}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">{t("YOUR UNIT WORKSPACE")}</span><button onClick={() => setPopover(null)}><span>{t(identity.unit)}<small>{t("{state} chapter", { state: t(identity.state) })}</small></span><Check size={15} /></button>{!isGuest && <button onClick={() => navigate("settings")}><Settings size={14} />{t("Unit settings")}<ArrowUpRight size={13} /></button>}</div>}</div>
       <nav className="sidebar-nav" aria-label={t("Main navigation")}>
         <div className="nav-group-label">{t("WORKSPACE")}</div>
         {navItems.map(renderNavItem)}
         <div className="nav-group-label knowledge-label">{t("KNOWLEDGE & OUTREACH")}</div>
         {knowledgeItems.map(renderNavItem)}
-        <div className="nav-settings">{renderNavItem({ view: "settings", label: t("Unit settings"), icon: Settings })}</div>
+        {!isGuest && <div className="nav-settings">{renderNavItem({ view: "settings", label: t("Unit settings"), icon: Settings })}</div>}
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-mission">
@@ -477,7 +479,18 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <span>{t("Taking science to Jalpaiguri, together.")}</span>
         </div>
         <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? t("{count} to sync", { count: offlineCount }) : t("Workspace online")) : t("Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {num(offlineCount)}</span> : <span className="sidebar-version-pill" title={t("Release: {releaseName} · Build {build}", { releaseName: t(identity.releaseName), build: identity.build })}>v{identity.version}</span>}</div>
-        <button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? t("Unit Executive") : roleName(user.role)}</small></span><ChevronRight size={15} /></button>
+        <button
+          className="sidebar-account"
+          onClick={isGuest ? () => setGuestMode(false) : () => navigate("settings")}
+          title={isGuest ? t("Public Access · Click to Sign In") : undefined}
+        >
+          <Avatar person={user} />
+          <span>
+            <strong>{user.fullName}</strong>
+            <small>{isGuest ? t("Public Access · Click to Sign In") : (user.role === "admin" ? t("Unit Executive") : roleName(user.role))}</small>
+          </span>
+          {isGuest ? <LogIn size={15} /> : <ChevronRight size={15} />}
+        </button>
       </div>
     </aside>
     <div className="main-shell">
@@ -500,9 +513,6 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
               className="guest-banner-cta"
             >
               {t("View Campaign Action Plan →")}
-            </button>
-            <button onClick={() => setGuestMode(false)} className="guest-login-btn">
-              {t("Member Login (Google)")}
             </button>
           </div>
         </div>
@@ -563,90 +573,103 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           </button>
           <span className="topbar-date" suppressHydrationWarning>{fmtDate(new Date(), { weekday: "short", day: "numeric", month: "short" })}</span>
           <button className="icon-button help-topbar" aria-label={t("Workspace help")} title={t("Workspace help")} onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
-          <div className="notifications-wrap" data-popover>
-            <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label={t("Open notifications")} aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
-            {popover === "notifications" && (
-              <div className="notifications-popover print-tech-slip">
-                <div className="notification-heading">
-                  <div>
-                    <h2>{t("Cadre Alerts & Activity")}</h2>
-                    <p>{t(identity.fullName)} · {t("Real-time dispatch")}</p>
+          {isGuest ? (
+            <button
+              type="button"
+              className="topbar-login-btn"
+              onClick={() => setGuestMode(false)}
+            >
+              <LogIn size={14} strokeWidth={2} />
+              <span>{t("Member Login")}</span>
+            </button>
+          ) : (
+            <>
+              <div className="notifications-wrap" data-popover>
+                <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label={t("Open notifications")} aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
+                {popover === "notifications" && (
+                  <div className="notifications-popover print-tech-slip">
+                    <div className="notification-heading">
+                      <div>
+                        <h2>{t("Cadre Alerts & Activity")}</h2>
+                        <p>{t(identity.fullName)} · {t("Real-time dispatch")}</p>
+                      </div>
+                      <button className="icon-button" aria-label={t("Mark all notifications as read")} title={t("Mark all as read")} onClick={markRead}><CheckCheck size={18} /></button>
+                    </div>
+                    {showReminder && (
+                      <button className="dues-reminder" onClick={() => { setPopover(null); navigate("dues"); }}>
+                        <Wallet size={17} />
+                        <span>{t("Monthly membership contribution pending.")}<small>{t("Baseline ₹20/month. Keep the movement active.")}</small></span>
+                        <ArrowRight size={14} />
+                      </button>
+                    )}
+                    <div className="notification-items">
+                      {shown.activities.slice(0, 6).map((a, i) => (
+                        <button className={`notification-item ${unread && i < 2 ? "unread" : ""}`} key={a.id} onClick={() => { markRead(); setPopover(null); navigate(a.type === "dues" ? "dues" : a.type === "donation" ? "donations" : a.type === "circular" ? "circulars" : a.type === "event" ? "events" : "procurement"); }}>
+                          <span className={`notification-symbol activity-${a.type}`}>
+                            {a.type === "donation" ? <HeartHandshake size={16} /> : a.type === "dues" ? <ArrowDownLeft size={16} /> : a.type === "verified" ? <CircleCheck size={16} /> : <Package size={16} />}
+                          </span>
+                          <span><strong>{a.title}</strong><small>{a.description}</small><time suppressHydrationWarning>{t("{time} · Action: Click to inspect", { time: relativeTime(a.createdAt, t) })}</time></span>
+                          {unread && i < 2 && <i />}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="notification-footer">
+                      <span className="tiny-dot green" />{t("Service Worker Web Push & In-App Sync Active")}
+                      <button onClick={() => { setPopover(null); navigate("settings"); }}>{t("Push settings")}<ArrowUpRight size={12} /></button>
+                    </div>
                   </div>
-                  <button className="icon-button" aria-label={t("Mark all notifications as read")} title={t("Mark all as read")} onClick={markRead}><CheckCheck size={18} /></button>
-                </div>
-                {showReminder && (
-                  <button className="dues-reminder" onClick={() => { setPopover(null); navigate("dues"); }}>
-                    <Wallet size={17} />
-                    <span>{t("Monthly membership contribution pending.")}<small>{t("Baseline ₹20/month. Keep the movement active.")}</small></span>
-                    <ArrowRight size={14} />
-                  </button>
                 )}
-                <div className="notification-items">
-                  {shown.activities.slice(0, 6).map((a, i) => (
-                    <button className={`notification-item ${unread && i < 2 ? "unread" : ""}`} key={a.id} onClick={() => { markRead(); setPopover(null); navigate(a.type === "dues" ? "dues" : a.type === "donation" ? "donations" : a.type === "circular" ? "circulars" : a.type === "event" ? "events" : "procurement"); }}>
-                      <span className={`notification-symbol activity-${a.type}`}>
-                        {a.type === "donation" ? <HeartHandshake size={16} /> : a.type === "dues" ? <ArrowDownLeft size={16} /> : a.type === "verified" ? <CircleCheck size={16} /> : <Package size={16} />}
-                      </span>
-                      <span><strong>{a.title}</strong><small>{a.description}</small><time suppressHydrationWarning>{t("{time} · Action: Click to inspect", { time: relativeTime(a.createdAt, t) })}</time></span>
-                      {unread && i < 2 && <i />}
+              </div>
+              <span className="topbar-divider" />
+              <div className="account-wrap" data-popover>
+                <button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label={t("Open profile menu")}><Avatar person={user} size="small" /><ChevronDown size={12} /></button>
+                {popover === "account" && (
+                  <div className="small-menu account-menu">
+                    <span className="menu-eyebrow">{guestMode ? t("GUEST VISITOR") : (t("LOGGED IN AS"))}</span>
+                    <strong>{user.fullName}</strong>
+                    <small>{user.role === "admin" ? t("Unit executive") : roleName(user.role)} · {t(identity.unit)}</small>
+                    <div className="account-version-note"><span>{t("App Release")}</span><strong>v{identity.version}</strong></div>
+                    <button onClick={() => { setPopover(null); open("idCard", { member: user }); }}>
+                      <IdCard size={15} />
+                      {t("My Member ID Card")}
+                      <ArrowUpRight size={13} />
                     </button>
-                  ))}
-                </div>
-                <div className="notification-footer">
-                  <span className="tiny-dot green" />{t("Service Worker Web Push & In-App Sync Active")}
-                  <button onClick={() => { setPopover(null); navigate("settings"); }}>{t("Push settings")}<ArrowUpRight size={12} /></button>
-                </div>
+                    <button onClick={() => navigate("settings")}>
+                      <Settings size={15} />
+                      {t("Account & Security")}
+                      <ArrowUpRight size={13} />
+                    </button>
+                    <button onClick={() => { setPopover(null); open("help"); }}>
+                      <CircleHelp size={15} />
+                      {t("Help & Shortcuts")}
+                      <ArrowUpRight size={13} />
+                    </button>
+                    <button onClick={async () => {
+                      setPopover(null);
+                      if (guestMode) {
+                        setGuestMode(false);
+                      } else {
+                        await perform("logout", {});
+                        try {
+                          await authClient.signOut();
+                        } catch {}
+                        window.location.href = "/";
+                      }
+                    }}>
+                      <LogOut size={15} />
+                      {guestMode ? t("Log In") : t("Sign Out")}
+                      <ArrowUpRight size={13} />
+                    </button>
+                    <a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer">
+                      <ExternalLink size={15} />
+                      {t("About the society")}
+                      <ArrowUpRight size={13} />
+                    </a>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <span className="topbar-divider" />
-          <div className="account-wrap" data-popover>
-            <button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label={t("Open profile menu")}><Avatar person={user} size="small" /><ChevronDown size={12} /></button>
-            {popover === "account" && (
-              <div className="small-menu account-menu">
-                <span className="menu-eyebrow">{guestMode ? t("GUEST VISITOR") : (t("LOGGED IN AS"))}</span>
-                <strong>{user.fullName}</strong>
-                <small>{user.role === "admin" ? t("Unit executive") : roleName(user.role)} · {t(identity.unit)}</small>
-                <div className="account-version-note"><span>{t("App Release")}</span><strong>v{identity.version}</strong></div>
-                <button onClick={() => { setPopover(null); open("idCard", { member: user }); }}>
-                  <IdCard size={15} />
-                  {t("My Member ID Card")}
-                  <ArrowUpRight size={13} />
-                </button>
-                <button onClick={() => navigate("settings")}>
-                  <Settings size={15} />
-                  {t("Account & Security")}
-                  <ArrowUpRight size={13} />
-                </button>
-                <button onClick={() => { setPopover(null); open("help"); }}>
-                  <CircleHelp size={15} />
-                  {t("Help & Shortcuts")}
-                  <ArrowUpRight size={13} />
-                </button>
-                <button onClick={async () => {
-                  setPopover(null);
-                  if (guestMode) {
-                    setGuestMode(false);
-                  } else {
-                    await perform("logout", {});
-                    try {
-                      await authClient.signOut();
-                    } catch {}
-                    window.location.href = "/";
-                  }
-                }}>
-                  <LogOut size={15} />
-                  {guestMode ? t("Log In") : t("Sign Out")}
-                  <ArrowUpRight size={13} />
-                </button>
-                <a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer">
-                  <ExternalLink size={15} />
-                  {t("About the society")}
-                  <ArrowUpRight size={13} />
-                </a>
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </header>
       {!online && (

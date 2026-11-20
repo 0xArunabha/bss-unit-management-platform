@@ -23,6 +23,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const now = new Date(currentTime);
   const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
   const userRole = data.currentUserRole || currentUser?.role || "guest";
+  const isGuest = userRole === "guest";
   const isExecutive = userRole === "admin";
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
@@ -71,23 +72,25 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   return (
     <div className="view-enter">
       <PageHeading title={t("Unit overview")} description={t("{name} · {organisation}, {unit}.", { name: t(identity.name), organisation: t(identity.organisation), unit: t(identity.unit) })}>
-        <div className="period-container">
-          <button className="button button-secondary period-button" onClick={() => setPeriodOpen(!periodOpen)}>
-            <CalendarDays size={15} />
-            {t(period)}
-            <ChevronDown size={14} />
-          </button>
-          {periodOpen && (
-            <div className="small-menu period-menu">
-              {["This month", "This year", "All time"].map((p) => (
-                <button key={p} onClick={() => { setPeriod(p); setPeriodOpen(false); }}>
-                  {t(p)}
-                  {p === period && <Check size={14} />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {!isGuest && isExecutive && (
+          <div className="period-container">
+            <button className="button button-secondary period-button" onClick={() => setPeriodOpen(!periodOpen)}>
+              <CalendarDays size={15} />
+              {t(period)}
+              <ChevronDown size={14} />
+            </button>
+            {periodOpen && (
+              <div className="small-menu period-menu">
+                {["This month", "This year", "All time"].map((p) => (
+                  <button key={p} onClick={() => { setPeriod(p); setPeriodOpen(false); }}>
+                    {t(p)}
+                    {p === period && <Check size={14} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {isExecutive && pendingAppsCount > 0 && (
           <Button
             variant="secondary"

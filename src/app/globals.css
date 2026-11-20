@@ -1843,6 +1843,42 @@ body{background-color:var(--paper);}
   background: #d45b31;
 }
 
+.topbar-login-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  background: var(--rust, #1b4332);
+  color: #fff;
+  border: 1px solid var(--rust, #1b4332);
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(27, 67, 50, 0.2);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.topbar-login-btn:hover {
+  background: var(--rust-deep, #112a20);
+  border-color: var(--rust-deep, #112a20);
+}
+
+.topbar-login-btn:active {
+  transform: translateY(1px);
+}
+
+.topbar-login-btn svg {
+  flex-shrink: 0;
+}
+
+.avatar svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 .nav-campaign-pill {
   background: var(--rust, #1b4332);
   color: #fff;
@@ -4187,6 +4223,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   .topbar .topbar-avatar>svg{display:none}
   .topbar .lang-toggle-wrap{margin-right:2px}
   .topbar .lang-pill{padding:6px 9px}
+  .topbar .topbar-login-btn{height:32px;padding:0 10px;font-size:11px;gap:5px;margin-left:4px}
 }
 
 /* 3 -- Bottom navigation and drawer --------------------------------------- */

@@ -1,12 +1,27 @@
 "use client";
 
-import { ArrowUpRight, Check, ChevronDown, Download, LoaderCircle, Search, X, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Download, LoaderCircle, Search, User, X, type LucideIcon } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { initials, type Profile } from "@/lib/types";
 import { useI18n, type I18n } from "@/lib/i18n";
 
-export function Avatar({ person, size = "normal" }: { person: Pick<Profile, "fullName" | "avatarColor">; size?: "small" | "normal" | "large" }) {
-  return <span className={`avatar avatar-${size} avatar-${person.avatarColor}`} title={person.fullName}>{initials(person.fullName)}</span>;
+export function Avatar({
+  person,
+  size = "normal",
+  icon: CustomIcon,
+}: {
+  person: Pick<Profile, "fullName" | "avatarColor"> & { role?: string };
+  size?: "small" | "normal" | "large";
+  icon?: LucideIcon;
+}) {
+  const isGuest = person.role === "guest";
+  const Icon = CustomIcon || (isGuest ? User : null);
+  const iconSize = size === "small" ? 13 : size === "large" ? 22 : 16;
+  return (
+    <span className={`avatar avatar-${size} avatar-${person.avatarColor}`} title={person.fullName}>
+      {Icon ? <Icon size={iconSize} strokeWidth={1.8} /> : initials(person.fullName)}
+    </span>
+  );
 }
 export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: string }) {
   return <span className={`badge badge-${tone}`}><span className="badge-dot" />{children}</span>;
