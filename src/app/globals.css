@@ -1879,6 +1879,14 @@ body{background-color:var(--paper);}
   flex-shrink: 0;
 }
 
+.tiny-dot.blue {
+  background: #8a9eaa;
+}
+
+.tiny-dot.sage {
+  background: #8b9e6e;
+}
+
 .nav-campaign-pill {
   background: var(--rust, #1b4332);
   color: #fff;

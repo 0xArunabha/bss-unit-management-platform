@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { type WorkspaceData, type View, type UnitEvent, type Circular, type Procurement } from "@/lib/types";
 import { Avatar, Badge, Button, PageHeading, SectionTitle, ArrowLink, relativeTime } from "@/components/ui";
@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { isMashkalaibari } from "@/lib/localize-content";
 import { formatEventBroadcast, shareViaWhatsApp } from "@/lib/whatsapp";
 import { isCampaignEvent, hydrateCampaignEvent } from "@/lib/campaign-data";
+import { resources } from "@/lib/resources";
 
 export type OpenModal = (type: string, record?: unknown) => void;
 export type Navigate = (view: View, eventId?: string) => void;
@@ -29,6 +30,10 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
   const ongoingCampaign = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent).find((c) => c.isOngoing);
+  const campaignEvents = data.events.filter(isCampaignEvent);
+  const ongoingCount = campaignEvents.filter((c) => c.isOngoing).length;
+  const concludedCount = campaignEvents.filter((c) => !c.isOngoing).length;
+  const toolkitsCount = resources.length;
   const [urgentAlertDismissed, setUrgentAlertDismissed] = useState(false);
   const pendingAppsCount = (data.applications || []).filter((a) => a.status === "pending").length;
 
@@ -229,44 +234,59 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             icon={CalendarDays}
             tone="orange"
             title={t("Active campaigns")}
-            value={ongoingCampaign ? t("1 Ongoing") : num(data.events.length)}
+            value={ongoingCampaign ? t("{count} Ongoing", { count: ongoingCount }) : num(data.events.length)}
             onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("campaigns"))}
           >
             <span className="stat-footnote">
-              <span className="tiny-dot green" />
-              {ongoingCampaign ? t("{percent}% target reached · Mashkalaibari", { percent: ongoingCampaign.progressPercent || 20 }) : t("Scheduled outreach across Jalpaiguri")}
+              <span className="tiny-dot orange" />
+              {ongoingCampaign ? t("{percent}% reached · Mashkalaibari", { percent: ongoingCampaign.progressPercent || 20 }) : t("Scheduled outreach across Jalpaiguri")}
             </span>
-            {ongoingCampaign && (
-              <div className="stat-progress-track">
-                <div
-                  className="stat-progress-fill"
-                  style={{ width: `${ongoingCampaign.progressPercent || 20}%` }}
-                />
-              </div>
-            )}
           </Stat>
-          <Stat icon={Megaphone} tone="blue" title={t("Demonstration toolkits")} value={t("Available")} onClick={() => navigate("resources")}>
-            <span className="stat-footnote">{t("Anti-superstition chemical & physics scripts")}</span>
+          <Stat
+            icon={BookOpen}
+            tone="blue"
+            title={t("Demonstration toolkits")}
+            value={t("{count} Toolkits", { count: toolkitsCount })}
+            onClick={() => navigate("resources")}
+          >
+            <span className="stat-footnote">
+              <span className="tiny-dot blue" />
+              {t("Anti-superstition lab guides")}
+            </span>
           </Stat>
-          <Stat icon={Users} tone="sage" title={t("Citizen advocacy")} value={t("Open")} onClick={() => navigate("campaigns")}>
-            <div className="dues-stat-bottom">
-              <span>{t("No fees · Students and citizens welcome")}</span>
-            </div>
+          <Stat
+            icon={Users}
+            tone="sage"
+            title={t("Citizen advocacy")}
+            value={t("{count} Members", { count: data.profiles.length })}
+            onClick={() => navigate("campaigns")}
+          >
+            <span className="stat-footnote">
+              <span className="tiny-dot sage" />
+              {t("Grassroots science movement")}
+            </span>
           </Stat>
-          <Stat icon={HeartHandshake} tone="lavender" title={t("Public movement")} value={t("Support")} onClick={() => open("donation")}>
+          <Stat
+            icon={CircleCheck}
+            tone="lavender"
+            title={t("Civic victories")}
+            value={t("{count} Concluded", { count: concludedCount })}
+            onClick={() => navigate("campaigns")}
+          >
             <span className="stat-footnote">
               <span className="tiny-dot purple" />
-              {t("100% voluntary · Powered by people")}
+              {t("100% delivered civic impact")}
             </span>
           </Stat>
         </div>
       ) : isExecutive ? (
         <div className="stats-grid">
           <Stat icon={Wallet} tone="orange" title={t("Unit balance")} value={money(balance)} onClick={() => navigate("dues")}>
-            <span className="stat-footnote"><span className="tiny-dot green" />{t("Net treasury available")}</span>
+            <span className="stat-footnote"><span className="tiny-dot orange" />{t("Net treasury available")}</span>
           </Stat>
           <Stat icon={Users} tone="blue" title={t("Unit members")} value={num(data.profiles.length)} onClick={() => navigate("members")}>
             <span className="stat-footnote">
+              <span className="tiny-dot blue" />
               <strong>{t("{count} active", { count: active })}</strong>
               <span className="text-dot">·</span>
               {t("{count} flagged dues pending", { count: data.profiles.length - active })}
@@ -291,32 +311,48 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             icon={CalendarDays}
             tone="orange"
             title={t("Active campaigns")}
-            value={ongoingCampaign ? t("1 Ongoing") : num(data.events.length)}
+            value={ongoingCampaign ? t("{count} Ongoing", { count: ongoingCount }) : num(data.events.length)}
             onClick={() => (ongoingCampaign ? open("event", ongoingCampaign) : navigate("campaigns"))}
           >
             <span className="stat-footnote">
-              <span className="tiny-dot green" />
+              <span className="tiny-dot orange" />
               {ongoingCampaign ? t("{percent}% reached · Mashkalaibari", { percent: ongoingCampaign.progressPercent || 20 }) : t("Unit programmes & conventions")}
             </span>
-            {ongoingCampaign && (
-              <div className="stat-progress-track">
-                <div
-                  className="stat-progress-fill"
-                  style={{ width: `${ongoingCampaign.progressPercent || 20}%` }}
-                />
-              </div>
-            )}
           </Stat>
-          <Stat icon={Users} tone="blue" title={t("Unit advocates")} value={num(data.profiles.length)} onClick={() => navigate("members")}>
-            <span className="stat-footnote">{t("Active advocates in Jalpaiguri")}</span>
+          <Stat
+            icon={Users}
+            tone="blue"
+            title={t("Unit advocates")}
+            value={t("{count} Members", { count: data.profiles.length })}
+            onClick={() => navigate("members")}
+          >
+            <span className="stat-footnote">
+              <span className="tiny-dot blue" />
+              {t("Active advocates in Jalpaiguri")}
+            </span>
           </Stat>
-          <Stat icon={Wallet} tone="sage" title={t("My monthly pledge")} value={money(currentUser?.monthlyPledge || 20)} onClick={() => navigate("dues")}>
+          <Stat
+            icon={Wallet}
+            tone="sage"
+            title={t("My monthly pledge")}
+            value={money(currentUser?.monthlyPledge || 20)}
+            onClick={() => navigate("dues")}
+          >
             <div className="dues-stat-bottom">
-              <span>{currentUser?.unpaidMonths ? t("{unpaidMonths} mo in arrears", { unpaidMonths: currentUser.unpaidMonths }) : t("Up to date")}</span>
+              <span>{currentUser?.unpaidMonths ? t("{unpaidMonths} mo in arrears", { unpaidMonths: currentUser.unpaidMonths }) : t("Membership contribution up to date")}</span>
             </div>
           </Stat>
-          <Stat icon={HeartHandshake} tone="lavender" title={t("Working Guides")} value={t("Repertoire")} onClick={() => navigate("resources")}>
-            <span className="stat-footnote">{t("Miracle-busting & advocacy manuals")}</span>
+          <Stat
+            icon={BookOpen}
+            tone="lavender"
+            title={t("Science toolkits")}
+            value={t("{count} Toolkits", { count: toolkitsCount })}
+            onClick={() => navigate("resources")}
+          >
+            <span className="stat-footnote">
+              <span className="tiny-dot purple" />
+              {t("Miracle-busting & advocacy manuals")}
+            </span>
           </Stat>
         </div>
       )}
