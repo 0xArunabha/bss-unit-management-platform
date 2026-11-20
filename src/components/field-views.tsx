@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, ReceiptText, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
@@ -824,6 +824,22 @@ function ProcurementCard({
         </div>
       )}
 
+      {item.receiptPhotoUrl && (
+        <div className="procurement-photo-badge" style={{ marginTop: "8px", marginBottom: "4px" }}>
+          <a
+            href={item.receiptPhotoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="arrow-link"
+            style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--ink-mute)" }}
+            title={t("View attached bill photo")}
+          >
+            <ReceiptText size={13} />
+            <span>{t("Cash memo photo attached")}</span>
+          </a>
+        </div>
+      )}
+
       {item.status === "needed" && canWork && (
         <Button variant="secondary" className="full-width board-action" icon={Plus} onClick={() => open("purchase", item)}>
           {t("Log out-of-pocket purchase")}
@@ -1189,6 +1205,7 @@ export function SettingsView({
   pushEnabled,
   installApp,
   busy,
+  open,
 }: {
   data: WorkspaceData;
   perform: PerformAction;
@@ -1196,6 +1213,7 @@ export function SettingsView({
   pushEnabled: boolean;
   installApp: () => void;
   busy: boolean;
+  open?: OpenModal;
 }) {
   const { t, tx, roleName } = useI18n();
   const current = data.profiles.find((p) => p.id === data.currentUserId) || data.profiles[0] || {
@@ -1227,7 +1245,21 @@ export function SettingsView({
   const duesReminder = duesReminderOverride !== null ? duesReminderOverride : storedDuesReminder;
 
   const handleLogout = async () => {
-    if (confirm(t("Log out of the unit workspace on this device?"))) {
+    if (open) {
+      open("confirm", {
+        title: t("Log out of workspace"),
+        message: t("Log out of the unit workspace on this device?"),
+        confirmLabel: t("Log out"),
+        tone: "rust",
+        onConfirm: async () => {
+          await perform("logout", {});
+          try {
+            await authClient.signOut();
+          } catch {}
+          window.location.href = "/";
+        },
+      });
+    } else if (confirm(t("Log out of the unit workspace on this device?"))) {
       await perform("logout", {});
       try {
         await authClient.signOut();

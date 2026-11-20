@@ -158,6 +158,30 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     document.documentElement.classList.toggle("nav-locked", sidebarOpen);
     return () => document.documentElement.classList.remove("nav-locked");
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    const viewTitles: Record<View, string> = {
+      overview: t("Overview"),
+      members: t("Unit Roster"),
+      dues: t("Membership Dues"),
+      donations: t("Donations Register"),
+      events: t("Events & Campaigns"),
+      procurement: t("Procurement Board"),
+      circulars: t("Unit Circulars"),
+      resources: t("Field Resources"),
+      settings: t("Unit Settings"),
+    };
+    const title = viewTitles[view] || t("Workspace");
+    document.title = `${title} · ${t(identity.name)} · ${t(identity.unit)}`;
+  }, [view, locale, t]);
+
+  useEffect(() => {
+    const h1 = document.querySelector<HTMLElement>("main h1, .workspace-main h1");
+    if (h1) {
+      h1.setAttribute("tabindex", "-1");
+      h1.focus({ preventScroll: true });
+    }
+  }, [view]);
   const drawerTouch = useRef<{ x: number; y: number; dx: number; horizontal: boolean | null } | null>(null);
   const onDrawerTouchStart = (e: ReactTouchEvent<HTMLElement>) => {
     const touch = e.touches[0];
@@ -384,7 +408,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       <item.icon size={18} strokeWidth={1.65} />
       <span>{item.label}</span>
       {item.view === "events" && hasActiveCampaign && (
-        <span className="nav-campaign-pill">{t("1 Active")}</span>
+        <span className="nav-campaign-pill">{t("Live")}</span>
       )}
       {item.view === "procurement" && needed > 0 && <span className="nav-count">{num(needed)}</span>}
       {item.view === "members" && <span className="nav-member-count">{num(data.profiles.length)}</span>}
@@ -660,7 +684,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           {view === "procurement" && <ProcurementView data={shown} open={open} navigate={navigate} eventFilter={eventFilter} setEventFilter={setEventFilter} />}
           {view === "circulars" && <CircularsView data={shown} open={open} navigate={navigate} />}
           {view === "resources" && <ResourcesView open={open} data={shown} />}
-          {view === "settings" && <SettingsView data={shown} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} />}
+          {view === "settings" && <SettingsView data={shown} perform={perform} enablePush={() => void enablePush()} pushEnabled={pushEnabled} installApp={() => void installApp()} busy={busy} open={open} />}
         </div>
       </main>
       <nav className="mobile-bottom-nav" aria-label={t("Mobile navigation")}>
@@ -690,6 +714,10 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     </div>
     <ModalExiting value={modalExiting}><WorkspaceModals modal={modal} data={shown} close={close} open={open} perform={perform} busy={busy} error={actionError} navigate={navigate} notify={notify} /></ModalExiting>
     {searchOpen && <GlobalSearch data={shown} close={() => setSearchOpen(false)} open={open} navigate={navigate} />}
+    {/* Permanent live region ensuring screen readers announce toasts */}
+    <div className="sr-only" aria-live="polite" aria-atomic="true">
+      {toast?.message || ""}
+    </div>
     {toast && <div className={`toast ${toast.error ? "toast-error" : ""}`} role="status">{toast.error ? <InfoSymbol /> : <CircleCheck size={19} />}<span>{toast.message}</span><button onClick={() => setToast(null)} aria-label={t("Dismiss message")}><X size={15} /></button></div>}
     <FirstFlushLeaves leaves={leaves} />
   </div>;

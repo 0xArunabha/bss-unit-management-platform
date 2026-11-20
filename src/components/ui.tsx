@@ -98,7 +98,7 @@ export function Modal({ title, subtitle, children, onClose, wide = false }: { ti
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onCloseRef.current();
       if (event.key === "Tab") {
-        const focusable = ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]');
+        const focusable = ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex="0"]');
         if (!focusable?.length) return;
         const first = focusable[0], last = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -174,8 +174,34 @@ export function Modal({ title, subtitle, children, onClose, wide = false }: { ti
     </div>
   );
 }
-export function FormField({ label, children, hint, required }: { label: string; children: ReactNode; hint?: string; required?: boolean }) {
-  return <label className="form-field"><span>{label}{required && <span className="required"> *</span>}</span>{children}{hint && <small>{hint}</small>}</label>;
+export function FormField({
+  label,
+  children,
+  hint,
+  required,
+  error,
+  id,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+  required?: boolean;
+  error?: string;
+  id?: string;
+}) {
+  const hintId = id && hint ? `${id}-hint` : undefined;
+  const errorId = id && error ? `${id}-error` : undefined;
+  return (
+    <label className="form-field" htmlFor={id}>
+      <span>
+        {label}
+        {required && <span className="required"> *</span>}
+      </span>
+      {children}
+      {hint && <small id={hintId}>{hint}</small>}
+      {error && <small id={errorId} className="form-error-text text-rust font-medium" role="alert">{error}</small>}
+    </label>
+  );
 }
 export function SubmitButton({ busy, children }: { busy: boolean; children: ReactNode }) {
   const { t } = useI18n();

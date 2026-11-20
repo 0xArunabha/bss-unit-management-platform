@@ -301,6 +301,9 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                 onChange={handleCodeChange}
                 maxLength={9}
                 autoFocus
+                autoComplete="one-time-code"
+                autoCapitalize="characters"
+                spellCheck={false}
                 required
               />
               <span className="code-help-text">
@@ -351,6 +354,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                 <span>{t("Full Name")}</span>
                 <input
                   type="text"
+                  autoComplete="name"
                   placeholder={t("e.g. Priyabrata Roy")}
                   value={appFullName}
                   onChange={(e) => setAppFullName(e.target.value)}
@@ -362,6 +366,8 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                 <span>{t("Mobile Number (WhatsApp)")}</span>
                 <input
                   type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   placeholder="e.g. 9434012345"
                   value={appPhone}
                   onChange={(e) => setAppPhone(e.target.value)}
@@ -388,6 +394,7 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
                       <span>{t("Parent / Guardian Name (Required under DPDP Act 2023)")}</span>
                       <input
                         type="text"
+                        autoComplete="name"
                         placeholder={t("e.g. Subir Roy (Guardian)")}
                         value={guardianName}
                         onChange={(e) => setGuardianName(e.target.value)}

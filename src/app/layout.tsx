@@ -12,6 +12,14 @@ import "./globals.css";
  */
 const LOCALE_BOOT = `try{var m=document.cookie.match(/(?:^|; )${LOCALE_COOKIE}=(bn|en)/),l=m?m[1]:localStorage.getItem("${LOCALE_STORAGE_KEY}");if(l==="bn"||l==="en")document.documentElement.lang=l}catch(e){}`;
 
+/*
+ * Also before the first paint: decides whether the tea-brew loading screen (components/boot-splash.tsx, rendered by
+ * app/page.tsx) plays.  It plays on the app's home page, once per browser tab session, unless the visitor prefers
+ * reduced motion; add ?splash=1 to the address to replay it.  Everything else gets <html data-splash="skip"> so it
+ * never flashes.
+ */
+const SPLASH_BOOT = `try{var d=document.documentElement,s=0;try{s=sessionStorage.getItem("bss-splash")}catch(e){}if(location.pathname!=="/"||matchMedia("(prefers-reduced-motion: reduce)").matches||(s&&location.search.indexOf("splash=1")<0)){d.setAttribute("data-splash","skip")}else{try{sessionStorage.setItem("bss-splash","1")}catch(e){}}}catch(e){}`;
+
 export const metadata: Metadata = {
   title: identity.title,
   description: identity.description,
@@ -39,6 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: LOCALE_BOOT }} />
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_BOOT }} />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/images/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />

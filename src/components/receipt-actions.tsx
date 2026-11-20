@@ -58,12 +58,27 @@ export default function ReceiptActions({
       <button
         className="button button-secondary"
         onClick={async () => {
+          const url = getUrl();
           try {
-            await navigator.clipboard.writeText(getUrl());
+            await navigator.clipboard.writeText(url);
             setCopied(true);
             setTimeout(() => setCopied(false), 2500);
           } catch {
-            window.prompt(t("Copy this receipt link"), getUrl());
+            const textarea = document.createElement("textarea");
+            textarea.value = url;
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+              document.execCommand("copy");
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2500);
+            } catch {
+              // Fallback silent failure if permissions completely restricted
+            } finally {
+              document.body.removeChild(textarea);
+            }
           }
         }}
         title={t("Copy direct verification link")}

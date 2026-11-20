@@ -553,6 +553,83 @@ function EventDetailModal({
   );
 }
 
+function PurchaseModal({
+  item,
+  data,
+  save,
+  close,
+  formProps,
+}: {
+  item: Procurement;
+  data: WorkspaceData;
+  save: (action: string, values: Record<string, unknown>) => Promise<void>;
+  close: () => void;
+  formProps: { busy: boolean; error: string; close: () => void };
+}) {
+  const { t, money } = useI18n();
+  const [receiptPhotoUrl, setReceiptPhotoUrl] = useState<string | null>(item.receiptPhotoUrl || null);
+
+  return (
+    <Modal title={t("Log Out-of-Pocket Purchase")} subtitle={t("Record exact spend paid by buyer. No pre-approval ceiling blocks procurement.")} onClose={close}>
+      <ActionForm action="purchase" save={save} {...formProps} submit={t("Log exact purchase")}>
+        <input type="hidden" name="id" value={item.id} />
+        <input type="hidden" name="receiptPhotoUrl" value={receiptPhotoUrl || ""} />
+        <div className="item-detail-summary">
+          <span className="stat-icon stat-icon-orange"><Package size={22} /></span>
+          <div>
+            <h3>{item.itemName}</h3>
+            <p>{item.quantity} · {data.events.find((e) => e.id === item.eventId)?.title}</p>
+          </div>
+        </div>
+        <div className="reference-line">
+          <span>{t("Reference Estimated Cost")}</span>
+          <strong className="mono">{money(item.estimatedCost)}</strong>
+        </div>
+        <FormField
+          label={t("Exact amount paid by buyer")}
+          required
+          hint={t("Record the real amount spent, whether below, matching, or exceeding the estimated budget. No pre-approval restriction blocks logging.")}
+        >
+          <div className="currency-input large-input">
+            <span>₹</span>
+            <input name="actualCost" type="number" min="0" step="0.01" placeholder="0.00" inputMode="decimal" required />
+          </div>
+        </FormField>
+        <FormField
+          label={t("Bazaar Bill / Paper Receipt Photo")}
+          hint={t("Optional. Capture photo of cash memo or attach image for venue verification.")}
+        >
+          <div className="bill-photo-input">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = () => setReceiptPhotoUrl(reader.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+            {receiptPhotoUrl && (
+              <div className="mt-2 flex items-center gap-2">
+                <img src={receiptPhotoUrl} alt={t("Receipt preview")} style={{ maxHeight: "72px", borderRadius: "4px", border: "1px solid var(--rule-soft)" }} />
+                <Button variant="secondary" onClick={() => setReceiptPhotoUrl(null)}>{t("Remove photo")}</Button>
+              </div>
+            )}
+          </div>
+        </FormField>
+        <div className="soft-info">
+          <Users size={17} />
+          <span>{t("Status changes to 'Ready to verify'. A second volunteer must physically inspect the item at the venue to close it.")}</span>
+        </div>
+      </ActionForm>
+    </Modal>
+  );
+}
+
 export function WorkspaceModals(props: Props) {
   const { t, tx, num, money, fmtDate, fmtDateTime, monthShort, roleName } = useI18n();
   const { modal, data, close, open, perform, busy, error, navigate, notify } = props;
@@ -562,11 +639,66 @@ export function WorkspaceModals(props: Props) {
   const save = async (action: string, values: Record<string, unknown>) => {
     const result = await perform(action, values);
     if (result) {
-      if (result.receiptId) open("receipt", result.data.donations.find((d) => d.id === result.receiptId));
-      else if (result.claimCode) open("showInviteCode", { code: result.claimCode, message: result.message });
-      else close();
+      if (result.receiptId) {
+        const match = result.data?.donations?.find((d) => d.id === result.receiptId);
+        if (match) {
+          open("receipt", match);
+        } else {
+          open("receipt", {
+            id: result.receiptId,
+            donorName: (values.donorName as string) || "Supporter",
+            donorPhone: (values.donorPhone as string) || null,
+            amount: Number(values.amount) || 0,
+            eventId: (values.eventId as string) || null,
+            paymentMode: (values.paymentMode as string) || "cash",
+            transactionRef: (values.transactionRef as string) || null,
+            receiptNo: `${identity.receiptPrefix}-${new Date().getFullYear()}-${result.receiptId.slice(0, 8).toUpperCase()}`,
+            smsSent: false,
+            receivedBy: null,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      } else if (result.claimCode) {
+        open("showInviteCode", { code: result.claimCode, message: result.message });
+      } else {
+        close();
+      }
     }
   };
+
+  if (modal.type === "confirm") {
+    const record = (modal.record || {}) as {
+      title?: string;
+      message: string;
+      confirmLabel?: string;
+      cancelLabel?: string;
+      tone?: "orange" | "rust" | "olive";
+      onConfirm: () => void | Promise<void>;
+    };
+    return (
+      <Modal title={record.title || t("Please confirm")} onClose={close}>
+        <div className="confirm-modal-content" style={{ padding: "8px 0 16px" }}>
+          <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--ink-2)", margin: "8px 0 24px" }}>
+            {record.message}
+          </p>
+          <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+            <Button variant="secondary" onClick={close}>
+              {record.cancelLabel || t("Cancel")}
+            </Button>
+            <Button
+              variant={record.tone === "rust" ? "dark" : "primary"}
+              onClick={async () => {
+                close();
+                await record.onConfirm();
+              }}
+            >
+              {record.confirmLabel || t("Confirm")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   if (modal.type === "showInviteCode") {
     const record = modal.record as { code: string; message?: string };
@@ -729,13 +861,13 @@ export function WorkspaceModals(props: Props) {
       <Modal title={t("Record Public / Patron Donation")} subtitle={t("Enter contribution details and issue an official verifiable receipt slip.")} onClose={close}>
         <ActionForm action="addDonation" save={save} {...formProps} submit={t("Record & generate receipt")}>
           <FormField label={t("Donor, school, or organization name")} required>
-            <input name="donorName" placeholder={t("e.g. Jalpaiguri Science Patron / Town High School")} maxLength={150} required />
+            <input name="donorName" autoComplete="name" placeholder={t("e.g. Jalpaiguri Science Patron / Town High School")} maxLength={150} required />
           </FormField>
           <div className="form-columns">
             <FormField label={t("Contribution amount (INR)")} required>
               <div className="currency-input large-input">
                 <span>₹</span>
-                <input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required />
+                <input name="amount" type="number" min="0.01" step="0.01" inputMode="decimal" placeholder="0.00" required />
               </div>
             </FormField>
             <FormField label={t("Payment instrument")} required>
@@ -747,7 +879,7 @@ export function WorkspaceModals(props: Props) {
             </FormField>
           </div>
           <FormField label={t("Donor mobile number (for SMS receipt gateway)")} hint={t("Optional. Format: +91 94340 XXXXX. Automated SMS alert dispatched upon entry.")}>
-            <input type="tel" name="donorPhone" placeholder="+91" maxLength={16} />
+            <input type="tel" name="donorPhone" inputMode="tel" autoComplete="tel" placeholder="+91" maxLength={16} />
           </FormField>
           <FormField label={t("Allocated outreach purpose")}>
             <select name="eventId">
@@ -790,10 +922,10 @@ export function WorkspaceModals(props: Props) {
       <Modal title={t("Enroll New Member")} subtitle={t("Add advocate or volunteer organizer to {fullName}", { fullName: t(identity.fullName) })} onClose={close}>
         <ActionForm action="addMember" save={save} {...formProps} submit={t("Enroll member")}>
           <FormField label={t("Full name")} required>
-            <input name="fullName" placeholder={t("Member’s full legal name")} required maxLength={150} />
+            <input name="fullName" autoComplete="name" placeholder={t("Member’s full legal name")} required maxLength={150} />
           </FormField>
           <FormField label={t("Mobile number (optional)")}>
-            <input name="phone" type="tel" placeholder={t("10-digit mobile number")} maxLength={30} />
+            <input name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder={t("10-digit mobile number")} maxLength={30} />
           </FormField>
           <div className="form-columns">
             <FormField label={t("Designated role")}>
@@ -807,7 +939,7 @@ export function WorkspaceModals(props: Props) {
             <FormField label={t("Monthly contribution pledge")} hint={t("Strict baseline minimum: ₹20/month. No upper cap.")} required>
               <div className="currency-input">
                 <span>₹</span>
-                <input name="monthlyPledge" type="number" min="20" step="0.01" defaultValue="20" required />
+                <input name="monthlyPledge" type="number" min="20" step="0.01" inputMode="numeric" defaultValue="20" required />
               </div>
             </FormField>
           </div>
@@ -845,7 +977,7 @@ export function WorkspaceModals(props: Props) {
             <FormField label={t("Estimated reference cost")} required hint={t("Reference estimate only. Exact spend will be logged by buyer.")}>
               <div className="currency-input">
                 <span>₹</span>
-                <input name="estimatedCost" type="number" min="0" step="0.01" placeholder="0.00" required />
+                <input name="estimatedCost" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00" required />
               </div>
             </FormField>
           </div>
@@ -859,38 +991,14 @@ export function WorkspaceModals(props: Props) {
   }
 
   if (modal.type === "purchase") {
-    const item = modal.record as Procurement;
     return (
-      <Modal title={t("Log Out-of-Pocket Purchase")} subtitle={t("Record exact spend paid by buyer. No pre-approval ceiling blocks procurement.")} onClose={close}>
-        <ActionForm action="purchase" save={save} {...formProps} submit={t("Log exact purchase")}>
-          <input type="hidden" name="id" value={item.id} />
-          <div className="item-detail-summary">
-            <span className="stat-icon stat-icon-orange"><Package size={22} /></span>
-            <div>
-              <h3>{item.itemName}</h3>
-              <p>{item.quantity} · {data.events.find((e) => e.id === item.eventId)?.title}</p>
-            </div>
-          </div>
-          <div className="reference-line">
-            <span>{t("Reference Estimated Cost")}</span>
-            <strong className="mono">{money(item.estimatedCost)}</strong>
-          </div>
-          <FormField
-            label={t("Exact amount paid by buyer")}
-            required
-            hint={t("Record the real amount spent, whether below, matching, or exceeding the estimated budget. No pre-approval restriction blocks logging.")}
-          >
-            <div className="currency-input large-input">
-              <span>₹</span>
-              <input name="actualCost" type="number" min="0" step="0.01" placeholder="0.00" required />
-            </div>
-          </FormField>
-          <div className="soft-info">
-            <Users size={17} />
-            <span>{t("Status changes to 'Ready to verify'. A second volunteer must physically inspect the item at the venue to close it.")}</span>
-          </div>
-        </ActionForm>
-      </Modal>
+      <PurchaseModal
+        item={modal.record as Procurement}
+        data={data}
+        save={save}
+        close={close}
+        formProps={formProps}
+      />
     );
   }
 
@@ -914,6 +1022,15 @@ export function WorkspaceModals(props: Props) {
             <span>{t("Exact Out-of-Pocket Spend Recorded")}</span>
             <strong className="mono text-rust">{money(item.actualCost || 0)}</strong>
           </div>
+
+          {item.receiptPhotoUrl && (
+            <div className="bill-photo-inspection" style={{ margin: "14px 0", padding: "10px", background: "var(--paper-warm, #ece5d3)", borderRadius: "4px", border: "1px solid var(--rule-soft, #d5cbba)" }}>
+              <span style={{ fontSize: "11px", fontWeight: "600", display: "block", marginBottom: "6px", color: "var(--ink-2)" }}>{t("Attached Cash Memo / Paper Receipt:")}</span>
+              <a href={item.receiptPhotoUrl} target="_blank" rel="noreferrer" title={t("Click to view full receipt")}>
+                <img src={item.receiptPhotoUrl} alt={t("Cash memo photo")} style={{ maxHeight: "110px", borderRadius: "3px", objectFit: "contain", border: "1px solid #d0c8b6" }} />
+              </a>
+            </div>
+          )}
 
           {own ? (
             <div className="form-warning">
@@ -1327,13 +1444,13 @@ function DuesCollector({ data, record, save, busy, error, close }: { data: Works
           <FormField label={t("Total received (lump-sum allowed)")} required>
             <div className="currency-input large-input">
               <span>₹</span>
-              <input type="number" name="amount" value={amount} min="20" step="0.01" onChange={(e) => setAmount(e.target.value)} required />
+              <input type="number" name="amount" value={amount} min="20" step="0.01" inputMode="decimal" onChange={(e) => setAmount(e.target.value)} required />
             </div>
           </FormField>
           <FormField label={t("Monthly dues rate")} required hint={t("Strict baseline: min ₹20. Custom higher recurring pledge allowed.")}>
             <div className="currency-input large-input">
               <span>₹</span>
-              <input type="number" name="monthlyAmount" value={monthly} min="20" step="0.01" onChange={(e) => setMonthly(e.target.value)} required />
+              <input type="number" name="monthlyAmount" value={monthly} min="20" step="0.01" inputMode="decimal" onChange={(e) => setMonthly(e.target.value)} required />
             </div>
           </FormField>
         </div>

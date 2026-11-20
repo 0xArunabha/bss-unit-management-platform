@@ -536,7 +536,7 @@ export const demoApplicationsStore: MembershipApplication[] = [];
 
 export async function executeDemoAction(action: string, body: any, currentUserId: string): Promise<{ message: string; receiptId?: string; nextUser?: string; claimCode?: string }> {
   const state = getInMemoryState();
-  const isPublicAction = ["claimInviteCode", "applyToJoin", "checkMemberDues"].includes(action);
+  const isPublicAction = ["claimInviteCode", "applyToJoin", "addDonation"].includes(action);
   const foundUser = state.profiles.find((p) => p.id === currentUserId);
   if (!isPublicAction && !foundUser) {
     throw new Error("Please log in to the workspace with your member account.");
@@ -852,6 +852,9 @@ export async function executeDemoAction(action: string, body: any, currentUserId
       if (item) {
         item.status = "purchased";
         item.actualCost = Number(body.actualCost) || item.estimatedCost;
+        if (body.receiptPhotoUrl && typeof body.receiptPhotoUrl === "string") {
+          item.receiptPhotoUrl = body.receiptPhotoUrl;
+        }
         item.purchasedBy = user.id;
         item.purchasedAt = new Date().toISOString();
         message = "Purchase recorded. Ready for peer verification.";

@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { type WorkspaceData, type View, type UnitEvent, type Circular, type Procurement } from "@/lib/types";
 import { Avatar, Badge, Button, PageHeading, SectionTitle, ArrowLink, relativeTime } from "@/components/ui";
@@ -28,6 +28,8 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
   const ongoingCampaign = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent)[0];
+  const [urgentAlertDismissed, setUrgentAlertDismissed] = useState(false);
+  const pendingAppsCount = (data.applications || []).filter((a) => a.status === "pending").length;
 
   const inPeriod = (date: string) =>
     period === "All time" ||
@@ -86,30 +88,97 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             </div>
           )}
         </div>
+        {isExecutive && pendingAppsCount > 0 && (
+          <Button
+            variant="secondary"
+            icon={ClipboardList}
+            onClick={() => open("reviewApplications")}
+          >
+            {t("Review applications")}
+            <span className="badge badge-orange ml-1.5" style={{ fontSize: "10px", padding: "1px 6px" }}>{pendingAppsCount}</span>
+          </Button>
+        )}
         {canCollect && <Button icon={Plus} onClick={() => open("dues")}>{t("Quick collect")}</Button>}
       </PageHeading>
 
       {/* Urgent Field Requisition Broadcast Alert if any items needed within 48h */}
-      {urgentItems.length > 0 && (
-        <div className="urgent-dispatch-banner print-tech-slip mb-5">
-          <span className="print-mark print-mark-tl slip-mark" />
-          <span className="print-mark print-mark-tr slip-mark" />
-          <div className="urgent-dispatch-left">
-            <span className="stamp-needed text-[length:max(7.5px,var(--fs-floor,0px))] font-bold">
-              <ShieldAlert size={12} className="inline mr-1" />
-              {t("URGENT FIELD DISPATCH <48H")}
-            </span>
-            <p>
-              {tx("<strong>{count} requisitions urgently needed</strong> for upcoming programme: <em>{title}</em>. Volunteers may log out-of-pocket purchases.", { count: urgentItems.length, title: data.events.find((e) => e.id === urgentItems[0]?.eventId)?.title })}
-            </p>
+      {urgentItems.length > 0 && !urgentAlertDismissed && (() => {
+        const urgentEvents = Array.from(new Set(urgentItems.map((p) => p.eventId)))
+          .map((id) => data.events.find((e) => e.id === id))
+          .filter(Boolean);
+        const urgentEventTitles = urgentEvents.map((e) => e?.title).join(" · ");
+        return (
+          <div className="urgent-dispatch-banner print-tech-slip mb-5">
+            <span className="print-mark print-mark-tl slip-mark" />
+            <span className="print-mark print-mark-tr slip-mark" />
+            <div className="urgent-dispatch-left">
+              <span className="stamp-needed text-[length:max(7.5px,var(--fs-floor,0px))] font-bold">
+                <ShieldAlert size={12} className="inline mr-1" />
+                {t("URGENT FIELD DISPATCH <48H")}
+              </span>
+              <p>
+                {urgentEvents.length > 1
+                  ? tx("<strong>{count} requisitions urgently needed</strong> across {eventsCount} programmes: <em>{titles}</em>. Volunteers may log out-of-pocket purchases.", { count: urgentItems.length, eventsCount: urgentEvents.length, titles: urgentEventTitles })
+                  : tx("<strong>{count} requisitions urgently needed</strong> for upcoming programme: <em>{title}</em>. Volunteers may log out-of-pocket purchases.", { count: urgentItems.length, title: urgentEventTitles })}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="button button-dark text-xs whitespace-nowrap"
+                onClick={() => navigate("procurement", urgentItems[0]?.eventId)}
+              >
+                {t("Open requisition board")} <ArrowRight size={13} />
+              </button>
+              <button
+                className="icon-button"
+                onClick={() => setUrgentAlertDismissed(true)}
+                aria-label={t("Dismiss urgent alert")}
+                title={t("Dismiss alert")}
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
-          <button
-            className="button button-dark text-xs whitespace-nowrap"
-            onClick={() => navigate("procurement", urgentItems[0]?.eventId)}
-          >
-            {t("Open requisition board")} <ArrowRight size={13} />
+        );
+      })()}
+
+      {/* Actionable items hoisted above decorative hero for logged-in members & organizers */}
+      {(isExecutive || isVolunteerOrOrganizer) && items.length > 0 && (
+        <section className="panel procurement-panel mb-6">
+          <SectionTitle title={t("A few things need a hand")} subtitle={t("Requisitions pending out-of-pocket purchase or peer check.")}>
+            <ArrowLink onClick={() => navigate("procurement")}>{t("View checklist")}</ArrowLink>
+          </SectionTitle>
+          <div className="attention-table">
+            <div className="attention-table-head">
+              <span>{t("ITEM & EVENT")}</span>
+              <span>{t("STAGE")}</span>
+              <span>{t("EST. COST")}</span>
+              <span />
+            </div>
+            {items.map((item, idx) => (
+              <AttentionRow
+                key={item.id}
+                item={item}
+                data={data}
+                index={idx + 1}
+                onClick={() =>
+                  item.status === "needed"
+                    ? open("purchase", item)
+                    : item.status === "purchased"
+                    ? open("verify", item)
+                    : navigate("procurement", item.eventId)
+                }
+              />
+            ))}
+          </div>
+          <button className="panel-footer attention-footer" onClick={() => navigate("procurement")}>
+            <span>
+              <span className="attention-dot" />{t("{count} items still needed", { count: needed })}
+              <span className="footer-divider">·</span>{t("Every helping hand counts.")}
+            </span>
+            <ArrowRight size={15} />
           </button>
-        </div>
+        </section>
       )}
 
       {/* Two-ink poster banner */}
@@ -349,45 +418,6 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
       })}
 
       <div className="dashboard-grid">
-        {/* Procurements panel: strictly visible to volunteers and executives only */}
-        {(isExecutive || isVolunteerOrOrganizer) && items.length > 0 && (
-          <section className="panel procurement-panel">
-            <SectionTitle title={t("A few things need a hand")} subtitle={t("Requisitions pending out-of-pocket purchase or peer check.")}>
-              <ArrowLink onClick={() => navigate("procurement")}>{t("View checklist")}</ArrowLink>
-            </SectionTitle>
-            <div className="attention-table">
-              <div className="attention-table-head">
-                <span>{t("ITEM & EVENT")}</span>
-                <span>{t("STAGE")}</span>
-                <span>{t("EST. COST")}</span>
-                <span />
-              </div>
-              {items.map((item, idx) => (
-                <AttentionRow
-                  key={item.id}
-                  item={item}
-                  data={data}
-                  index={idx + 1}
-                  onClick={() =>
-                    item.status === "needed"
-                      ? open("purchase", item)
-                      : item.status === "purchased"
-                      ? open("verify", item)
-                      : navigate("procurement", item.eventId)
-                  }
-                />
-              ))}
-            </div>
-            <button className="panel-footer attention-footer" onClick={() => navigate("procurement")}>
-              <span>
-                <span className="attention-dot" />{t("{count} items still needed", { count: needed })}
-                <span className="footer-divider">·</span>{t("Every helping hand counts.")}
-              </span>
-              <ArrowRight size={15} />
-            </button>
-          </section>
-        )}
-
         {/* Public Action Hub if Guest or Member without procurement */}
         {!isExecutive && !isVolunteerOrOrganizer && (
           <section className="panel public-hub-panel" style={{ padding: "24px" }}>

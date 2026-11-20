@@ -1,8 +1,8 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Clock3, HeartHandshake, IdCard, IndianRupee, KeyRound, MessageCircle, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, Unlink, UserPlus, Users, Wallet } from "lucide-react";
-import { useState } from "react";
+import { ArrowDownLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, ClipboardList, Clock3, HeartHandshake, IdCard, IndianRupee, KeyRound, MessageCircle, MessageSquare, Plus, ReceiptText, Search, Send, ShieldCheck, Unlink, UserPlus, Users, Wallet } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { type WorkspaceData, type DuesRecord, type Donation, type PerformAction, type Role, months } from "@/lib/types";
 import { Badge, Button, EmptyState, ExportButton, PageHeading, SearchInput, Select, downloadCsv } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
@@ -60,6 +60,7 @@ export function MembersView({ data, open, perform }: Props) {
   const shown = people.slice(page * 12, page * 12 + 12);
   const inactiveCount = data.profiles.filter((p) => p.status === "inactive" || (p.unpaidMonths || 0) >= 6).length;
   const volunteerCount = data.profiles.filter((p) => ["volunteer", "organizer", "admin"].includes(p.role)).length;
+  const pendingAppsCount = (data.applications || []).filter((a) => a.status === "pending").length;
 
   return (
     <div className="view-enter">
@@ -68,16 +69,32 @@ export function MembersView({ data, open, perform }: Props) {
         title={t("Active members & volunteer organizers.")}
         description={t("Unit membership roster for {fullName}. Baseline pledge ₹20/month with voluntary higher contributions.", { fullName: t(identity.fullName) })}
       >
-        {isExecutive && <Button icon={UserPlus} onClick={() => open("member")}>{t("Add member")}</Button>}
+        {isExecutive && (
+          <div className="flex items-center gap-2">
+            <Button icon={UserPlus} onClick={() => open("member")}>{t("Add member")}</Button>
+            <Button
+              variant="secondary"
+              icon={ClipboardList}
+              onClick={() => open("reviewApplications")}
+            >
+              {t("Review applications")}
+              {pendingAppsCount > 0 && (
+                <span className="badge badge-orange ml-1.5" style={{ fontSize: "10px", padding: "1px 6px" }}>
+                  {num(pendingAppsCount)}
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
       </PageHeading>
 
       <div className="mini-stats-grid">
-        <MiniStat icon={Users} title={t("Unit members")} value={String(data.profiles.length)} detail={t("Enrolled advocates & volunteers across Jalpaiguri")} />
-        <MiniStat icon={ShieldCheck} title={t("Active field organizers")} value={String(volunteerCount)} detail={t("Empowered for procurement verification & dues collection")} tone="sage" />
+        <MiniStat icon={Users} title={t("Unit members")} value={num(data.profiles.length)} detail={t("Enrolled advocates & volunteers across Jalpaiguri")} />
+        <MiniStat icon={ShieldCheck} title={t("Active field organizers")} value={num(volunteerCount)} detail={t("Empowered for procurement verification & dues collection")} tone="sage" />
         <MiniStat
           icon={Clock3}
           title={t("Flagged dues pending (6+ mo)")}
-          value={String(inactiveCount)}
+          value={num(inactiveCount)}
           detail={t("Automatic threshold: 6 consecutive unpaid months flags inactive")}
           tone="orange"
         />
@@ -98,7 +115,7 @@ export function MembersView({ data, open, perform }: Props) {
                 onClick={() => { setFilter(String(v)); setPage(0); }}
               >
                 {label}
-                <span>{count}</span>
+                <span>{num(count as number)}</span>
               </button>
             ))}
           </div>
@@ -259,10 +276,16 @@ export function MembersView({ data, open, perform }: Props) {
                           <button
                             className="table-action table-action-muted"
                             title={t("Unlink Google account so member can re-claim")}
-                            onClick={async () => {
-                              if (confirm(t("Unlink Google account for {fullName}? They will require a new invite code to log in.", { fullName: p.fullName }))) {
-                                if (perform) await perform("unlinkGoogle", { memberId: p.id });
-                              }
+                            onClick={() => {
+                              open("confirm", {
+                                title: t("Unlink Google Account"),
+                                message: t("Unlink Google account for {fullName}? They will require a new invite code to log in.", { fullName: p.fullName }),
+                                confirmLabel: t("Unlink Account"),
+                                tone: "rust",
+                                onConfirm: async () => {
+                                  if (perform) await perform("unlinkGoogle", { memberId: p.id });
+                                },
+                              });
                             }}
                           >
                             <Unlink size={14} />
@@ -404,10 +427,16 @@ export function MembersView({ data, open, perform }: Props) {
                     <button
                       className="mobile-card-action-btn muted"
                       title={t("Unlink Google account")}
-                      onClick={async () => {
-                        if (confirm(t("Unlink Google account for {fullName}?", { fullName: p.fullName }))) {
-                          if (perform) await perform("unlinkGoogle", { memberId: p.id });
-                        }
+                      onClick={() => {
+                        open("confirm", {
+                          title: t("Unlink Google Account"),
+                          message: t("Unlink Google account for {fullName}?", { fullName: p.fullName }),
+                          confirmLabel: t("Unlink Account"),
+                          tone: "rust",
+                          onConfirm: async () => {
+                            if (perform) await perform("unlinkGoogle", { memberId: p.id });
+                          },
+                        });
                       }}
                     >
                       <Unlink size={13} />
@@ -446,6 +475,19 @@ export function DuesView({ data, open }: Props) {
   const user = data.profiles.find((p) => p.id === data.currentUserId);
   const isExecutive = user ? user.role === "admin" : false;
   const canCollect = user ? user.role !== "member" : false;
+  const matrixScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (matrixScrollRef.current) {
+      const currentCell = matrixScrollRef.current.querySelector<HTMLElement>("th.current-month, td.current-month");
+      if (currentCell) {
+        const stickyCol = matrixScrollRef.current.querySelector<HTMLElement>("th:first-child");
+        const stickyWidth = stickyCol ? stickyCol.offsetWidth : 160;
+        const targetScroll = currentCell.offsetLeft - stickyWidth - 12;
+        matrixScrollRef.current.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
+      }
+    }
+  }, [year]);
 
   // Non-executives only view their own personal dues history card
   if (!isExecutive) {
@@ -472,16 +514,16 @@ export function DuesView({ data, open }: Props) {
           <MiniStat
             icon={CircleCheck}
             title={t("Dues Status")}
-            value={user?.unpaidMonths ? t("{count} mo pending", { count: user.unpaidMonths }) : t("Up to date")}
+            value={user?.unpaidMonths ? t("{count} mo pending", { count: num(user.unpaidMonths) }) : t("Up to date")}
             detail={user?.unpaidMonths ? t("Contribution due for recent months") : t("All monthly pledges cleared")}
             tone={user?.unpaidMonths ? "yellow" : "sage"}
           />
-          <MiniStat icon={ReceiptText} title={t("Verified Slips")} value={String(data.dues.length)} detail={t("Official digital treasury receipts")} tone="blue" />
+          <MiniStat icon={ReceiptText} title={t("Verified Slips")} value={num(data.dues.length)} detail={t("Official digital treasury receipts")} tone="blue" />
         </div>
 
         <section className="panel register-panel">
           <div className="section-title" style={{ padding: "16px 20px" }}>
-            <h3>{t("Recorded Payment Ledger")}</h3>
+            <h2>{t("Recorded Payment Ledger")}</h2>
             <p style={{ margin: 0, fontSize: "13px", color: "var(--muted, #666)" }}>{t("Audited dues receipts acknowledged by unit executive.")}</p>
           </div>
 
@@ -566,11 +608,11 @@ export function DuesView({ data, open }: Props) {
       </PageHeading>
 
       <div className="mini-stats-grid">
-        <MiniStat icon={Wallet} title={t("Ledger collected in {year}", { year })} value={money(yearTotal)} detail={t("Cash, UPI & Bank transfers audited by unit executives")} />
+        <MiniStat icon={Wallet} title={t("Ledger collected in {year}", { year: Number(year) })} value={money(yearTotal)} detail={t("Cash, UPI & Bank transfers audited by unit executives")} />
         <MiniStat
           icon={CircleCheck}
           title={t("{month} {year} collected", { month: monthShort(now.getMonth()), year: now.getFullYear() })}
-          value={`${paidCurrentMonth.length} / ${data.profiles.length}`}
+          value={`${num(paidCurrentMonth.length)} / ${num(data.profiles.length)}`}
           detail={t("{percent}% of members up-to-date this month", { percent: Math.round((paidCurrentMonth.length / data.profiles.length) * 100) })}
           tone="sage"
         />
@@ -609,7 +651,7 @@ export function DuesView({ data, open }: Props) {
           <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(0); }} placeholder={t("Find member in matrix…")} />
         </div>
 
-        <div className="table-scroll matrix-scroll">
+        <div className="table-scroll matrix-scroll" ref={matrixScrollRef}>
           <table className="data-table dues-matrix print-ruled-ledger">
             <thead>
               <tr>
@@ -671,7 +713,7 @@ export function DuesView({ data, open }: Props) {
                                 : open("dues", { memberId: p.id, month: index + 1, year: Number(year) })
                             }
                           >
-                            {payment ? (isAdvance ? t("ADV {amount}", { amount: payment.amount }) : `₹${payment.amount}`) : isFuture ? "·" : "—"}
+                            {payment ? (isAdvance ? t("ADV {amount}", { amount: num(payment.amount) }) : `₹${num(payment.amount)}`) : isFuture ? "·" : "—"}
                           </button>
                         </td>
                       );
@@ -710,7 +752,7 @@ export function DuesView({ data, open }: Props) {
 }
 
 export function DonationsView({ data, open }: Props) {
-  const { t, money, fmtDate, monthShort } = useI18n();
+  const { t, money, fmtDate, monthShort, num } = useI18n();
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState("all");
   const [page, setPage] = useState(0);
@@ -785,7 +827,7 @@ export function DonationsView({ data, open }: Props) {
       <div className="mini-stats-grid">
         <MiniStat icon={HeartHandshake} title={t("Total donation fund")} value={money(total)} detail={t("External contributions powering public science conventions")} tone="lavender" />
         <MiniStat icon={Wallet} title={t("{month} {year} contributions", { month: monthShort(now.getMonth()), year: now.getFullYear() })} value={money(monthly)} detail={t("Audited cash, UPI, and bank transfers")} tone="sage" />
-        <MiniStat icon={ReceiptText} title={t("Digital slips issued")} value={String(data.donations.length)} detail={t("Universal sharing enabled via WhatsApp, Telegram & PDF")} />
+        <MiniStat icon={ReceiptText} title={t("Digital slips issued")} value={num(data.donations.length)} detail={t("Universal sharing enabled via WhatsApp, Telegram & PDF")} />
       </div>
 
       <section className="panel register-panel">
@@ -962,7 +1004,7 @@ function Pagination({ page, total, size, setPage }: { page: number; total: numbe
   return (
     <div className="pagination">
       <span>
-        {t("Showing")} {total ? page * size + 1 : 0}{t("–{min} of {total} records", { min: Math.min((page + 1) * size, total), total })}
+        {t("Showing")} {num(total ? page * size + 1 : 0)}{t("–{min} of {total} records", { min: Math.min((page + 1) * size, total), total })}
       </span>
       <div>
         <button className="icon-button" aria-label={t("Previous page")} disabled={page === 0} onClick={() => setPage(page - 1)}>

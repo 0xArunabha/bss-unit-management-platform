@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { getWorkspace } from "@/lib/workspace";
 import Workspace from "@/components/workspace";
+import BootSplash from "@/components/boot-splash";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 import { auth } from "@/lib/auth";
 import { db, isDatabaseConfigured } from "@/db";
@@ -41,5 +42,10 @@ export default async function HomePage() {
   }
 
   const data = await getWorkspace(authenticatedUserId || undefined);
-  return <Workspace initialData={data} initialGoogleEmail={pendingGoogleEmail} initialLocale={initialLocale} />;
+  return (
+    <>
+      <BootSplash />
+      <Workspace initialData={data} initialGoogleEmail={pendingGoogleEmail} initialLocale={initialLocale} />
+    </>
+  );
 }

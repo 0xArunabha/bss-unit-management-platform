@@ -501,7 +501,8 @@ export async function POST(request: NextRequest) {
         requireRole(["admin", "organizer", "volunteer"]);
         const itemId = id(body.id);
         const actualCost = number(body.actualCost, "Exact amount paid");
-        const [item] = await db.update(procurements).set({ status: "purchased", actualCost, purchasedBy: user.id, purchasedAt: new Date() }).where(and(eq(procurements.id, itemId), eq(procurements.status, "needed"))).returning();
+        const receiptPhotoUrl = typeof body.receiptPhotoUrl === "string" && body.receiptPhotoUrl.trim() ? body.receiptPhotoUrl.trim() : null;
+        const [item] = await db.update(procurements).set({ status: "purchased", actualCost, purchasedBy: user.id, purchasedAt: new Date(), receiptPhotoUrl }).where(and(eq(procurements.id, itemId), eq(procurements.status, "needed"))).returning();
         if (!item) throw new Error("This item has already been purchased. Refresh the checklist.");
         await log("purchase", `${item.itemName} purchased`, `${user.fullName} logged the exact spend. A second volunteer can now verify it.`, item.id, actualCost);
         message = "Purchase recorded. Ready for independent peer verification.";
