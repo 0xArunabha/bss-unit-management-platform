@@ -47,7 +47,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   if (!hasMashkalaibari) {
     validEvents.push({
       id: "20000000-0000-4000-8000-000000000005",
-      title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
+      title: "Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
       description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.",
       location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri",
       startsAt: new Date("2026-11-03T08:00:00.000Z"),
@@ -68,7 +68,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   if (!hasEnvironmentDay) {
     validEvents.push({
       id: "20000000-0000-4000-8000-000000000006",
-      title: "Campaign: Save River Karala & Relocate Toxic Civic Dumping Ground",
+      title: "Save River Karala & Relocate Toxic Civic Dumping Ground",
       description: "Decisive grassroots environmental advocacy and citizen mobilization uniting Light of Science and Relief and Public Welfare Society. Successfully secured municipal budget sanction for comprehensive Karala river desiltation and initiated relocation proceedings for the hazardous municipal dumping ground away from town residential wards.",
       location: "Kotwali Thana More to Kadamtala & Municipality Office, Jalpaiguri",
       startsAt: new Date("2026-06-05T09:30:00.000Z"),
@@ -89,7 +89,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
   if (!hasPrafulla) {
     validEvents.push({
       id: "20000000-0000-4000-8000-000000000008",
-      title: "Campaign: Acharya Prafulla Chandra Ray Birth Anniversary & Assam Flood Relief Drive",
+      title: "Acharya Prafulla Chandra Ray Birth Anniversary & Assam Flood Relief Drive",
       description: "Observance of Acharya Prafulla Chandra Ray's birth anniversary by Light of Science Club at Kadamtala, followed by a joint humanitarian flood relief collection drive across Jalpaiguri town for flood-affected families in Assam in collaboration with Students' Action Front.",
       location: "Kadamtala More & Jalpaiguri Town, Jalpaiguri",
       startsAt: new Date("2024-08-02T09:30:00.000Z"),

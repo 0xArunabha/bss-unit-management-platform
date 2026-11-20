@@ -28,12 +28,14 @@ function CampaignHeroCard({
   expandedRoadmaps: Record<string, boolean>;
   setExpandedRoadmaps: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
-  const { locale, t, tx, num } = useI18n();
+  const { locale, t, tx, num, fmtDate } = useI18n();
   const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
   const totalMilestones = campaign.milestones?.length || 0;
   const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
   const isExpanded = expandedRoadmaps[campaign.id] ?? campaign.isOngoing;
   const isCompleted = !campaign.isOngoing;
+  const date = new Date(campaign.startsAt);
+  const displayTitle = campaign.title.replace(/^Campaign:\s*/i, "");
 
   // Find matching circular report if any
   const titleLower = campaign.title.toLowerCase();
@@ -47,28 +49,24 @@ function CampaignHeroCard({
 
   return (
     <section
-      className={`campaign-hero-card panel mb-7 print-tech-slip ${isCompleted ? "border-l-4 border-l-[#2d6a4f]" : ""}`}
+      className={`campaign-hero-card panel mb-7 print-tech-slip ${isCompleted ? "campaign-card-concluded border-l-4 border-l-[#2d6a4f]" : ""}`}
       key={campaign.id}
     >
       <div className="campaign-hero-grid">
         <div className="campaign-hero-image-wrap">
           <img
             src={campaign.image}
-            alt={campaign.title}
+            alt={displayTitle}
             style={{ objectPosition: "center 42%" }}
             onError={(e) => {
               e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
             }}
           />
-          {campaign.isOngoing ? (
+          {/* Only display live tag for active ongoing campaigns so photos on concluded cards are completely unobstructed */}
+          {campaign.isOngoing && (
             <span className="campaign-live-tag">
               <span className="live-dot" />
               {t("ACTIVE CAMPAIGN")}
-            </span>
-          ) : (
-            <span className="campaign-live-tag bg-[#1b4332] text-[#d8f3dc] border border-[#52b788]">
-              <CircleCheck size={12} className="text-[#74c69d]" />
-              {t("CONCLUDED CAMPAIGN")}
             </span>
           )}
           <span className="campaign-location-pill">
@@ -80,133 +78,184 @@ function CampaignHeroCard({
         <div className="campaign-hero-content">
           <div>
             <div className="campaign-meta-row">
-              <span className={`eyebrow ${isCompleted ? "text-[#2d6a4f]" : "text-rust"}`}>
-                {isCompleted ? t("CONCLUDED CAMPAIGN") : t("ACTIVE CAMPAIGN")}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`eyebrow ${isCompleted ? "text-[#2d6a4f]" : "text-rust"}`}>
+                  {isCompleted ? t("CONCLUDED CAMPAIGN") : t("ACTIVE CAMPAIGN")}
+                </span>
+                <span className="campaign-meta-bullet text-ink-faint">·</span>
+                <span className="campaign-date-tag">
+                  <CalendarDays size={12} />
+                  {fmtDate(date, { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+              </div>
               <span className="campaign-volunteers-tag">
-                <Users size={13} />
+                <Users size={12} />
                 {isCompleted
                   ? t("{count} Mobilized Advocates", { count: campaign.volunteers })
                   : t("{count} Active Advocates", { count: campaign.volunteers })}
               </span>
             </div>
 
-            <h2>{campaign.title}</h2>
-            <p className="campaign-hero-desc">{campaign.description}</p>
+            <h2>{t(displayTitle)}</h2>
+            <p className="campaign-hero-desc">{t(campaign.description)}</p>
           </div>
 
-          {/* Progress Bar Container */}
-          <div className="campaign-progress-box">
-            <div className="campaign-progress-header">
-              <span className="campaign-progress-label mono">
-                {campaign.isOngoing ? (
-                  tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })
-                ) : (
-                  <strong className="text-[#2d6a4f]">{t("CAMPAIGN TARGET: 100% ACHIEVED & DELIVERED")}</strong>
-                )}
-              </span>
-              <span className={`campaign-phase-badge ${isCompleted ? "bg-[#e8f3ea] text-[#1b4332] border border-[#a3c9a8]" : ""}`}>
-                {campaign.isOngoing
-                  ? t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })
-                  : t("ALL {count} PHASES DELIVERED", { count: totalMilestones })}
-              </span>
-            </div>
-            <div className="campaign-progress-track">
-              <div
-                className={`campaign-progress-fill ${isCompleted ? "bg-[#2d6a4f]" : ""}`}
-                style={{ width: `${campaign.progressPercent || (isCompleted ? 100 : 20)}%` }}
-              />
-            </div>
-            <div className="campaign-progress-footer">
-              <span>
-                {isCompleted
-                  ? t("✓ All {total} milestones successfully verified", { total: totalMilestones })
-                  : t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
-              </span>
-              {campaign.targetGoal && (
-                <span className="campaign-target-goal" title={campaign.targetGoal}>
-                  {isCompleted
-                    ? t("Delivered: {goal}", { goal: campaign.targetGoal })
-                    : t("Goal: {goal}", { goal: campaign.targetGoal })}
+          {/* ACTIVE CAMPAIGN: Full Progress Bar Container */}
+          {campaign.isOngoing ? (
+            <div className="campaign-progress-box">
+              <div className="campaign-progress-header">
+                <span className="campaign-progress-label mono">
+                  {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })}
                 </span>
+                <span className="campaign-phase-badge">
+                  {t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })}
+                </span>
+              </div>
+              <div className="campaign-progress-track">
+                <div
+                  className="campaign-progress-fill"
+                  style={{ width: `${campaign.progressPercent || 20}%` }}
+                />
+              </div>
+              <div className="campaign-progress-footer">
+                <span>
+                  {t("✓ {done} of {total} milestones achieved", { done: completedMilestones, total: totalMilestones })}
+                </span>
+                {campaign.targetGoal && (
+                  <span className="campaign-target-goal" title={campaign.targetGoal}>
+                    {t("Goal: {goal}", { goal: campaign.targetGoal })}
+                  </span>
+                )}
+              </div>
+
+              {/* Expandable Phased Roadmap Accordion */}
+              {campaign.milestones && campaign.milestones.length > 0 && (
+                <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
+                  <button
+                    type="button"
+                    className="campaign-accordion-toggle"
+                    onClick={() =>
+                      setExpandedRoadmaps((prev) => ({
+                        ...prev,
+                        [campaign.id]: !isExpanded,
+                      }))
+                    }
+                    aria-expanded={isExpanded}
+                  >
+                    <span>
+                      {isExpanded
+                        ? t("Collapse Roadmap")
+                        : t("Inspect {count}-Phase Action Plan", { count: totalMilestones })}
+                    </span>
+                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+                  <span className="mono text-[10.5px] text-ink-mute">
+                    {t("Next Milestone: Municipal Deputation")}
+                  </span>
+                </div>
+              )}
+
+              {isExpanded && campaign.milestones && (
+                <div className="mt-3 space-y-2 pt-2 border-t border-rule-soft">
+                  {campaign.milestones.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`p-2.5 rounded border text-left text-xs ${
+                        m.status === "completed"
+                          ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
+                          : m.status === "in_progress"
+                          ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
+                          : "bg-paper-card border-rule-soft text-ink-mute opacity-80"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold mono text-[10.5px]">
+                          {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
+                        </span>
+                        <span
+                          className={`text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono ${
+                            m.status === "completed"
+                              ? "bg-olive text-paper-card"
+                              : m.status === "in_progress"
+                              ? "bg-rust text-paper-card"
+                              : "bg-stone-200 text-stone-600"
+                          }`}
+                        >
+                          {m.status === "completed" ? t("✓ Done") : m.status === "in_progress" ? t("● Active") : t("○ Planned")}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ink-2 leading-relaxed">{t(m.description)}</p>
+                      {m.completedDate && (
+                        <small className="text-[10px] text-ink-faint mono block mt-1">
+                          {t("Completed: {date}", { date: m.completedDate })}
+                        </small>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-
-            {/* Expandable Phased Roadmap Accordion */}
-            {campaign.milestones && campaign.milestones.length > 0 && (
-              <div className="mt-3 pt-2.5 border-t border-rule-soft flex items-center justify-between">
-                <button
-                  type="button"
-                  className="campaign-accordion-toggle"
-                  onClick={() =>
-                    setExpandedRoadmaps((prev) => ({
-                      ...prev,
-                      [campaign.id]: !isExpanded,
-                    }))
-                  }
-                  aria-expanded={isExpanded}
-                >
-                  <span>
-                    {isExpanded
-                      ? t("Collapse Roadmap")
-                      : isCompleted
-                      ? t("Inspect {count}-Phase Verification History", { count: totalMilestones })
-                      : t("Inspect {count}-Phase Action Plan", { count: totalMilestones })}
-                  </span>
-                  {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                </button>
-                <span className="mono text-[10.5px] text-ink-mute">
-                  {isCompleted
-                    ? t("Outcome: Archived Success")
-                    : t("Next Milestone: Municipal Deputation")}
+          ) : (
+            /* CONCLUDED CAMPAIGN: Single compact metadata line */
+            <div className="concluded-phases-wrap">
+              <div className="concluded-phases-line">
+                <span className="concluded-phases-badge">
+                  <Check size={13} className="text-[#2d6a4f]" strokeWidth={2.5} />
+                  {t("{done}/{total} phases verified", {
+                    done: num(completedMilestones || totalMilestones),
+                    total: num(totalMilestones),
+                  })}
                 </span>
-              </div>
-            )}
-
-            {isExpanded && campaign.milestones && (
-              <div className="mt-3 space-y-2 pt-2 border-t border-rule-soft">
-                {campaign.milestones.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`p-2.5 rounded border text-left text-xs ${
-                      m.status === "completed"
-                        ? "bg-[#eef4e8] border-[#c8d9be] text-ink"
-                        : m.status === "in_progress"
-                        ? "bg-[#fdf3ee] border-[#e8c0b0] text-ink"
-                        : "bg-paper-card border-rule-soft text-ink-mute opacity-80"
-                    }`}
+                {campaign.milestones && campaign.milestones.length > 0 && (
+                  <button
+                    type="button"
+                    className="concluded-history-toggle"
+                    onClick={() =>
+                      setExpandedRoadmaps((prev) => ({
+                        ...prev,
+                        [campaign.id]: !isExpanded,
+                      }))
+                    }
+                    aria-expanded={isExpanded}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold mono text-[10.5px]">
-                        {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
-                      </span>
-                      <span
-                        className={`text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono ${
-                          m.status === "completed"
-                            ? "bg-olive text-paper-card"
-                            : m.status === "in_progress"
-                            ? "bg-rust text-paper-card"
-                            : "bg-stone-200 text-stone-600"
-                        }`}
-                      >
-                        {m.status === "completed" ? t("✓ Done") : m.status === "in_progress" ? t("● Active") : t("○ Planned")}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-ink-2 leading-relaxed">{m.description}</p>
-                    {m.completedDate && (
-                      <small className="text-[10px] text-ink-faint mono block mt-1">
-                        {t("Completed: {date}", { date: m.completedDate })}
-                      </small>
-                    )}
-                  </div>
-                ))}
+                    <span>{isExpanded ? t("Hide history") : t("View history")}</span>
+                    {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                )}
               </div>
-            )}
-          </div>
 
+              {isExpanded && campaign.milestones && (
+                <div className="mt-2.5 space-y-2 pt-2 border-t border-rule-soft">
+                  {campaign.milestones.map((m) => (
+                    <div
+                      key={m.id}
+                      className="p-2.5 rounded border border-[#c8d9be] bg-[#f4f7f2] text-left text-xs"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold mono text-[10.5px] text-[#1b4332]">
+                          {t("PHASE 0{phase} · {title}", { phase: num(m.phase), title: m.title })}
+                        </span>
+                        <span className="text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mono bg-olive text-paper-card">
+                          {t("✓ Done")}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ink-2 leading-relaxed">{t(m.description)}</p>
+                      {m.completedDate && (
+                        <small className="text-[10px] text-ink-faint mono block mt-1">
+                          {t("Completed: {date}", { date: m.completedDate })}
+                        </small>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons: Solid primary CTA, Outlined secondary, Ghost icon share */}
           <div className="campaign-hero-actions">
             <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-              {isCompleted ? t("View Campaign Archive & Record") : t("View Campaign Gallery & Plan")}
+              {isCompleted ? t("View Archive") : t("View Action Plan")}
             </Button>
             {matchingCircular && (
               <Button
@@ -214,16 +263,18 @@ function CampaignHeroCard({
                 icon={FileText}
                 onClick={() => open("circular", matchingCircular)}
               >
-                {t("Read Investigation Report & Photos")}
+                {t("Report & Photos")}
               </Button>
             )}
             <button
-              className="button button-secondary button-whatsapp"
+              type="button"
+              className="campaign-share-ghost-btn"
               onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
               title={isCompleted ? t("Share Victory on WhatsApp") : t("Mobilize on WhatsApp")}
+              aria-label={t("Share on WhatsApp")}
             >
               <MessageCircle size={15} />
-              {isCompleted ? t("Share Victory") : t("Share Campaign")}
+              <span>{t("Share")}</span>
             </button>
           </div>
         </div>

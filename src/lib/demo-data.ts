@@ -140,7 +140,7 @@ function createInitialState(): {
   const unitEvents: UnitEvent[] = [
     {
       id: uid(2, 5),
-      title: "Campaign: Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
+      title: "Clean Mashkalaibari — Stop Furnace Emissions & River Dumping",
       description: "Grassroots citizen advocacy and environmental intervention to end toxic crematorium furnace smoke, open waste dumping in the riverbed, and municipal inaction at Mashkalaibari, Jalpaiguri.",
       location: "Mashkalaibari Crematorium & Neighbourhoods, Jalpaiguri",
       startsAt: "2026-11-03T08:00:00.000Z",
@@ -192,7 +192,7 @@ function createInitialState(): {
     },
     {
       id: uid(2, 6),
-      title: "Campaign: Save River Karala & Relocate Toxic Civic Dumping Ground",
+      title: "Save River Karala & Relocate Toxic Civic Dumping Ground",
       description: "Decisive grassroots environmental advocacy and citizen mobilization uniting Light of Science and Relief and Public Welfare Society. Successfully secured municipal budget sanction for comprehensive Karala river desiltation and initiated relocation proceedings for the hazardous municipal dumping ground away from town residential wards.",
       location: "Kotwali Thana More to Kadamtala & Municipality Office, Jalpaiguri",
       startsAt: "2026-06-05T09:30:00.000Z",
@@ -207,7 +207,7 @@ function createInitialState(): {
     },
     {
       id: uid(2, 8),
-      title: "Campaign: Acharya Prafulla Chandra Ray Birth Anniversary & Assam Flood Relief Drive",
+      title: "Acharya Prafulla Chandra Ray Birth Anniversary & Assam Flood Relief Drive",
       description: "Observance of Acharya Prafulla Chandra Ray's birth anniversary by Light of Science Club at Kadamtala, followed by a joint humanitarian flood relief collection drive across Jalpaiguri town for flood-affected families in Assam in collaboration with Students' Action Front.",
       location: "Kadamtala More & Jalpaiguri Town, Jalpaiguri",
       startsAt: "2024-08-02T09:30:00.000Z",
