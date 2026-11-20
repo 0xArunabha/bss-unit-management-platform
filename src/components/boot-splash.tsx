@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, useRef, type CSSProperties } from "react";
 import { ARROW_PATH, CUP_RADIUS, RING_INNER, RING_OUTER, WHEEL_CENTER } from "./boot-splash-art";
 
 /*
@@ -10,37 +10,48 @@ import { ARROW_PATH, CUP_RADIUS, RING_INNER, RING_OUTER, WHEEL_CENTER } from "./
  *   -> the frame is drawn -> the two rings swirl in like leaves stirred in the cup
  *   -> the arrow rises out of the wheel like steam -> steam keeps curling up while the app finishes loading
  *
- * It is plain markup + CSS animation (see ".boot-splash" in globals.css), so it is already playing in the first
- * paint, before any JavaScript has loaded.  The inline script in layout.tsx marks <html data-splash="skip"> before
- * paint for visits that should not see it (reloads in the same tab session, other pages, reduced motion).
- * Add ?splash=1 to the address to replay it.
+ * ── Why the animation is driven by a JS clock, not pure CSS ──
+ *
+ * During React hydration the main thread is blocked for hundreds of milliseconds.
+ * Pure CSS `animation:` properties keep counting wall-clock time while the compositor
+ * is starved of a main-thread commit, so the visible result is:
+ *   1. animations freeze mid-frame while hydration runs,
+ *   2. they then jump ahead (or the DOM is rebuilt and they restart from 0).
+ *
+ * Instead we run a tiny rAF clock that only advances time while frames are actually
+ * being painted.  When the main thread stalls, `elapsed` stops growing, so the
+ * animation picks up exactly where it left off when the thread is free again.
+ *
+ * The inline script in layout.tsx marks <html data-splash="skip"> before paint for
+ * visits that should not see it (reloads in the same tab session, other pages,
+ * reduced motion).  Add ?splash=1 to the address to replay it.
  */
 
-/** The splash stays at least this long (ms, counted from first paint) so the emblem always finishes forming. */
-const SPLASH_MIN_MS = 2500;
-/** Fade-out time, keep in step with the transition on ".boot-splash" in globals.css. */
-const SPLASH_LEAVE_MS = 520;
+/** Total animation runtime before we start the leave transition (ms of *painted* frames). */
+const ANIM_DURATION_MS = 2800;
+/** Fade-out length. */
+const LEAVE_MS = 480;
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
 const vars = (v: Vars): CSSProperties => v;
 
 const { x: CX, y: CY } = WHEEL_CENTER;
 
-/* The square frame, as two strokes that start at the gap the arrow passes through and meet at the bottom. */
+/* The square frame, as two strokes. */
 const FRAME_LEFT = "M668 252.7H166.1V1966.3H1010";
 const FRAME_RIGHT = "M1049.7 252.7H1851.9V1966.3H1008";
 
-/* Two short highlights near the rim of the tea, so the surface looks wet.  (Precomputed so server and browser print identical markup.) */
+/* Two short highlights near the rim of the tea. */
 const SHEEN = "M857 1076A227 227 0 0 1 972 973M1025 958A227 227 0 0 1 1065 956";
 
-/* Steam that keeps curling up from the arrow head. */
+/* Steam wisps. */
 const STEAM = [
-  { d: "M880 6C820-80 940-130 880-220C830-295 920-350 868-440", w: "0s" },
-  { d: "M980-6C920-100 1040-160 980-260C930-340 1020-400 962-500", w: "1.05s" },
-  { d: "M1074 24C1028-56 1120-112 1066-196C1026-262 1098-312 1060-392", w: "1.9s" },
+  { d: "M880 6C820-80 940-130 880-220C830-295 920-350 868-440", w: 0 },
+  { d: "M980-6C920-100 1040-160 980-260C930-340 1020-400 962-500", w: 1050 },
+  { d: "M1074 24C1028-56 1120-112 1066-196C1026-262 1098-312 1060-392", w: 1900 },
 ];
 
-/* A few tea leaves drifting down behind everything. */
+/* Tea leaves drifting down behind everything. */
 const LEAVES = [
   { x: "9vw", s: 1.15, dur: 12, delay: -3, sway: "6vw", r0: "-28deg" },
   { x: "27vw", s: 0.8, dur: 9.5, delay: -7, sway: "-5vw", r0: "40deg" },
@@ -49,33 +60,75 @@ const LEAVES = [
   { x: "90vw", s: 1.2, dur: 11.5, delay: -9, sway: "-4vw", r0: "25deg" },
 ];
 
-/* Terraced tea-garden rows along the bottom of the screen. */
+/* Terraced tea-garden rows. */
 const ROWS = [0, 1, 2, 3, 4, 5].map((i) => {
   const y = 16 + i * 19;
   return `M0 ${y}C70 ${y - 15} 140 ${y + 9} 210 ${y - 3}S340 ${y - 17} 400 ${y - 2}`;
 });
 
+/* ── Timing helpers: map elapsed ms → a 0-1 progress for each element ── */
+
+function clamp01(t: number) { return t < 0 ? 0 : t > 1 ? 1 : t; }
+function easeOut(t: number) { return 1 - (1 - t) * (1 - t); }
+function easeCubic(t: number) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+/** Returns progress 0→1 for an animation starting at `start` ms lasting `dur` ms. */
+function progress(elapsed: number, start: number, dur: number) {
+  return clamp01((elapsed - start) / dur);
+}
+
 export default function BootSplash() {
   const [phase, setPhase] = useState<"show" | "leave" | "gone">("show");
+  const elRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef(0);
 
   useEffect(() => {
-    const timers: number[] = [];
+    // If the layout script already marked skip, disappear immediately
     if (document.documentElement.dataset.splash === "skip") {
-      timers.push(window.setTimeout(() => setPhase("gone"), 0));
-    } else {
-      const paint = performance.getEntriesByName("first-contentful-paint")[0] ?? performance.getEntriesByName("first-paint")[0];
-      const shown = Math.max(0, performance.now() - (paint?.startTime ?? 0));
-      const wait = Math.max(0, SPLASH_MIN_MS - shown);
-      timers.push(window.setTimeout(() => setPhase("leave"), wait));
-      timers.push(window.setTimeout(() => setPhase("gone"), wait + SPLASH_LEAVE_MS));
+      setPhase("gone");
+      return;
     }
-    return () => timers.forEach((id) => window.clearTimeout(id));
+
+    const root = elRef.current;
+    if (!root) { setPhase("gone"); return; }
+
+    let elapsed = 0;
+    let lastTs: number | null = null;
+    let leaving = false;
+
+    function tick(ts: number) {
+      if (lastTs !== null) {
+        // Only advance by actual frame delta — if the thread was blocked,
+        // the delta is small (capped at 100ms to avoid jumps after backgrounding)
+        elapsed += Math.min(ts - lastTs, 100);
+      }
+      lastTs = ts;
+
+      // Set the CSS custom property that drives every animation
+      root!.style.setProperty("--t", String(elapsed));
+
+      if (!leaving && elapsed >= ANIM_DURATION_MS) {
+        leaving = true;
+        setPhase("leave");
+        // After fade-out, remove
+        setTimeout(() => setPhase("gone"), LEAVE_MS);
+      }
+
+      if (!leaving || elapsed < ANIM_DURATION_MS + LEAVE_MS) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
   if (phase === "gone") return null;
 
+  /* ── Render: all animation is driven by var(--t) in CSS calc() ── */
+
   return (
-    <div className="boot-splash" data-phase={phase} aria-hidden="true">
+    <div ref={elRef} className="boot-splash" data-phase={phase} aria-hidden="true" style={{ "--t": "0" } as CSSProperties}>
       <div className="boot-leaves">
         {LEAVES.map((leaf, i) => (
           <svg
@@ -118,7 +171,6 @@ export default function BootSplash() {
             <path className="boot-sheen" d={SHEEN} />
             <circle className="boot-ripple boot-ripple-a" cx={CX} cy={CY} r={CUP_RADIUS - 52} />
             <circle className="boot-ripple boot-ripple-b" cx={CX} cy={CY} r={CUP_RADIUS - 52} />
-            <circle className="boot-ripple boot-ripple-loop" cx={CX} cy={CY} r={CUP_RADIUS - 52} />
           </g>
 
           <path className="boot-frame" d={FRAME_LEFT} pathLength={1} />
@@ -139,7 +191,7 @@ export default function BootSplash() {
           </g>
 
           {STEAM.map((s, i) => (
-            <path key={i} className="boot-steam" d={s.d} pathLength={1} style={vars({ "--w": s.w })} />
+            <path key={i} className="boot-steam" d={s.d} pathLength={1} style={vars({ "--w": `${s.w}ms` })} />
           ))}
 
           <path className="boot-drop" d="M0-46C22-14 34 6 34 22C34 42 18 56 0 56C-18 56-34 42-34 22C-34 6-22-14 0-46Z" />

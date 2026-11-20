@@ -949,10 +949,9 @@ export function CircularsView({ data, open }: Props) {
                       </span>
                     </span>
                   )}
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
+                  <div className="circular-actions">
                     <button
                       className="button button-secondary button-whatsapp"
-                      style={{ fontSize: "11px", padding: "4px 9px", height: "27px", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       onClick={() => shareViaWhatsApp(formatCircularBroadcast(notice, locale))}
                       title={t("Share to WhatsApp group")}
                     >
