@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, ReceiptText, Search, ShieldAlert, ShieldCheck, Smartphone, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, ReceiptText, Search, ShieldAlert, ShieldCheck, Smartphone, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, type UnitEvent } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
@@ -357,171 +357,106 @@ export function EventsView({ data, open }: Props) {
         {["admin", "organizer"].includes(userRole) && <Button icon={Plus} onClick={() => open("createEvent")}>{t("Create event")}</Button>}
       </PageHeading>
 
-      {/* Executive 3-Card Field Switchboard & Unified Command Toolbar */}
-      <nav aria-label={t("Field programmes view selector")} className="events-command-deck mb-7">
-        <div className="events-deck-grid" role="tablist">
-          {/* 1. Active Campaigns Card */}
+      {/* Slim Horizontal Tabs & Subtle Local Filter */}
+      <div className="events-header-bar mb-6">
+        <nav className="events-nav-tabs" role="tablist" aria-label={t("Campaigns navigation")}>
           <button
             type="button"
             onClick={() => setFilter("campaigns")}
-            className={`events-deck-card ${filter === "campaigns" ? "is-active" : ""}`}
-            aria-selected={filter === "campaigns"}
+            className={`events-nav-tab ${filter === "campaigns" ? "is-active" : ""}`}
             role="tab"
+            aria-selected={filter === "campaigns"}
           >
-            <div className="events-deck-icon-wrap icon-campaigns">
-              <Flame size={20} />
-              {activeCampaigns.length > 0 && <span className="deck-live-pulse" />}
-            </div>
-            <div className="events-deck-info">
-              <span className="events-deck-title">{t("Active Campaigns")}</span>
-              <span className="events-deck-desc">{t("Ongoing civic & environmental actions")}</span>
-            </div>
-            <div className="events-deck-badge-wrap">
-              <span className="events-deck-badge badge-campaigns">
-                {t("{count} Active", { count: activeCampaigns.length })}
-              </span>
-            </div>
+            <Flame size={15} />
+            <span>{t("Active Campaigns")}</span>
+            <span className="events-nav-count">{activeCampaigns.length}</span>
           </button>
 
-          {/* 2. Events Calendar Card */}
           <button
             type="button"
             onClick={() => setFilter("upcoming")}
-            className={`events-deck-card ${filter === "upcoming" ? "is-active" : ""}`}
-            aria-selected={filter === "upcoming"}
+            className={`events-nav-tab ${filter === "upcoming" ? "is-active" : ""}`}
             role="tab"
+            aria-selected={filter === "upcoming"}
           >
-            <div className="events-deck-icon-wrap icon-calendar">
-              <CalendarDays size={20} />
-            </div>
-            <div className="events-deck-info">
-              <span className="events-deck-title">{t("Events Calendar")}</span>
-              <span className="events-deck-desc">{t("Scheduled field outreach")}</span>
-            </div>
-            <div className="events-deck-badge-wrap">
-              <span className="events-deck-badge badge-calendar">
-                {t("{count} Scheduled", { count: upcomingScheduled.length })}
-              </span>
-            </div>
+            <CalendarDays size={15} />
+            <span>{t("Events Calendar")}</span>
+            <span className="events-nav-count">{upcomingScheduled.length}</span>
           </button>
 
-          {/* 3. Archive Card */}
           <button
             type="button"
             onClick={() => setFilter("all")}
-            className={`events-deck-card ${filter === "all" ? "is-active" : ""}`}
-            aria-selected={filter === "all"}
+            className={`events-nav-tab ${filter === "all" ? "is-active" : ""}`}
             role="tab"
+            aria-selected={filter === "all"}
           >
-            <div className="events-deck-icon-wrap icon-archive">
-              <History size={20} />
-            </div>
-            <div className="events-deck-info">
-              <span className="events-deck-title">{t("Archive")}</span>
-              <span className="events-deck-desc">{t("Concluded campaigns & past events")}</span>
-            </div>
-            <div className="events-deck-badge-wrap">
-              <span className="events-deck-badge badge-archive">
-                {t("{count} Concluded", { count: archivedItems.length })}
-              </span>
-            </div>
+            <History size={15} />
+            <span>{t("Archive")}</span>
+            <span className="events-nav-count">{archivedItems.length}</span>
           </button>
+        </nav>
+
+        {/* Subtle local filter — discreet and secondary to global ⌘K bar */}
+        <div className="events-subtle-filter">
+          <Search size={14} className="filter-icon" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("Filter list…")}
+            aria-label={t("Filter list")}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="filter-clear"
+              title={t("Clear filter")}
+              aria-label={t("Clear filter")}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
+      </div>
 
-        {/* Integrated Command Toolbar: Granular Sub-Filters & Search */}
-        <div className="events-deck-toolbar">
-          <div className="events-deck-filters">
-            {filter === "campaigns" ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#fef2ea] border border-[#fed5bc] text-[#c85a17] text-xs font-semibold">
-                <Flame size={14} className="text-[#c85a17]" />
-                <span>{t("Active Campaigns ({count})", { count: activeCampaigns.length })}</span>
-              </div>
-            ) : filter === "upcoming" ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#eef7f2] border border-[#c8e6d7] text-[#1b4332] text-xs font-semibold">
-                <CalendarDays size={14} className="text-[#2d6a4f]" />
-                <span>{t("Events Calendar ({count})", { count: upcomingScheduled.length })}</span>
-              </div>
-            ) : (
-              <div className="events-deck-segmented" role="tablist" aria-label={t("Archive filter")}>
-                <button
-                  type="button"
-                  onClick={() => setArchiveTab("all")}
-                  className={`events-deck-seg-btn ${archiveTab === "all" ? "is-active" : ""}`}
-                  role="tab"
-                  aria-selected={archiveTab === "all"}
-                >
-                  <span>{t("All Concluded ({count})", { count: archivedItems.length })}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setArchiveTab("campaigns")}
-                  className={`events-deck-seg-btn ${archiveTab === "campaigns" ? "is-active is-active-green" : ""}`}
-                  role="tab"
-                  aria-selected={archiveTab === "campaigns"}
-                >
-                  <CircleCheck size={13} />
-                  <span>{t("Concluded Campaigns ({count})", { count: concludedCampaigns.length })}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setArchiveTab("events")}
-                  className={`events-deck-seg-btn ${archiveTab === "events" ? "is-active" : ""}`}
-                  role="tab"
-                  aria-selected={archiveTab === "events"}
-                >
-                  <CalendarDays size={13} />
-                  <span>{t("Past Events ({count})", { count: pastEvents.length })}</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="events-deck-search">
-            <SearchInput
-              placeholder={
-                filter === "campaigns"
-                  ? t("Search active campaigns, milestones, or locations…")
-                  : filter === "upcoming"
-                  ? t("Search upcoming dates, topics or venues…")
-                  : t("Search archive, campaigns, reports or past rallies…")
-              }
-              value={search}
-              onChange={setSearch}
-            />
+      {/* Archive Sub-Navigation: Clean segmented pills only shown on Archive tab */}
+      {filter === "all" && (
+        <div className="archive-subnav-strip mb-6">
+          <div className="events-deck-segmented" role="tablist" aria-label={t("Archive filter")}>
+            <button
+              type="button"
+              onClick={() => setArchiveTab("all")}
+              className={`events-deck-seg-btn ${archiveTab === "all" ? "is-active" : ""}`}
+              role="tab"
+              aria-selected={archiveTab === "all"}
+            >
+              <span>{t("All Concluded ({count})", { count: archivedItems.length })}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setArchiveTab("campaigns")}
+              className={`events-deck-seg-btn ${archiveTab === "campaigns" ? "is-active is-active-green" : ""}`}
+              role="tab"
+              aria-selected={archiveTab === "campaigns"}
+            >
+              <CircleCheck size={13} />
+              <span>{t("Concluded Campaigns ({count})", { count: concludedCampaigns.length })}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setArchiveTab("events")}
+              className={`events-deck-seg-btn ${archiveTab === "events" ? "is-active" : ""}`}
+              role="tab"
+              aria-selected={archiveTab === "events"}
+            >
+              <CalendarDays size={13} />
+              <span>{t("Past Events ({count})", { count: pastEvents.length })}</span>
+            </button>
           </div>
         </div>
-
-        {/* Status Strip & Civic Tagline */}
-        <div className="events-deck-status-strip">
-          <div className="events-deck-current-label">
-            <span
-              className={`current-dot ${
-                filter === "campaigns"
-                  ? "!bg-[#c85a17] !shadow-[0_0_0_2px_#fed5bc]"
-                  : filter === "upcoming"
-                  ? "!bg-[#1b4332] !shadow-[0_0_0_2px_#c8e6d7]"
-                  : "!bg-[#2d6a4f] !shadow-[0_0_0_2px_#a3c9a8]"
-              }`}
-            />
-            <span className="current-text">
-              {filter === "campaigns" && t("Viewing {count} active campaign requiring member mobilization", { count: activeCampaigns.length })}
-              {filter === "upcoming" && t("Viewing {count} scheduled outreach programmes", { count: upcomingScheduled.length })}
-              {filter === "all" && (
-                archiveTab === "campaigns"
-                  ? t("Viewing {count} concluded campaigns & civic victories", { count: concludedCampaigns.length })
-                  : archiveTab === "events"
-                  ? t("Viewing {count} concluded awareness actions and workshops", { count: pastEvents.length })
-                  : t("Viewing {count} concluded campaigns and past events", { count: archivedItems.length })
-              )}
-              {search && <span> · {t("matching \"{search}\"", { search })}</span>}
-            </span>
-          </div>
-
-          <span className="events-deck-tagline">
-            {t("Democracy, Science & Public Interest Movements")}
-          </span>
-        </div>
-      </nav>
+      )}
 
       {/* 1. ACTIVE CAMPAIGNS TAB */}
       {filter === "campaigns" && (

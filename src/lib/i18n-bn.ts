@@ -1471,4 +1471,8 @@ export const BN_SERVER: Record<string, string> = {
   "Clear search": "অনুসন্ধান মুছুন",
   "Archive filter": "সংরক্ষণাগার ফিল্টার",
   "Field programmes view selector": "মাঠপর্যায়ের কর্মসূচি প্রদর্শক",
+  "Filter list…": "তালিকা ফিল্টার করুন…",
+  "Filter list": "তালিকা ফিল্টার",
+  "Clear filter": "ফিল্টার মুছুন",
+  "Campaigns navigation": "অভিযান নেভিগেশন",
 };
