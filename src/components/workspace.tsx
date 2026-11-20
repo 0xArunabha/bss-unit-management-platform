@@ -476,7 +476,6 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <p>{t("Built on curiosity.")}<br /><strong>{t("Powered by people.")}</strong></p>
           <span>{t("Taking science to Jalpaiguri, together.")}</span>
         </div>
-        <button className="sidebar-help" onClick={() => open("help")}><CircleHelp size={17} strokeWidth={1.5} /><span>{t("Need a helping hand?")}</span><ArrowUpRight size={13} /></button>
         <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? t("{count} to sync", { count: offlineCount }) : t("Workspace online")) : t("Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {num(offlineCount)}</span> : <span className="sidebar-version-pill" title={t("Release: {releaseName} · Build {build}", { releaseName: t(identity.releaseName), build: identity.build })}>v{identity.version}</span>}</div>
         <button className="sidebar-account" onClick={() => navigate("settings")}><Avatar person={user} /><span><strong>{user.fullName}</strong><small>{user.role === "admin" ? t("Unit Executive") : roleName(user.role)}</small></span><ChevronRight size={15} /></button>
       </div>
@@ -563,7 +562,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
             <kbd><Command size={10} />K</kbd>
           </button>
           <span className="topbar-date" suppressHydrationWarning>{fmtDate(new Date(), { weekday: "short", day: "numeric", month: "short" })}</span>
-          <button className="icon-button help-topbar" aria-label={t("Workspace help")} onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
+          <button className="icon-button help-topbar" aria-label={t("Workspace help")} title={t("Workspace help")} onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>
           <div className="notifications-wrap" data-popover>
             <button className={`icon-button notification-button ${popover === "notifications" ? "icon-button-selected" : ""}`} aria-label={t("Open notifications")} aria-expanded={popover === "notifications"} onClick={() => setPopover(popover === "notifications" ? null : "notifications")}><Bell size={19} strokeWidth={1.6} />{unread && <span />}</button>
             {popover === "notifications" && (
@@ -617,6 +616,11 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                 <button onClick={() => navigate("settings")}>
                   <Settings size={15} />
                   {t("Account & Security")}
+                  <ArrowUpRight size={13} />
+                </button>
+                <button onClick={() => { setPopover(null); open("help"); }}>
+                  <CircleHelp size={15} />
+                  {t("Help & Shortcuts")}
                   <ArrowUpRight size={13} />
                 </button>
                 <button onClick={async () => {

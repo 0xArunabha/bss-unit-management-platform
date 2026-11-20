@@ -1389,6 +1389,7 @@ export const BN_SERVER: Record<string, string> = {
   "Collapse Roadmap": "পর্যায় তালিকা সংক্ষেপ করুন",
   "Outcome: Archived Success": "ফলাফল: সফলতার সাথে মহাফেজখানায় রক্ষিত",
   "Delivered: {goal}": "বাস্তবায়িত লক্ষ্য: {goal}",
+  "Help & Shortcuts": "সাহায্য ও কীবোর্ড শর্টকাট",
   "View Archive": "মহাফেজখানা দেখুন",
   "View Action Plan": "কর্মপরিকল্পনা দেখুন",
   "Report & Photos": "রিপোর্ট ও ছবি",
