@@ -245,6 +245,7 @@ body{background-color:var(--paper);}
 .brand strong{font-family:var(--font-sans);font-weight:700;letter-spacing:-.5px;color:var(--ink)}
 .brand small{font-family:var(--font-sans);font-size:max(9.5px,var(--fs-floor,0px));font-weight:500;letter-spacing:-.01em;color:var(--ink-3);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .unit-selector{background:var(--paper-card);border-color:var(--rule-soft);border-radius:3px;box-shadow:0 1px 2px rgba(17,23,13,0.03)}
+.unit-selector.unit-badge{cursor:default;user-select:none}
 .unit-selector small{font-family:var(--mono);font-size:max(9px,var(--fs-floor,0px))}
 .nav-item{border-radius:2px;font-weight:500;transition:background .15s,color .15s}
 .nav-item:hover{background:#f2ede4;color:var(--ink)}

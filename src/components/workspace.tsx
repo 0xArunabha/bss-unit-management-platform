@@ -60,7 +60,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const [eventFilter, setEventFilter] = useState("all");
   const [modal, setModal] = useState<ModalState>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [popover, setPopover] = useState<"unit" | "notifications" | "account" | null>(null);
+  const [popover, setPopover] = useState<"notifications" | "account" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -89,7 +89,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     dues: t("Membership dues"),
     donations: t("Donations"),
     campaigns: t("Campaigns"),
-    events: t("Events Calendar"),
+    events: t("Events calendar"),
     procurement: t("Procurement"),
     circulars: t("Circulars & notices"),
     resources: t("Science resources"),
@@ -120,23 +120,23 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     ? [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
         { view: "campaigns", label: t("Campaigns"), icon: Flame },
-        { view: "events", label: t("Events Calendar"), icon: CalendarDays },
+        { view: "events", label: t("Events calendar"), icon: CalendarDays },
       ]
     : userRole === "member"
     ? [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
+        { view: "campaigns", label: t("Campaigns"), icon: Flame },
+        { view: "events", label: t("Events calendar"), icon: CalendarDays },
         { view: "members", label: t("Members"), icon: Users },
         { view: "dues", label: t("Membership dues"), icon: Wallet },
-        { view: "campaigns", label: t("Campaigns"), icon: Flame },
-        { view: "events", label: t("Events Calendar"), icon: CalendarDays },
       ]
     : [
         { view: "overview", label: t("Overview"), icon: LayoutDashboard },
+        { view: "campaigns", label: t("Campaigns"), icon: Flame },
+        { view: "events", label: t("Events calendar"), icon: CalendarDays },
         { view: "members", label: t("Members"), icon: Users },
         { view: "dues", label: t("Membership dues"), icon: Wallet },
         { view: "donations", label: t("Donations"), icon: HeartHandshake },
-        { view: "campaigns", label: t("Campaigns"), icon: Flame },
-        { view: "events", label: t("Events Calendar"), icon: CalendarDays },
         { view: "procurement", label: t("Procurement"), icon: ClipboardList },
       ];
 
@@ -172,7 +172,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       dues: t("Membership Dues"),
       donations: t("Donations Register"),
       campaigns: t("Campaigns"),
-      events: t("Events Calendar"),
+      events: t("Events calendar"),
       procurement: t("Procurement Board"),
       circulars: t("Unit Circulars"),
       resources: t("Field Resources"),
@@ -464,7 +464,18 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <small>{t(`A unit of ${identity.organisation}`)}</small>
         </span>
       </button>
-      <div className="unit-selector-wrap" data-popover><button className="unit-selector" onClick={() => setPopover(popover === "unit" ? null : "unit")} aria-expanded={popover === "unit"}><span className="unit-symbol"><MapPin size={18} strokeWidth={1.5} /><i /></span><span><strong>{t(identity.unit)}</strong><small>{t(identity.state)}</small></span><ChevronDown size={14} /></button>{popover === "unit" && <div className="small-menu unit-menu"><span className="menu-eyebrow">{t("YOUR UNIT WORKSPACE")}</span><button onClick={() => setPopover(null)}><span>{t(identity.unit)}<small>{t("{state} chapter", { state: t(identity.state) })}</small></span><Check size={15} /></button>{!isGuest && <button onClick={() => navigate("settings")}><Settings size={14} />{t("Unit settings")}<ArrowUpRight size={13} /></button>}</div>}</div>
+      <div className="unit-selector-wrap">
+        <div className="unit-selector unit-badge" title={`${t(identity.unit)} · ${t(identity.state)}`}>
+          <span className="unit-symbol">
+            <MapPin size={18} strokeWidth={1.5} />
+            <i />
+          </span>
+          <span>
+            <strong>{t(identity.unit)}</strong>
+            <small>{t(identity.state)}</small>
+          </span>
+        </div>
+      </div>
       <nav className="sidebar-nav" aria-label={t("Main navigation")}>
         <div className="nav-group-label">{t("WORKSPACE")}</div>
         {navItems.map(renderNavItem)}

@@ -1457,6 +1457,8 @@ export const BN_SERVER: Record<string, string> = {
   "Campaigns": "অভিযান",
   "Active Campaigns": "চলমান অভিযান",
   "Events Calendar": "কর্মসূচি ক্যালেন্ডার",
+  "Events calendar": "কর্মসূচি ক্যালেন্ডার",
+  "Past events": "অতীত কর্মসূচি",
   "Archive": "সংরক্ষণাগার",
   "ACTIVE CAMPAIGN": "চলমান নাগরিক অভিযান",
   "CONCLUDED CAMPAIGN": "সমাপ্ত নাগরিক অভিযান",

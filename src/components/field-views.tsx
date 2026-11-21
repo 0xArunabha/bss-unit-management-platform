@@ -591,7 +591,7 @@ export function EventsView({ data, open, navigate }: Props) {
             aria-selected={tab === "upcoming"}
           >
             <CalendarDays size={15} />
-            <span>{t("Events Calendar")}</span>
+            <span>{t("Events calendar")}</span>
             <span className="events-nav-count">{upcomingScheduled.length}</span>
           </button>
 
@@ -603,7 +603,7 @@ export function EventsView({ data, open, navigate }: Props) {
             aria-selected={tab === "past"}
           >
             <History size={15} />
-            <span>{t("Past Events")}</span>
+            <span>{t("Past events")}</span>
             <span className="events-nav-count">{pastEvents.length}</span>
           </button>
         </nav>
