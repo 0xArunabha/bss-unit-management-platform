@@ -37,6 +37,13 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const [urgentAlertDismissed, setUrgentAlertDismissed] = useState(false);
   const pendingAppsCount = (data.applications || []).filter((a) => a.status === "pending").length;
 
+  const upcomingEvents = (data.events || [])
+    .filter((e) => new Date(e.startsAt).getTime() >= currentTime)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  const nextEvent = upcomingEvents[0] || (data.events || [])[0];
+  const latestCircular = (data.circulars || [])[0];
+  const pendingDuesMembers = data.profiles.length - active;
+
   const inPeriod = (date: string) =>
     period === "All time" ||
     (new Date(date).getFullYear() === now.getFullYear() && (period === "This year" || new Date(date).getMonth() === now.getMonth()));
@@ -76,7 +83,17 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
   return (
     <div className="view-enter">
-      <PageHeading title={t("Unit overview")} description={t("{name} · {organisation}, {unit}.", { name: t(identity.name), organisation: t(identity.organisation), unit: t(identity.unit) })}>
+      <PageHeading
+        title={t("Unit overview")}
+        description={
+          isGuest
+            ? t("{count} advocates · {city}", { count: num(data.profiles.length), city: t(identity.city) })
+            : t("{count} members · {paid} of {count} dues paid this month", {
+                count: num(data.profiles.length),
+                paid: num(paidCount),
+              })
+        }
+      >
         {!isGuest && isExecutive && (
           <div className="period-container">
             <button className="button button-secondary period-button" onClick={() => setPeriodOpen(!periodOpen)}>
@@ -106,7 +123,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             <span className="badge badge-orange ml-1.5" style={{ fontSize: "10px", padding: "1px 6px" }}>{pendingAppsCount}</span>
           </Button>
         )}
-        {canCollect && <Button icon={Plus} onClick={() => open("dues")}>{t("Quick collect")}</Button>}
+        {canCollect && <Button icon={Plus} onClick={() => open("dues")}>{t("Collect dues")}</Button>}
       </PageHeading>
 
       {/* Urgent Field Requisition Broadcast Alert if any items needed within 48h */}
@@ -189,43 +206,94 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         </section>
       )}
 
-      {/* Two-ink poster banner */}
-      <section className="campaign-banner" aria-label={t("{name}: science for society", { name: t(identity.name) })}>
-        <div className="campaign-content">
-          <div className="campaign-eyebrow"><span />{t(identity.volumeLine)}</div>
-          <h2>{tx("Science for society.<br/>Progress, <em>together.</em>")}</h2>
-          <p>{tx("Rooted in {city}. Open to everyone.<br/>A community that turns questions into action.", { city: t(identity.city) })}</p>
-          <button className="campaign-link" onClick={() => navigate("campaigns")}>
-            {t("Join a Campaign")}<ArrowUpRight size={16} />
-          </button>
-        </div>
-        <div className="campaign-image">
-          <div className="campaign-image-fallback" aria-hidden="true">
-            <svg viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="campaign-vector-art">
-              <circle cx="280" cy="120" r="90" stroke="rgba(224,113,63,0.25)" strokeWidth="1" strokeDasharray="4 4" />
-              <circle cx="280" cy="120" r="140" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-              <circle cx="280" cy="120" r="45" stroke="rgba(224,113,63,0.4)" strokeWidth="1.5" />
-              <circle cx="280" cy="120" r="5" fill="#e0713f" />
-              <circle cx="345" cy="75" r="4" fill="#a8b691" />
-              <circle cx="190" cy="150" r="3.5" fill="#f4efdf" opacity="0.6" />
-              <path d="M160 200 L280 120 L380 180" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-              <path d="M220 50 L280 120 L350 40" stroke="rgba(224,113,63,0.22)" strokeWidth="1" />
-            </svg>
+      {/* For guests: Brochure poster banner. For logged-in members: Compact Executive Attention Strip */}
+      {isGuest ? (
+        <section className="campaign-banner" aria-label={t("{name}: science for society", { name: t(identity.name) })}>
+          <div className="campaign-content">
+            <div className="campaign-eyebrow"><span />{t(identity.volumeLine)}</div>
+            <h2>{tx("Science for society.<br/>Progress, <em>together.</em>")}</h2>
+            <p>{tx("Rooted in {city}. Open to everyone.<br/>A community that turns questions into action.", { city: t(identity.city) })}</p>
+            <button className="campaign-link" onClick={() => navigate("campaigns")}>
+              {t("Join a Campaign")}<ArrowUpRight size={16} />
+            </button>
           </div>
-          <img
-            src="/images/science-march.jpg"
-            alt={t("BSS members and scientists taking part in the All India Science Conference science march")}
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = "none";
-            }}
-          />
-          <div className="photo-caption">
-            <span className="live-dot" />{t("ON THE GROUND")}
-            <span className="caption-divider" />{t("All India Science Conference, 2025")}
+          <div className="campaign-image">
+            <div className="campaign-image-fallback" aria-hidden="true">
+              <svg viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="campaign-vector-art">
+                <circle cx="280" cy="120" r="90" stroke="rgba(224,113,63,0.25)" strokeWidth="1" strokeDasharray="4 4" />
+                <circle cx="280" cy="120" r="140" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                <circle cx="280" cy="120" r="45" stroke="rgba(224,113,63,0.4)" strokeWidth="1.5" />
+                <circle cx="280" cy="120" r="5" fill="#e0713f" />
+                <circle cx="345" cy="75" r="4" fill="#a8b691" />
+                <circle cx="190" cy="150" r="3.5" fill="#f4efdf" opacity="0.6" />
+                <path d="M160 200 L280 120 L380 180" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                <path d="M220 50 L280 120 L350 40" stroke="rgba(224,113,63,0.22)" strokeWidth="1" />
+              </svg>
+            </div>
+            <img
+              src="/images/science-march.jpg"
+              alt={t("BSS members and scientists taking part in the All India Science Conference science march")}
+              onError={(e) => {
+                (e.currentTarget as HTMLElement).style.display = "none";
+              }}
+            />
+            <div className="photo-caption">
+              <span className="live-dot" />{t("ON THE GROUND")}
+              <span className="caption-divider" />{t("All India Science Conference, 2025")}
+            </div>
           </div>
-        </div>
-        <span className="campaign-bengali" aria-hidden="true">{identity.bengali}</span>
-      </section>
+          <span className="campaign-bengali" aria-hidden="true">{identity.bengali}</span>
+        </section>
+      ) : (
+        <section className="executive-attention-strip" aria-label={t("Executive attention items")}>
+          <div className="attention-strip-card" onClick={() => navigate("dues")} role="button" tabIndex={0}>
+            <div className="attention-strip-icon tone-orange">
+              <Wallet size={16} />
+            </div>
+            <div className="attention-strip-content">
+              <span className="attention-strip-kicker">{t("Dues status")}</span>
+              <strong className="attention-strip-title">
+                {isExecutive
+                  ? t("{count} members pending", { count: num(pendingDuesMembers) })
+                  : (currentUser?.unpaidMonths || 0) > 0
+                  ? t("{count} months in arrears", { count: num(currentUser?.unpaidMonths || 0) })
+                  : t("All dues up to date")}
+              </strong>
+            </div>
+            <ArrowRight size={14} className="attention-strip-arrow" />
+          </div>
+
+          {nextEvent ? (
+            <div className="attention-strip-card" onClick={() => open("event", nextEvent)} role="button" tabIndex={0}>
+              <div className="attention-strip-icon tone-blue">
+                <CalendarDays size={16} />
+              </div>
+              <div className="attention-strip-content">
+                <span className="attention-strip-kicker">{t("Next event")}</span>
+                <strong className="attention-strip-title" title={nextEvent.title}>
+                  {nextEvent.title.replace(/^Campaign:\s*/i, "")}
+                </strong>
+              </div>
+              <ArrowRight size={14} className="attention-strip-arrow" />
+            </div>
+          ) : null}
+
+          {latestCircular ? (
+            <div className="attention-strip-card" onClick={() => navigate("circulars")} role="button" tabIndex={0}>
+              <div className="attention-strip-icon tone-sage">
+                <FileText size={16} />
+              </div>
+              <div className="attention-strip-content">
+                <span className="attention-strip-kicker">{t("New circular")}</span>
+                <strong className="attention-strip-title" title={latestCircular.title}>
+                  {latestCircular.title}
+                </strong>
+              </div>
+              <ArrowRight size={14} className="attention-strip-arrow" />
+            </div>
+          ) : null}
+        </section>
+      )}
 
       {/* Role-tailored stats grid: strictly no money figures for public visitors */}
       {userRole === "guest" ? (
@@ -362,6 +430,8 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         const completedMilestones = campaign.milestones?.filter((m) => m.status === "completed").length || 0;
         const totalMilestones = campaign.milestones?.length || 0;
         const currentMilestone = campaign.milestones?.find((m) => m.status === "in_progress") || campaign.milestones?.[0];
+        const isCompleted = (campaign.progressPercent || 0) >= 100 || (totalMilestones > 0 && completedMilestones === totalMilestones) || !campaign.isOngoing;
+        const displayTitle = campaign.title.replace(/^Campaign:\s*/i, "");
 
         return (
           <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
@@ -370,7 +440,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                 <div className="campaign-hero-image-wrap">
                   <img
                     src={campaign.image}
-                    alt={campaign.title}
+                    alt={displayTitle}
                     style={{ objectPosition: "center 20%" }}
                     onError={(e) => {
                       e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
@@ -386,31 +456,41 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               <div className="campaign-hero-content">
                 <div>
                   <div className="campaign-meta-row">
-                    <span className="eyebrow text-rust">{t("ACTIVE CAMPAIGN")}</span>
+                    <span className={`eyebrow ${isCompleted ? "text-sage" : "text-rust"}`}>
+                      {isCompleted ? t("COMPLETED") : t("ACTIVE CAMPAIGN")}
+                    </span>
                     <span className="campaign-volunteers-tag">
                       <Users size={13} />
                       {t("{count} Active Advocates", { count: campaign.volunteers })}
                     </span>
                   </div>
 
-                  <h2>{campaign.title}</h2>
+                  <h2>{displayTitle}</h2>
                   <p className="campaign-hero-desc">{campaign.description}</p>
                 </div>
 
                 {/* Progress Bar Container */}
                 <div className="campaign-progress-box">
                   <div className="campaign-progress-header">
-                    <span className="campaign-progress-label mono">
-                      {tx("CAMPAIGN TARGET: <strong>{percent}% REACHED</strong>", { percent: campaign.progressPercent || 20 })}
+                    <span className="campaign-progress-label">
+                      {isCompleted ? (
+                        <span>{t("Campaign target achieved:")} <strong className="mono">100%</strong></span>
+                      ) : (
+                        <span>{t("Campaign target:")} <strong className="mono">{campaign.progressPercent || 20}%</strong> {t("reached")}</span>
+                      )}
                     </span>
-                    <span className="campaign-phase-badge">
-                      {t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })}
+                    <span className={`campaign-phase-badge ${isCompleted ? "completed" : ""}`}>
+                      {isCompleted ? (
+                        t("Goal achieved")
+                      ) : (
+                        t("PHASE {phase}: {title}", { phase: currentMilestone?.phase || 2, title: currentMilestone?.title || t("In Progress") })
+                      )}
                     </span>
                   </div>
                   <div className="campaign-progress-track">
                     <div
                       className="campaign-progress-fill"
-                      style={{ width: `${campaign.progressPercent || 20}%` }}
+                      style={{ width: `${isCompleted ? 100 : (campaign.progressPercent || 20)}%` }}
                     />
                   </div>
                   <div className="campaign-progress-footer">
@@ -488,7 +568,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
               <div className="p-3.5 bg-paper border border-rule-soft rounded flex items-center justify-between gap-3">
                 <div>
                   <span className="eyebrow text-rust text-[10px] block">{t("ACTIVE CIVIC MOVEMENT")}</span>
-                  <strong className="text-ink text-xs block mt-0.5">{ongoingCampaign.title}</strong>
+                  <strong className="text-ink text-xs block mt-0.5">{ongoingCampaign.title.replace(/^Campaign:\s*/i, "")}</strong>
                   <span className="text-ink-mute text-[11px] block mt-0.5">{t("Phase 2 In Progress · {percent}% Target Reached", { percent: ongoingCampaign.progressPercent || 20 })}</span>
                 </div>
                 <Button variant="secondary" onClick={() => open("event", ongoingCampaign)}>{t("View Plan")}</Button>

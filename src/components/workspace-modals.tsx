@@ -313,7 +313,7 @@ function EventDetailModal({
 
   return (
     <Modal
-      title={event.title}
+      title={event.title.replace(/^Campaign:\s*/i, "")}
       subtitle={`${event.isOngoing ? t("Ongoing Civic Campaign") : isCampaign ? t("Concluded Civic Campaign · Victory") : t(event.category)} · ${t(identity.unit)}`}
       onClose={close}
       wide

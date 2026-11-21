@@ -79,7 +79,7 @@ try {
   console.log('PASS: member creation and six-month inactivity rule');
 
   await nav('Membership dues');
-  await page.getByRole('button', { name: 'Quick collect', exact: true }).click();
+  await page.getByRole('button', { name: /Collect dues|Quick collect/i }).first().click();
   dialog = page.getByRole('dialog');
   await dialog.locator('[name="memberId"]').selectOption(member.id);
   await dialog.locator('[name="amount"]').fill('500');
@@ -263,7 +263,7 @@ try {
   await saved('switchUser', { userId: member.id });
   await page.reload({ waitUntil: 'networkidle' });
   await nav('Membership dues');
-  assert.equal(await page.getByRole('button', { name: 'Quick collect', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: /Collect dues|Quick collect/i }).count(), 0);
   assert.equal(await page.locator('.dues-matrix tbody tr').count(), 1);
 
   const restricted = await post('addMember', { fullName: 'Not allowed', monthlyPledge: 20 });

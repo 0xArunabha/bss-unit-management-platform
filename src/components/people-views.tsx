@@ -604,7 +604,7 @@ export function DuesView({ data, open }: Props) {
         description={t("Full tabular ledger grid displaying dues payment status, collector attribution, advance lump-sum mapping, and remaining balances for {fullName}.", { fullName: t(identity.fullName) })}
       >
         <ExportButton onClick={() => downloadCsv(`${identity.filePrefix}-dues-${year}.csv`, [["Member Code", "Member Name", ...months, "Year Total"], ...people.map((p, idx) => [`JPG-${String(idx + 1).padStart(3, "0")}`, p.fullName, ...months.map((_, m) => lookup.get(`${p.id}-${m + 1}`)?.amount || ""), payments.filter((d) => d.memberId === p.id).reduce((s, d) => s + d.amount, 0)])])} />
-        {canCollect && <Button icon={Plus} onClick={() => open("dues")}>{t("Quick collect")}</Button>}
+        {canCollect && <Button icon={Plus} onClick={() => open("dues")}>{t("Collect dues")}</Button>}
       </PageHeading>
 
       <div className="mini-stats-grid">

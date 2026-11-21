@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { authClient } from "@/lib/auth-client";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, ChevronsUpDown, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogIn, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, User, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronsUpDown, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogIn, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, User, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
@@ -405,7 +405,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     }
   };
   const showReminder = duesReminderPref && (user?.unpaidMonths || 0) > 0;
-  const hasActiveCampaign = data.events.some(isCampaignEvent);
+  const activeCampaignsCount = data.events.filter(isCampaignEvent).filter((e) => e.isOngoing !== false).length;
   const renderNavItem = (item: { view: View; label: string; icon: LucideIcon }) => (
     <button
       key={item.view}
@@ -415,11 +415,11 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     >
       <item.icon size={18} strokeWidth={1.65} />
       <span>{item.label}</span>
-      {item.view === "campaigns" && hasActiveCampaign && (
-        <span className="nav-campaign-pill">{t("Live")}</span>
+      {item.view === "campaigns" && activeCampaignsCount > 0 && (
+        <span className="nav-count">{num(activeCampaignsCount)}</span>
       )}
       {item.view === "procurement" && needed > 0 && <span className="nav-count">{num(needed)}</span>}
-      {item.view === "members" && <span className="nav-member-count">{num(data.profiles.length)}</span>}
+      {item.view === "members" && <span className="nav-count">{num(data.profiles.length)}</span>}
       {item.view === "circulars" && <span className="nav-new-dot" />}
     </button>
   );
@@ -599,30 +599,6 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       <header className="topbar">
         <div className="topbar-left">
           <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label={t("Open main navigation")}><Menu size={21} /></button>
-          <span className="breadcrumb-root">
-            {t(identity.name)}
-            <span
-              className="brand-period"
-              onClick={(e) => {
-                e.stopPropagation();
-                triggerFirstFlush(e);
-              }}
-              title={t("Dooars First Flush 🍃")}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  triggerFirstFlush();
-                }
-              }}
-            >
-              .
-            </span>
-          </span>
-          <ChevronRight size={13} className="breadcrumb-chevron" />
-          <span className="breadcrumb-current"><span className="bc-full">{labels[view]}</span><span className="bc-short">{shortLabels[view] ?? labels[view]}</span></span>
         </div>
         <div className="topbar-right">
           {/* Language Switcher */}
