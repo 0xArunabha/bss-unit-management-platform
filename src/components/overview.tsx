@@ -366,23 +366,21 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         return (
           <section className="campaign-hero-card panel mb-7 print-tech-slip" key={campaign.id}>
             <div className="campaign-hero-grid">
-              <div className="campaign-hero-image-wrap">
-                <img
-                  src={campaign.image}
-                  alt={campaign.title}
-                  style={{ objectPosition: "center 42%" }}
-                  onError={(e) => {
-                    e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
-                  }}
-                />
-                <span className="campaign-live-tag">
-                  <span className="live-dot" />
-                  {t("ACTIVE CAMPAIGN")}
-                </span>
-                <span className="campaign-location-pill">
-                  <MapPin size={12} />
-                  {campaign.location}
-                </span>
+              <div className="campaign-hero-image-col">
+                <div className="campaign-hero-image-wrap">
+                  <img
+                    src={campaign.image}
+                    alt={campaign.title}
+                    style={{ objectPosition: "center 20%" }}
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+                    }}
+                  />
+                </div>
+                <div className="campaign-location-bar">
+                  <MapPin size={13} />
+                  <span>{campaign.location}</span>
+                </div>
               </div>
 
               <div className="campaign-hero-content">
@@ -429,7 +427,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
 
                 <div className="campaign-hero-actions">
                   <Button variant="primary" icon={ArrowUpRight} onClick={() => open("event", campaign)}>
-                    {t("View Campaign Gallery & Plan")}
+                    {t("View Action Plan")}
                   </Button>
                   <Button
                     variant="secondary"
@@ -439,15 +437,17 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
                       if (mashCircular) open("circular", mashCircular);
                     }}
                   >
-                    {t("Read Investigation Report & Photos")}
+                    {t("Report & Photos")}
                   </Button>
                   <button
-                    className="button button-secondary button-whatsapp"
+                    type="button"
+                    className="campaign-share-ghost-btn"
                     onClick={() => shareViaWhatsApp(formatEventBroadcast(campaign, locale))}
                     title={t("Mobilize on WhatsApp")}
+                    aria-label={t("Share Campaign")}
                   >
                     <MessageCircle size={15} />
-                    {t("Share Campaign")}
+                    <span>{t("Share Campaign")}</span>
                   </button>
                 </div>
               </div>

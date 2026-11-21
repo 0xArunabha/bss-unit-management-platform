@@ -53,26 +53,21 @@ function CampaignHeroCard({
       key={campaign.id}
     >
       <div className="campaign-hero-grid">
-        <div className="campaign-hero-image-wrap">
-          <img
-            src={campaign.image}
-            alt={displayTitle}
-            style={{ objectPosition: "center 42%" }}
-            onError={(e) => {
-              e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
-            }}
-          />
-          {/* Only display live tag for active ongoing campaigns so photos on concluded cards are completely unobstructed */}
-          {campaign.isOngoing && (
-            <span className="campaign-live-tag">
-              <span className="live-dot" />
-              {t("ACTIVE CAMPAIGN")}
-            </span>
-          )}
-          <span className="campaign-location-pill">
-            <MapPin size={12} />
-            {campaign.location}
-          </span>
+        <div className="campaign-hero-image-col">
+          <div className="campaign-hero-image-wrap">
+            <img
+              src={campaign.image}
+              alt={displayTitle}
+              style={{ objectPosition: "center 20%" }}
+              onError={(e) => {
+                e.currentTarget.src = "/images/field-reports/mashkalaibari/inspection-1.jpg";
+              }}
+            />
+          </div>
+          <div className="campaign-location-bar">
+            <MapPin size={13} />
+            <span>{campaign.location}</span>
+          </div>
         </div>
 
         <div className="campaign-hero-content">
