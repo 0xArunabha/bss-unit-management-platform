@@ -186,6 +186,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     const h1 = document.querySelector<HTMLElement>("main h1, .workspace-main h1");
     if (h1) {
       h1.setAttribute("tabindex", "-1");
+      h1.style.outline = "none";
       h1.focus({ preventScroll: true });
     }
   }, [view]);

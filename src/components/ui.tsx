@@ -223,7 +223,7 @@ export function SubmitButton({ busy, children }: { busy: boolean; children: Reac
   return <Button type="submit" disabled={busy} icon={busy ? LoaderCircle : Check} className={busy ? "is-loading" : ""}>{busy ? t("Saving…") : children}</Button>;
 }
 export function PageHeading({ eyebrow, title, description, children }: { eyebrow?: string; title: string; description: string; children?: ReactNode }) {
-  return <div className="page-heading"> <div>{eyebrow && <div className="eyebrow">{eyebrow}</div>}<h1>{title}</h1><p>{description}</p></div><div className="page-actions">{children}</div></div>;
+  return <div className="page-heading"> <div>{eyebrow && <div className="eyebrow">{eyebrow}</div>}<h1 tabIndex={-1} style={{ outline: "none" }}>{title}</h1><p>{description}</p></div><div className="page-actions">{children}</div></div>;
 }
 export function ArrowLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return <button className="arrow-link" onClick={onClick}>{children}<ArrowUpRight size={15} /></button>;

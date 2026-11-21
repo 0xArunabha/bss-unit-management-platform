@@ -238,7 +238,9 @@ body{background-color:var(--paper);}
 .button-primary:hover{background:var(--rust-deep);border-color:var(--rust-deep)}
 .button-secondary{background:#fffefa;border-color:var(--rule);color:var(--ink-3);box-shadow:0 1px 0 #ffffff80 inset}
 .button-secondary:hover{background:var(--paper-warm);border-color:var(--rule-hard);color:var(--ink-2)}
-.page-heading h1{font-weight:700;letter-spacing:-1.15px}
+.page-heading h1{font-weight:700;letter-spacing:-1.15px;outline:none!important}
+.page-heading h1:focus,.page-heading h1:focus-visible{outline:none!important;box-shadow:none!important}
+h1:focus,h1:focus-visible,h2:focus,h2:focus-visible,h3:focus,h3:focus-visible,[tabindex="-1"]:focus,[tabindex="-1"]:focus-visible{outline:none!important;box-shadow:none!important}
 .page-heading p{color:var(--ink-mute)}
 .eyebrow{color:var(--rust);font-weight:700;letter-spacing:.15em;font-size:max(8.5px,var(--fs-floor,0px))}
 .nav-group-label{font-size:max(8px,var(--fs-floor,0px));letter-spacing:.16em;color:var(--ink-faint);font-weight:700}
