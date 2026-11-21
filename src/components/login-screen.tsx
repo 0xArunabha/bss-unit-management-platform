@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { identity } from "@/lib/identity";
 import { Avatar, Badge, Button, Modal } from "@/components/ui";
-import { Lock, ShieldCheck, KeyRound, ChevronRight, HelpCircle, Eye, EyeOff, UserCheck, Sparkles, AlertCircle, ArrowRight, CheckCircle2, Compass, AlertTriangle, ExternalLink } from "lucide-react";
+import { Lock, ShieldCheck, KeyRound, ChevronRight, HelpCircle, Eye, EyeOff, UserCheck, Sparkles, AlertCircle, ArrowRight, ArrowLeft, CheckCircle2, Compass, AlertTriangle, ExternalLink, X } from "lucide-react";
 import type { WorkspaceData, Profile, PerformAction } from "@/lib/types";
 import { hapticTap, hapticSuccess, hapticWarning } from "@/lib/haptics";
 import { normalizeCode } from "@/lib/claim-format";
@@ -155,6 +155,15 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
   return (
     <div className="login-screen-wrap">
       <div className="login-card">
+        <button
+          type="button"
+          className="login-close-btn"
+          onClick={onContinueAsGuest}
+          aria-label={t("Close login and return to unit portal")}
+          title={t("Return to unit portal")}
+        >
+          <X size={18} />
+        </button>
         {/* In-app browser warning pill */}
         {isInAppBrowser && (
           <div className="in-app-browser-alert" role="alert">
@@ -254,28 +263,14 @@ export function LoginScreen({ data, perform, onContinueAsGuest, initialGoogleEma
               </div>
             </div>
 
-            <div className="public-visitor-divider">
-              <span>{t("OR")}</span>
-            </div>
-
-            {/* Public Entry */}
-            <div className="public-access-card">
-              <div className="public-access-header">
-                <div className="public-access-badge">
-                  <Compass size={17} />
-                </div>
-                <div className="public-access-info">
-                  <strong>{t("Public Visitor or Science Advocate?")}</strong>
-                  <p>{t("Browse open science outreach notices, anti-superstition demo guides, verify donation receipts, or submit a membership request.")}</p>
-                </div>
-              </div>
+            <div className="login-dismiss-row">
               <button
                 type="button"
-                className="guest-action-btn"
+                className="login-back-portal-btn"
                 onClick={onContinueAsGuest}
               >
-                <span>{t("Explore Public Unit Portal")}</span>
-                <ArrowRight size={15} />
+                <ArrowLeft size={14} />
+                <span>{t("Back to Public Unit Portal")}</span>
               </button>
             </div>
           </div>

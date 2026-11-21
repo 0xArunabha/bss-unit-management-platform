@@ -80,7 +80,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const [syncing, setSyncing] = useState(false);
   const installPrompt = useRef<InstallPrompt | null>(null);
   const lastActivity = useRef(initialData.activities[0]?.id);
-  const [guestMode, setGuestMode] = useState(false);
+  const [showLogin, setShowLogin] = useState(Boolean(initialGoogleEmail));
   const isAuthorized = Boolean(data.currentUserId);
 
   const labels: Record<View, string> = {
@@ -97,8 +97,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   };
 
   const currentUser = data.profiles.find((p) => p.id === data.currentUserId);
-  const userRole: Role = (data.currentUserRole || currentUser?.role || (guestMode ? "guest" : (data.currentUserId ? "member" : "guest"))) as Role;
-  const isGuest = userRole === "guest" || guestMode;
+  const userRole: Role = (data.currentUserRole || currentUser?.role || (data.currentUserId ? "member" : "guest")) as Role;
+  const isGuest = userRole === "guest" || !isAuthorized;
   const isExecutive = userRole === "admin";
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
 
@@ -424,8 +424,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
     </button>
   );
 
-  if (!isAuthorized && !guestMode) {
-    return <LoginScreen data={data} perform={perform} onContinueAsGuest={() => setGuestMode(true)} initialGoogleEmail={initialGoogleEmail} />;
+  if (!isAuthorized && showLogin) {
+    return <LoginScreen data={data} perform={perform} onContinueAsGuest={() => setShowLogin(false)} initialGoogleEmail={initialGoogleEmail} />;
   }
 
   return <div className="workspace-app">
@@ -502,7 +502,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
         <div className="sidebar-account-wrap" data-popover>
           <button
             className={`sidebar-account ${popover === "sidebarAccount" ? "sidebar-account-active" : ""}`}
-            onClick={isGuest ? () => setGuestMode(false) : () => setPopover(popover === "sidebarAccount" ? null : "sidebarAccount")}
+            onClick={isGuest ? () => setShowLogin(true) : () => setPopover(popover === "sidebarAccount" ? null : "sidebarAccount")}
             title={isGuest ? t("Public Access · Click to Sign In") : t("Account menu")}
             aria-expanded={popover === "sidebarAccount"}
             type="button"
@@ -573,7 +573,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
       </div>
     </aside>
     <div className="main-shell">
-      {guestMode && view !== "overview" && (
+      {isGuest && view !== "overview" && (
         <div className="guest-banner">
           <div className="guest-banner-lead">
             <span className="guest-banner-badge">{t("🚨 ACTIVE CIVIC CAMPAIGN")}</span>
@@ -632,7 +632,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
             <button
               type="button"
               className="topbar-login-btn"
-              onClick={() => setGuestMode(false)}
+              onClick={() => setShowLogin(true)}
             >
               <LogIn size={14} strokeWidth={2} />
               <span>{t("Member Login")}</span>
@@ -680,7 +680,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                 <button className="topbar-avatar" onClick={() => setPopover(popover === "account" ? null : "account")} aria-label={t("Open profile menu")}><Avatar person={user} size="small" /><ChevronDown size={12} /></button>
                 {popover === "account" && (
                   <div className="small-menu account-menu">
-                    <span className="menu-eyebrow">{guestMode ? t("GUEST VISITOR") : (t("LOGGED IN AS"))}</span>
+                    <span className="menu-eyebrow">{isGuest ? t("GUEST VISITOR") : (t("LOGGED IN AS"))}</span>
                     <strong>{user.fullName}</strong>
                     <small>{user.role === "admin" ? t("Unit executive") : roleName(user.role)} · {t(identity.unit)}</small>
                     <div className="account-version-note"><span>{t("App Release")}</span><strong>v{identity.version}</strong></div>
@@ -701,8 +701,8 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                     </button>
                     <button onClick={async () => {
                       setPopover(null);
-                      if (guestMode) {
-                        setGuestMode(false);
+                      if (isGuest) {
+                        setShowLogin(true);
                       } else {
                         await perform("logout", {});
                         try {
@@ -712,7 +712,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
                       }
                     }}>
                       <LogOut size={15} />
-                      {guestMode ? t("Log In") : t("Sign Out")}
+                      {isGuest ? t("Log In") : t("Sign Out")}
                       <ArrowUpRight size={13} />
                     </button>
                     <a href="https://breakthroughindia.org/" target="_blank" rel="noreferrer">
