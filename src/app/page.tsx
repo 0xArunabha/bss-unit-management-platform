@@ -1,7 +1,8 @@
 import { cookies, headers } from "next/headers";
 import { getWorkspace } from "@/lib/workspace";
 import Workspace from "@/components/workspace";
-import BootSplash from "@/components/boot-splash";
+import { Suspense } from "react";
+import BootSplash, { SplashReady } from "@/components/boot-splash";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 import { auth } from "@/lib/auth";
 import { db, isDatabaseConfigured } from "@/db";
@@ -12,7 +13,20 @@ import { LOCALE_COOKIE, parseLocale } from "@/lib/locale";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+// The splash is sent first, before the data below is ready, so it is already on screen while the server works.
+// <SplashReady /> tells it when the workspace has mounted and it can be revealed.
+export default function HomePage() {
+  return (
+    <>
+      <BootSplash />
+      <Suspense fallback={null}>
+        <Home />
+      </Suspense>
+    </>
+  );
+}
+
+async function Home() {
   let authenticatedUserId: string | null = null;
   let pendingGoogleEmail: string | null = null;
 
@@ -44,8 +58,8 @@ export default async function HomePage() {
   const data = await getWorkspace(authenticatedUserId || undefined);
   return (
     <>
-      <BootSplash />
       <Workspace initialData={data} initialGoogleEmail={pendingGoogleEmail} initialLocale={initialLocale} />
+      <SplashReady />
     </>
   );
 }

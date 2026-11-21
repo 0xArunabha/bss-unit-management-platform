@@ -1,7 +1,7 @@
 "use client";
 
 import { identity } from "@/lib/identity";
-import { ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, ReceiptText, Search, ShieldAlert, ShieldCheck, Smartphone, Users, X, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronUp, CircleAlert, CircleCheck, ClipboardCheck, Download, ExternalLink, Eye, FileText, Flame, FlaskConical, HeartHandshake, History, Info, KeyRound, Leaf, Lock, LogOut, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, Presentation, ReceiptText, Search, ShieldAlert, ShieldCheck, Smartphone, Sparkles, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { type WorkspaceData, type Procurement, type PerformAction, type UnitEvent } from "@/lib/types";
 import { Avatar, Badge, Button, EmptyState, PageHeading, SearchInput, Select, relativeTime } from "@/components/ui";
@@ -1175,7 +1175,7 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
         description={t("Curated repository of anti-superstition chemical demonstration scripts, convention presentation templates, and environmental campaign literature for {fullName}.", { fullName: t(identity.fullName) })}
       />
 
-      {/* Editorial Hero Feature: Conference Poster Archive & Constitutional Mandate */}
+      {/* Editorial Hero Feature: Anti-Superstition Lab Spotlight & Constitutional Mandate */}
       <section className="resources-editorial-hero panel print-tech-slip">
         <span className="print-mark print-mark-tl" />
         <span className="print-mark print-mark-tr" />
@@ -1183,37 +1183,115 @@ export function ResourcesView({ open, data }: { open: OpenModal; data?: Workspac
         <span className="print-mark print-mark-br" />
 
         <div className="hero-poster-col">
-          <div className="poster-frame">
-            <img src="/images/conference-poster.jpg" alt={t("All India Science Conference 2025 Original Poster")} />
-            <button className="poster-zoom-btn" onClick={() => open("resource", allResources.find((r) => r.id === "poster-2025") ?? resources.find((r) => r.id === "poster-2025"))}>
-              <Eye size={14} /> {t("Inspect High-Res Poster")}
+          <div className="lab-spotlight-frame">
+            <div className="lab-spotlight-image-wrap">
+              <img
+                src="/images/field-reports/club-room-dhiman-session/session-dhiman-sarkar-1.jpg"
+                alt={t("Field Science Repertoire & Demonstration Planning Session")}
+                onError={(e) => {
+                  e.currentTarget.src = "/images/science-march.jpg";
+                }}
+              />
+              <span className="lab-spotlight-badge">
+                <Sparkles size={11} />
+                {t("DEMO LAB SPOTLIGHT")}
+              </span>
+            </div>
+            <div className="lab-spotlight-caption">
+              <strong>{t("Miracle-Busting Field Lab")}</strong>
+              <p>{t("Chemical protocols & live science demonstrations curated for North Bengal schools & public rallies.")}</p>
+            </div>
+            <button
+              type="button"
+              className="lab-spotlight-btn"
+              onClick={() => {
+                setCategory("Demonstrations");
+                const el = document.querySelector(".demo-protocols-list");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <FlaskConical size={14} />
+              <span>{t("Browse 6 Chemical Scripts")}</span>
+              <ArrowDown size={13} />
             </button>
           </div>
         </div>
 
         <div className="hero-manifesto-col">
-          <div className="manifesto-eyebrow">
-            <span className="bengali-mark text-rust mr-2">{identity.bengali}</span>
-            <span>{t("ARTICLE 51A(h) · CONSTITUTION OF INDIA")}</span>
-          </div>
-          <h2>{t("“To develop the scientific temper, humanism and the spirit of inquiry and reform.”")}</h2>
-          <p>
-            {t("Breakthrough Science Society was established in 1995 as a voluntary movement to take the method of science directly to the common masses, question entrenched dogmas, and demand equitable public funding for basic research.")}
-          </p>
+          <div>
+            <div className="manifesto-eyebrow">
+              <span className="bengali-mark text-rust mr-2">{identity.bengali}</span>
+              <span>{t("CONSTITUTION OF INDIA · ARTICLE 51A(h)")}</span>
+              <span className="manifesto-duty-pill">{t("FUNDAMENTAL DUTY")}</span>
+            </div>
+            <h2>{t("“To develop the scientific temper, humanism and the spirit of inquiry and reform.”")}</h2>
+            <p className="manifesto-lead">
+              {t("Our Jalpaiguri unit equips teachers, student cadres, and citizens with reproducible laboratory evidence to systematically debunk godmen miracles, superstitious dogmas, and occult exploitation.")}
+            </p>
 
-          <div className="manifesto-meta-grid">
-            <div>
-              <small>{t("PARENT SOCIETY REGD.")}</small>
-              <strong className="mono">{identity.registrationNo}</strong>
+            <div className="manifesto-lab-grid">
+              <div className="manifesto-stat-card">
+                <span className="stat-card-icon text-rust">
+                  <FlaskConical size={16} />
+                </span>
+                <div>
+                  <strong>{t("6 Lab Protocols")}</strong>
+                  <small>{t("Reagents & step-by-step scripts")}</small>
+                </div>
+              </div>
+              <div className="manifesto-stat-card">
+                <span className="stat-card-icon text-olive">
+                  <ShieldCheck size={16} />
+                </span>
+                <div>
+                  <strong>{t("Safety Verified")}</strong>
+                  <small>{t("Non-toxic cadre safety rules")}</small>
+                </div>
+              </div>
+              <div className="manifesto-stat-card">
+                <span className="stat-card-icon text-ink">
+                  <BookOpen size={16} />
+                </span>
+                <div>
+                  <strong>{t("Open Literature")}</strong>
+                  <small>{t("Campaign toolkits & resolutions")}</small>
+                </div>
+              </div>
             </div>
-            <div>
-              <small>{t("UNIT JURISDICTION")}</small>
-              <strong>{t(identity.unit)} ({t(identity.state)})</strong>
-            </div>
-            <div>
-              <small>{t("FOUNDING YEAR")}</small>
-              <strong className="mono">{identity.established}</strong>
-            </div>
+          </div>
+
+          <div className="hero-manifesto-actions">
+            <Button
+              variant="primary"
+              icon={FlaskConical}
+              onClick={() => {
+                setCategory("Demonstrations");
+                const el = document.querySelector(".demo-protocols-list");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {t("Explore Demonstration Lab")}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={FileText}
+              onClick={() => {
+                const bill = allResources.find((r) => r.id === "anti-superstition-bill");
+                if (bill) open("resource", bill);
+              }}
+            >
+              {t("Model Anti-Superstition Bill")}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={Eye}
+              onClick={() => {
+                const poster = allResources.find((r) => r.id === "poster-2025");
+                if (poster) open("resource", poster);
+              }}
+            >
+              {t("Inspect Science Archive")}
+            </Button>
           </div>
         </div>
       </section>

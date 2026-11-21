@@ -14,11 +14,11 @@ const LOCALE_BOOT = `try{var m=document.cookie.match(/(?:^|; )${LOCALE_COOKIE}=(
 
 /*
  * Also before the first paint: decides whether the tea-brew loading screen (components/boot-splash.tsx, rendered by
- * app/page.tsx) plays.  It plays on the app's home page, once per browser tab session, unless the visitor prefers
- * reduced motion; add ?splash=1 to the address to replay it.  Everything else gets <html data-splash="skip"> so it
- * never flashes.
+ * app/page.tsx) plays.  It plays on the app's home page, once per browser tab session (visitors who prefer reduced
+ * motion get a still emblem instead of the animation); add ?splash=1 to the address to replay it.  Everything else
+ * gets <html data-splash="skip"> so it never flashes.
  */
-const SPLASH_BOOT = `try{var d=document.documentElement,s=0;try{s=sessionStorage.getItem("bss-splash")}catch(e){}if(location.pathname!=="/"||matchMedia("(prefers-reduced-motion: reduce)").matches||(s&&location.search.indexOf("splash=1")<0)){d.setAttribute("data-splash","skip")}else{try{sessionStorage.setItem("bss-splash","1")}catch(e){}}}catch(e){}`;
+const SPLASH_BOOT = `try{var d=document.documentElement,s=0;try{s=sessionStorage.getItem("bss-splash")}catch(e){}if(location.pathname!=="/"||(s&&location.search.indexOf("splash=1")<0)){d.setAttribute("data-splash","skip")}else{try{sessionStorage.setItem("bss-splash","1")}catch(e){}}}catch(e){}`;
 
 export const metadata: Metadata = {
   title: identity.title,
