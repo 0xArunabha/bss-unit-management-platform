@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { authClient } from "@/lib/auth-client";
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogIn, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, User, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Atom, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight, ChevronsUpDown, CircleCheck, CircleHelp, ClipboardList, CloudLightning, Command, ExternalLink, Flame, HeartHandshake, IdCard, KeyRound, LayoutDashboard, LogIn, LogOut, MapPin, Megaphone, Menu, Package, RefreshCw, Search, Settings, User, Users, Wallet, WifiOff, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type TouchEvent as ReactTouchEvent } from "react";
 import { type WorkspaceData, type View, type ActionResult, type Role } from "@/lib/types";
 import { enqueueOfflineAction, getPendingOfflineActions, subscribeOfflineQueue, syncOfflineQueue } from "@/lib/offline-queue";
@@ -60,7 +60,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
   const [eventFilter, setEventFilter] = useState("all");
   const [modal, setModal] = useState<ModalState>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [popover, setPopover] = useState<"notifications" | "account" | null>(null);
+  const [popover, setPopover] = useState<"notifications" | "account" | "sidebarAccount" | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -489,19 +489,86 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <p>{t("Built on curiosity.")}<br /><strong>{t("Powered by people.")}</strong></p>
           <span>{t("Taking science to Jalpaiguri, together.")}</span>
         </div>
-        <div className="sidebar-connection"><span className={`tiny-dot ${online ? "green" : "orange"}`} />{online ? (offlineCount > 0 ? t("{count} to sync", { count: offlineCount }) : t("Workspace online")) : t("Field offline queue")}{offlineCount > 0 ? <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {num(offlineCount)}</span> : <span className="sidebar-version-pill" title={t("Release: {releaseName} · Build {build}", { releaseName: t(identity.releaseName), build: identity.build })}>v{identity.version}</span>}</div>
-        <button
-          className="sidebar-account"
-          onClick={isGuest ? () => setGuestMode(false) : () => navigate("settings")}
-          title={isGuest ? t("Public Access · Click to Sign In") : undefined}
-        >
-          <Avatar person={user} />
-          <span>
-            <strong>{user.fullName}</strong>
-            <small>{isGuest ? t("Public Access · Click to Sign In") : (user.role === "admin" ? t("Unit Executive") : roleName(user.role))}</small>
-          </span>
-          {isGuest ? <LogIn size={15} /> : <ChevronRight size={15} />}
-        </button>
+        <div className="sidebar-connection">
+          <span className={`tiny-dot ${online ? "green" : "orange"}`} />
+          {online ? (offlineCount > 0 ? t("{count} to sync", { count: offlineCount }) : t("Workspace online")) : t("Field offline queue")}
+          {offlineCount > 0 ? (
+            <span className="demo-pill" style={{ background: "var(--rust, #1b4332)", color: "#fff" }}>⚡ {num(offlineCount)}</span>
+          ) : (
+            <span className="sidebar-version-pill" title={t("Release: {releaseName} · Build {build}", { releaseName: t(identity.releaseName), build: identity.build })}>v{identity.version}</span>
+          )}
+        </div>
+        <div className="sidebar-account-wrap" data-popover>
+          <button
+            className={`sidebar-account ${popover === "sidebarAccount" ? "sidebar-account-active" : ""}`}
+            onClick={isGuest ? () => setGuestMode(false) : () => setPopover(popover === "sidebarAccount" ? null : "sidebarAccount")}
+            title={isGuest ? t("Public Access · Click to Sign In") : t("Account menu")}
+            aria-expanded={popover === "sidebarAccount"}
+            type="button"
+          >
+            <Avatar person={user} />
+            <span>
+              <strong>{user.fullName}</strong>
+              <small>{isGuest ? t("Public Access · Click to Sign In") : (user.role === "admin" ? t("Unit Executive") : roleName(user.role))}</small>
+            </span>
+            {isGuest ? <LogIn size={15} /> : <ChevronsUpDown size={15} />}
+          </button>
+          {!isGuest && popover === "sidebarAccount" && (
+            <div className="small-menu sidebar-account-menu">
+              <span className="menu-eyebrow">{t("LOGGED IN AS")}</span>
+              <strong>{user.fullName}</strong>
+              <small>{user.role === "admin" ? t("Unit executive") : roleName(user.role)} · {t(identity.unit)}</small>
+              <div className="account-version-note">
+                <span>{t("App Release")}</span>
+                <strong>v{identity.version}</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopover(null);
+                  open("idCard", { member: user });
+                }}
+              >
+                <IdCard size={15} />
+                <span>{t("My Member ID Card")}</span>
+                <ArrowUpRight size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopover(null);
+                  navigate("settings");
+                }}
+              >
+                <Settings size={15} />
+                <span>{t("Account & Security")}</span>
+                <ArrowUpRight size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPopover(null);
+                  open("help");
+                }}
+              >
+                <CircleHelp size={15} />
+                <span>{t("Help & Shortcuts")}</span>
+                <ArrowUpRight size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setPopover(null);
+                  await fetch("/api/auth/sign-out", { method: "POST" }).catch(() => {});
+                  window.location.href = "/";
+                }}
+              >
+                <LogOut size={15} />
+                <span>{t("Sign Out")}</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
     <div className="main-shell">
