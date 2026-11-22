@@ -2,7 +2,7 @@
 
 import { identity } from "@/lib/identity";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Check, ChevronDown, CircleCheck, ClipboardList, FileText, HeartHandshake, MapPin, Megaphone, MessageCircle, Package, Pin, Plus, ShieldAlert, Users, Wallet, X, type LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { type WorkspaceData, type View, type UnitEvent, type Circular, type Procurement } from "@/lib/types";
 import { Avatar, Badge, Button, PageHeading, SectionTitle, ArrowLink, relativeTime } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
@@ -13,6 +13,19 @@ import { resources } from "@/lib/resources";
 
 export type OpenModal = (type: string, record?: unknown) => void;
 export type Navigate = (view: View, eventId?: string) => void;
+
+/** For a div that acts as a button: Enter or Space does what a click does, so it works from the keyboard too. */
+function pressable(action: () => void) {
+  return {
+    onClick: action,
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        action();
+      }
+    },
+  };
+}
 
 export function Overview({ data, navigate, open }: { data: WorkspaceData; navigate: Navigate; open: OpenModal }) {
   const { t, tx, num, money } = useI18n();
@@ -29,6 +42,8 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
   const isVolunteerOrOrganizer = userRole === "volunteer" || userRole === "organizer";
   const canCollect = ["admin", "organizer", "volunteer"].includes(userRole);
   const active = data.profiles.filter((p) => p.status === "active").length;
+  // public visitors receive a count instead of the member list
+  const memberTotal = data.memberCount ?? data.profiles.length;
   const ongoingCampaign = data.events.filter(isCampaignEvent).map(hydrateCampaignEvent).find((c) => c.isOngoing);
   const campaignEvents = data.events.filter(isCampaignEvent);
   const ongoingCount = campaignEvents.filter((c) => c.isOngoing).length;
@@ -87,7 +102,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         title={t("Unit overview")}
         description={
           isGuest
-            ? t("{count} advocates · {city}", { count: num(data.profiles.length), city: t(identity.city) })
+            ? t("{count} advocates · {city}", { count: num(memberTotal), city: t(identity.city) })
             : t("{count} members · {paid} of {count} dues paid this month", {
                 count: num(data.profiles.length),
                 paid: num(paidCount),
@@ -246,7 +261,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
         </section>
       ) : (
         <section className="executive-attention-strip" aria-label={t("Executive attention items")}>
-          <div className="attention-strip-card" onClick={() => navigate("dues")} role="button" tabIndex={0}>
+          <div className="attention-strip-card" {...pressable(() => navigate("dues"))} role="button" tabIndex={0}>
             <div className="attention-strip-icon tone-orange">
               <Wallet size={16} />
             </div>
@@ -264,7 +279,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           </div>
 
           {nextEvent ? (
-            <div className="attention-strip-card" onClick={() => open("event", nextEvent)} role="button" tabIndex={0}>
+            <div className="attention-strip-card" {...pressable(() => open("event", nextEvent))} role="button" tabIndex={0}>
               <div className="attention-strip-icon tone-blue">
                 <CalendarDays size={16} />
               </div>
@@ -279,7 +294,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
           ) : null}
 
           {latestCircular ? (
-            <div className="attention-strip-card" onClick={() => navigate("circulars")} role="button" tabIndex={0}>
+            <div className="attention-strip-card" {...pressable(() => navigate("circulars"))} role="button" tabIndex={0}>
               <div className="attention-strip-icon tone-sage">
                 <FileText size={16} />
               </div>
@@ -326,7 +341,7 @@ export function Overview({ data, navigate, open }: { data: WorkspaceData; naviga
             icon={Users}
             tone="sage"
             title={t("Citizen advocacy")}
-            value={t("{count} Members", { count: data.profiles.length })}
+            value={t("{count} Members", { count: memberTotal })}
             onClick={() => navigate("campaigns")}
           >
             <span className="stat-footnote">

@@ -80,6 +80,8 @@ export type WorkspaceData = {
   currentUserId: string;
   currentUserRole?: Role;
   openingBalance: number;
+  /** How many members the unit has: the only member figure public visitors get (they receive no member list). */
+  memberCount?: number;
   claimCodes?: ClaimCode[];
   applications?: MembershipApplication[];
 };

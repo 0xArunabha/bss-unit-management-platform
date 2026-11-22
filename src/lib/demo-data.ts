@@ -509,6 +509,7 @@ export function getDemoWorkspace(userId?: string): WorkspaceData {
       currentUserId: "",
       currentUserRole: "guest",
       openingBalance: 0,
+      memberCount: state.profiles.length,
     })) as WorkspaceData;
   }
 

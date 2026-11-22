@@ -45,6 +45,21 @@ function getOnlineServerSnapshot() {
   return true;
 }
 
+// The search shortcut is Cmd+K on Apple devices and Ctrl+K everywhere else (the key handler accepts both).
+function subscribeNothing() {
+  return () => {};
+}
+
+function getApplePlatform() {
+  if (typeof navigator === "undefined") return false;
+  const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || navigator.userAgent || "";
+  return /mac|iphone|ipad|ipod/i.test(platform);
+}
+
+function getApplePlatformServer() {
+  return false;
+}
+
 function subscribeStorage(callback: () => void) {
   window.addEventListener("storage", callback);
   return () => window.removeEventListener("storage", callback);
@@ -52,6 +67,7 @@ function subscribeStorage(callback: () => void) {
 
 function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: WorkspaceData; initialGoogleEmail?: string | null }) {
   const { locale, setLocale, t, tx, ts, tc, num, fmtDate, roleName } = useI18n();
+  const isApple = useSyncExternalStore(subscribeNothing, getApplePlatform, getApplePlatformServer);
   const identityRef = identity;
   const [data, setData] = useState(initialData);
   // What the screens show: the same data, with the app's own sample content and activity lines in the chosen language.
@@ -624,7 +640,7 @@ function WorkspaceInner({ initialData, initialGoogleEmail }: { initialData: Work
           <button className="global-search-button" onClick={() => setSearchOpen(true)}>
             <Search size={15} />
             <span>{t("Search the unit…")}</span>
-            <kbd><Command size={10} />K</kbd>
+            <kbd>{isApple ? <><Command size={10} />K</> : "Ctrl K"}</kbd>
           </button>
           <span className="topbar-date" suppressHydrationWarning>{fmtDate(new Date(), { weekday: "short", day: "numeric", month: "short" })}</span>
           <button className="icon-button help-topbar" aria-label={t("Workspace help")} title={t("Workspace help")} onClick={() => open("help")}><CircleHelp size={19} strokeWidth={1.5} /></button>

@@ -165,6 +165,7 @@ export async function getWorkspace(userId?: string): Promise<WorkspaceData> {
       currentUserId: "",
       currentUserRole: "guest",
       openingBalance: 0,
+      memberCount: people.length,
     })) as WorkspaceData;
   }
 
